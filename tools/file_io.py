@@ -99,6 +99,7 @@ def read_multiple_files(filepaths: list) -> dict:
         filepaths: A list of paths to the files.
 
     Returns:
+<<<<<<< HEAD
         A dictionary with 'status' and 'result' keys. 'result' is a dictionary mapping file paths to their content.
     """
     results = {}
@@ -112,3 +113,20 @@ def read_multiple_files(filepaths: list) -> dict:
     else:
         # If any file failed to read, return an error status with all results
         return {'status': 'error', 'result': results, 'message': 'One or more files could not be read.'}
+=======
+        A dictionary with status and a dictionary of file contents.
+    """
+    logging.info(f"Reading {len(filepaths)} files.")
+    content_map = {}
+    try:
+        for filepath in filepaths:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content_map[filepath] = f.read()
+        return {"status": "success", "result": content_map}
+    except FileNotFoundError as e:
+        logging.error(f"File not found during multi-read: {e.filename}")
+        return {"status": "error", "result": f"File not found: {e.filename}"}
+    except Exception as e:
+        logging.error(f"An error occurred while reading files: {e}")
+        return {"status": "error", "result": str(e)}
+>>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
