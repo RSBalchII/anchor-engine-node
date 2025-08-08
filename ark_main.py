@@ -1,27 +1,20 @@
-<<<<<<< HEAD
 # ark_main.py
 # Version 4.0: Multi-Model Plan-and-Execute Architecture
 # Author: Rob Balch II & Sybil
-
-import requests
-import json
-import re
-import traceback
-=======
 # ark_main.py (Refactored)
 # Description: Implements a plan-and-execute loop for The Ark.
 
 import requests
 import json
+import re
+import traceback
 import ast
 import re
 import logging
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
 from sybil_agent import SybilAgent
 
 # --- Configuration ---
 OLLAMA_URL = "http://localhost:11434/api/generate"
-<<<<<<< HEAD
 # Use a specialized model for planning and another for synthesis
 PLANNER_MODEL = "deepseek-r1:8b-0528-qwen3-q8_0" 
 SYNTHESIZER_MODEL = "samantha-mistral:7b"
@@ -42,7 +35,46 @@ PLANNER_PROMPT = """
 # - analyze_code(filepath: str)
 
 # EXAMPLE:
-=======
+# USER REQUEST: what is the weather in Paris and can you save this conversation?
+# YOUR PLAN:
+# ```json
+# [
+#     {{
+#         "reasoning": "Find the weather in Paris.",
+#         "tool_call": "web_search(query=\\"weather in Paris\\")"
+#     }},
+#     {{
+#         "reasoning": "Save the user's request to memory.",
+#         "tool_call": "store_memory(text_to_store=\\"what is the weather in Paris and can you save this conversation?\\")"
+#     }}
+# ]
+# ```
+
+# --- YOUR TURN ---
+
+# USER REQUEST: "{user_input}"
+# YOUR PLAN:
+"""
+
+SYNTHESIS_PROMPT = """
+You are Samantha, a helpful and empathetic AI assistant. Your only task is to synthesize the results of the executed plan into a single, natural, and conversational answer for your user, Rob.
+
+**IMPORTANT RULES:**
+1. You MUST base your answer ONLY on the information provided in the TOOL EXECUTION RESULTS.
+2. Address the output from EACH tool call to provide a complete answer.
+3. Speak naturally, as if you were having a real conversation.
+
+---
+**USER'S ORIGINAL REQUEST:**
+"{user_input}"
+
+---
+**TOOL EXECUTION RESULTS:**
+{tool_outputs}
+---
+
+Based on the results, provide a clear and friendly answer to Rob.
+"""
 OLLAMA_MODEL = "phi4-mini-reasoning:3.8b-q8_0" 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -66,7 +98,6 @@ PLANNER_PROMPT = """
 
 
 # EXAMPLE 1:
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
 # USER REQUEST: what is the weather in Paris and can you save this conversation?
 # YOUR PLAN:
 # ```json
@@ -82,8 +113,6 @@ PLANNER_PROMPT = """
 # ]
 # ```
 
-<<<<<<< HEAD
-=======
 # EXAMPLE 2:
 # USER REQUEST: Open the calculator app and type '2+2'.
 # YOUR PLAN:
@@ -112,34 +141,10 @@ PLANNER_PROMPT = """
 # ]
 # ```
 
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
 # --- YOUR TURN ---
 
 # USER REQUEST: "{user_input}"
 # YOUR PLAN:
-<<<<<<< HEAD
-"""
-
-SYNTHESIS_PROMPT = """
-You are Samantha, a helpful and empathetic AI assistant. Your only task is to synthesize the results of the executed plan into a single, natural, and conversational answer for your user, Rob.
-
-**IMPORTANT RULES:**
-1. You MUST base your answer ONLY on the information provided in the TOOL EXECUTION RESULTS.
-2. Address the output from EACH tool call to provide a complete answer.
-3. Speak naturally, as if you were having a real conversation.
-
----
-**USER'S ORIGINAL REQUEST:**
-"{user_input}"
-
----
-**TOOL EXECUTION RESULTS:**
-{tool_outputs}
----
-
-Based on the results, provide a clear and friendly answer to Rob.
-=======
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
 """
 
 def call_ollama(prompt: str) -> str | None:
@@ -201,9 +206,7 @@ def run_ark():
             user_input = input("Rob: ")
             if user_input.lower() in ['exit', 'quit']:
                 break
-<<<<<<< HEAD
             process_user_request(user_input, agent)
-=======
             
             logging.info("Sybil is generating a plan...")
             prompt = PLANNER_PROMPT.format(user_input=user_input)
@@ -242,12 +245,10 @@ def run_ark():
 
             print("\n--- Plan execution complete. ---")
 
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
         except KeyboardInterrupt:
             print("\nExiting.")
             break
         except Exception as e:
-<<<<<<< HEAD
             print(f"A critical error occurred in the main loop: {e}")
 
 def extract_json_from_response(response_text):
@@ -330,10 +331,8 @@ def call_ollama(prompt, model_name):
     response.raise_for_status()
     response_json = response.json()
     return response_json['response'].strip()
-=======
             logging.error(f"An unexpected error occurred in the main loop: {e}", exc_info=True)
             print("Sybil: I've run into an unexpected error. Please check the logs.")
->>>>>>> cb87af8d6bedd60419d7f147df2f2480bd118359
 
 if __name__ == "__main__":
     run_ark()
