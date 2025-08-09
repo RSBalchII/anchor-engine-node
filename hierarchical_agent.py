@@ -1,14 +1,10 @@
 import concurrent.futures
 import requests
 import json
-import logging
-import os
 
-# --- Configuration ---
+# Constants
 OLLAMA_URL = "http://localhost:11434/api/generate"
 TIER_3_MODEL = "deepseek-r1:1.5b-qwen-distill-q8_0"
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def run_worker_agent(task_prompt: str) -> str:
     """
@@ -26,15 +22,23 @@ def run_worker_agent(task_prompt: str) -> str:
             "prompt": task_prompt,
             "stream": False
         }
-        response = requests.post(OLLAMA_URL, json=payload, timeout=300) # Added timeout
+        response = requests.post(OLLAMA_URL, json=payload)
         response.raise_for_status()
 
-        # Simplified parsing for a non-streaming response
-        response_json = response.json()
-        if 'response' in response_json:
-            return response_json['response'].strip()
-        else:
-            return "Error: No 'response' field found in Ollama output."
+        # The response from Ollama is a stream of JSON objects, even with stream=False.
+        # We need to parse them and concatenate the 'response' field.
+        full_response = ""
+        for line in response.iter_lines():
+            if line:
+                try:
+                    json_line = json.loads(line)
+                    if 'response' in json_line:
+                        full_response += json_line['response']
+                except json.JSONDecodeError:
+                    # Ignore lines that are not valid JSON
+                    pass
+
+        return full_response.strip()
 
     except requests.exceptions.RequestException as e:
         return f"Error communicating with Ollama: {e}"
@@ -47,11 +51,11 @@ class SpecialistAgent:
     """
     def __init__(self):
         self.blackboard_path = "blackboard.md"
+        self.worker_crew = []
 
     def _synthesize_results(self, raw_results: list) -> str:
         """
         Synthesizes raw results from worker agents into a cohesive summary.
-        (This is a simple boilerplate for a full synthesis model.)
 
         Args:
             raw_results: A list of strings, where each string is a result from a worker.
@@ -64,32 +68,6 @@ class SpecialistAgent:
             synthesis += f"### Worker {i+1} Contribution\n"
             synthesis += f"{result}\n\n"
         return synthesis
-
-    def _manage_blackboard(self, new_content: str):
-        """
-        Appends new content to the blackboard and truncates it to a maximum size.
-        """
-        max_size = 5000 # Your defined max size in characters
-        
-        # Read existing content
-        if os.path.exists(self.blackboard_path):
-            with open(self.blackboard_path, "r") as f:
-                existing_content = f.read()
-        else:
-            existing_content = ""
-
-        # Combine old and new content
-        combined_content = existing_content + new_content
-
-        # Truncate if necessary
-        if len(combined_content) > max_size:
-            truncated_content = combined_content[-max_size:]
-        else:
-            truncated_content = combined_content
-        
-        # Write back to file
-        with open(self.blackboard_path, "w") as f:
-            f.write(truncated_content)
 
     def orchestrate_task(self, user_request: str) -> str:
         """
@@ -122,14 +100,16 @@ class SpecialistAgent:
                 except Exception as exc:
                     raw_results.append(f"'{prompt}' generated an exception: {exc}")
 
-        # 3. Append and truncate raw results in the blackboard file
-        new_blackboard_content = ""
-        new_blackboard_content += f"## Task: {user_request}\n\n"
-        for i, result in enumerate(raw_results):
-            new_blackboard_content += f"### Raw Result from Worker {i+1}\n"
-            new_blackboard_content += f"{result}\n\n"
-        
-        self._manage_blackboard(new_blackboard_content)
+        # 3. Append raw results to the blackboard file
+        try:
+            with open(self.blackboard_path, "a") as f:
+                f.write(f"## Task: {user_request}\n\n")
+                for i, result in enumerate(raw_results):
+                    f.write(f"### Raw Result from Worker {i+1}\n")
+                    f.write(f"{result}\n\n")
+        except IOError as e:
+            print(f"Error writing to blackboard file: {e}")
+
 
         # 4. Synthesize the results
         synthesized_result = self._synthesize_results(raw_results)
