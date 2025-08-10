@@ -1,3 +1,6 @@
+# agents/archivist_agent.py
+
+
 import concurrent.futures
 import requests
 import json
@@ -6,6 +9,7 @@ import os
 import random # Used for simulation
 import chromadb
 import uuid
+from tools.file_io import read_last_n_chars
 
 # --- Configuration ---
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -141,6 +145,22 @@ class ArchivistAgent:
             print(f"Archived chunk of {len(text_chunk)} characters.")
         except Exception as e:
             print(f"Error archiving memory chunk: {e}")
+
+    def archive_from_working_memory(self, working_memory_path: str, chars_to_archive: int):
+        """
+        Reads the last n characters from the working memory file and archives them.
+        """
+        print(f"Archiving last {chars_to_archive} characters from {working_memory_path}...")
+        
+        # Read the last n characters from the working memory file
+        content_to_archive = read_last_n_chars(working_memory_path, chars_to_archive)
+        
+        if content_to_archive:
+            # Archive the content using the existing method
+            self.archive_memory_chunk(content_to_archive)
+            print("Successfully archived content from working memory.")
+        else:
+            print("Working memory file is empty or could not be read. Nothing to archive.")
 
 if __name__ == "__main__":
     # --- Example Usage ---

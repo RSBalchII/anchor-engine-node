@@ -1,3 +1,5 @@
+# /tools/file_io.py
+
 """
 This module provides file I/O operations with a standardized dictionary response.
 """
@@ -84,12 +86,11 @@ def list_project_files(base_path: str = os.getcwd()) -> dict:
             for file in files:
                 if file not in exclude_files:
                     full_path = os.path.join(root, file)
-                    # Make paths relative to the base_path for cleaner output
                     relative_path = os.path.relpath(full_path, base_path)
                     file_list.append(relative_path)
         return {'status': 'success', 'result': file_list}
     except Exception as e:
-        return {'status': 'error', 'result': str(e)}
+        return {'status': 'error', 'description': str(e)}
 
 def read_multiple_files(filepaths: list) -> dict:
     """
@@ -99,19 +100,74 @@ def read_multiple_files(filepaths: list) -> dict:
         filepaths: A list of paths to the files.
 
     Returns:
-<<<<<<< HEAD
-        A dictionary with 'status' and 'result' keys. 'result' is a dictionary mapping file paths to their content.
+        A dictionary with 'status' and 'result' keys. 
+        If successful, 'result' is a flat string containing all results.
+        If error(s) occur, 'result' contains detailed error message.
     """
-    results = {}
-    for filepath in filepaths:
-        read_result = read_file(filepath)
-        results[filepath] = read_result
-    
-    # Check if all files were read successfully
-    if all(res.get('status') == 'success' for res in results.values()):
-        return {'status': 'success', 'result': results}
-    else:
-        # If any file failed to read, return an error status with all results
-        return {'status': 'error', 'result': results, 'message': 'One or more files could not be read.'}
+    try:
+        if not filepaths or Ellipsis in filepaths:
+            return {'status': 'error', 'description': 'Invalid or empty filepaths'}
+            
+        results = []
+        for filepath in filepaths:
+            if isinstance(filepath, str):
+                read_result = read_file(filepath)
+                if read_result['status'] == 'success':
+                    results.append(f"File {filepath}:\n{read_result['result']}\n")
+                else:
+                    return {'status': 'error', 'description': f"Failed to read file {filepath}: {read_result.get('result', 'Unknown error')}"}
+        final_result = "\n".join(results)
+        return {'status': 'success', 'result': final_result}
+
+    except ValueError as ve:
+        return {'status': 'error', 'description': str(ve)}
+    except Exception as e:
+        return {'status': 'error', 'description': f"Unexpected error while reading files: {str(e)}"}
+
+def read_last_n_chars(filepath: str, n: int) -> str:
+    """
+    Reads and returns the last n characters of a file.
+    Handles files smaller than n characters gracefully.
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            f.seek(0, os.SEEK_END)
+            file_size = f.tell()
+            f.seek(max(0, file_size - n))
+            return f.read()
+    except FileNotFoundError:
+        return "" # Return empty string if file doesn't exist, as per robust design
+
+def write_and_truncate(filepath: str, content: str, max_size: int):
+    """
+    Appends content to a file and then truncates the oldest content 
+    to stay within the max_size limit.
+    """
+    try:
+        # First, ensure the directory exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Read existing content
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                existing_content = f.read()
+        else:
+            existing_content = ""
+        
+        # Combine and truncate
+        combined_content = existing_content + content
+        if len(combined_content) > max_size:
+            truncated_content = combined_content[-max_size:]
+        else:
+            truncated_content = combined_content
+            
+        # Write back the result
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(truncated_content)
+            
+    except Exception as e:
+        # In a real application, you'd want more specific error handling
+        # and possibly logging. For this example, we'll just print.
+        print(f"Error in write_and_truncate: {e}")
 
 

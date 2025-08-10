@@ -1,3 +1,5 @@
+# /tools/gui_automation.py
+
 """
 This module provides GUI automation functionalities using the pyautogui library.
 """

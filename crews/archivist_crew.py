@@ -8,8 +8,8 @@ from ollama import Client
 # The Archivist Crew will use DeepSeek-Coder-v2 for all its sub-tasks.
 # This model has a massive context window and is an expert at code and data analysis,
 # making it the ideal choice for compressing and analyzing conversation data.
-TECHNICAL_MODEL = "deepseek-coder-v2:16b-lite-instruct-q4_0"
-SYNTHESIS_MODEL = "deepseek-coder-v2:16b-lite-instruct-q4_0"
+TECHNICAL_MODEL = "phi3:3.8b-mini-128k-instruct-q8_0"
+SYNTHESIS_MODEL = "phi3:3.8b-mini-128k-instruct-q8_0"
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

@@ -8,8 +8,8 @@ from tools.file_io import list_project_files, read_multiple_files
 from tools.web_search import web_search
 from tools.code_analyzer import analyze_code
 from tools.memory_tool import store_memory, retrieve_similar_memories
-from tools.vision_tool import analyze_screen
-from tools.gui_automation_tool import move_mouse, click_mouse, type_text
+# from tools.vision_tool import analyze_screen
+# from tools.gui_automation_tool import move_mouse, click_mouse, type_text
 from crews.archivist_crew import run_archivist_crew
 from tools.cognitive_editor import WorkingMemoryManager # New: Import the memory manager
 
@@ -26,10 +26,10 @@ class SybilAgent:
             "web_search": web_search,
             "store_memory": store_memory,
             "retrieve_similar_memories": retrieve_similar_memories,
-            "analyze_screen": analyze_screen,
-            "move_mouse": move_mouse,
-            "click_mouse": click_mouse,
-            "type_text": type_text,
+            # "analyze_screen": analyze_screen,
+            # "move_mouse": move_mouse,
+            # "click_mouse": click_mouse,
+            # "type_text": type_text,
             "run_archivist_crew": run_archivist_crew,
         }
 
