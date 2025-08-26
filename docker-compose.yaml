@@ -11,7 +11,7 @@ services:
       - ./:/app
       # Mount your models directory from the host to /models in the container
       # IMPORTANT: You MUST change 'C:pathonhosttomodels' to the actual path where you store your LLM files.
-      - C:pathonhosttomodels:/models
+      - C:\Users\rsbiiw\models
     deploy:
       resources:
         reservations:
