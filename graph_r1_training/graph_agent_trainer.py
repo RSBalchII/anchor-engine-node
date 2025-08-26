@@ -1,14 +1,30 @@
 import sys
+
+
+
+
+
+
+
+
+
 import os
-import pandas as pd
-import random
+from typing import List, Dict
 
-# Add the project root for absolute imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+def list_all_files(base_path: str = os.getcwd()) -> Dict[str, List]:
+    """Lists all files in the project directory, including subdirectories."""
+    file_paths: List[str] = []
 
-from graph_r1_training.graph_agent import QLearningAgent
-from injector.graph_injector import GraphInjector # Corrected import path
+    def traverse(directory):
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            if os.path.isdir(item_path):
+                traverse(item_path)  # Recurse into subdirectories
+            elif not any(item.startswith('.') or item in ['__pycache__', 'chroma_data', 'venv', 'node_modules', '.vscode', '.idea']):
+                file_paths.append(item_path)
 
+    traverse(base_path)
+    return {'status': 'success', 'result': file_paths}
 # --- Hyperparameters ---
 NUM_EPISODES = 500
 MAX_STEPS_PER_EPISODE = 20
