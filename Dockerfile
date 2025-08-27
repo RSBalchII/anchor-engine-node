@@ -14,6 +14,13 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
 # We install vllm first as it has complex dependencies
 RUN pip install vllm
 
+# Copy our project's requirements file
+COPY requirements.txt .
+
+# Install the rest of our project dependencies using UV
+RUN pip install "uv>=0.1.30"
+RUN uv pip install -r requirements.txt
+
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -21,9 +28,5 @@ WORKDIR /app
 # This is mainly for building the image, the volume mount will override this at runtime
 COPY . .
 
-# Install the rest of our project dependencies using UV
-RUN pip install "uv>=0.1.30"
-RUN uv pip install --system -r requirements.txt
-
 # Command to keep the container running
-CMD ["tail", "-f", "/dev/null"]
+CMD ["tail", "-f", "/dev/null"] 
