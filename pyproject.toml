@@ -25,8 +25,13 @@ packages = [
     { include = "agents" },
     { include = "chimaera" },
     { include = "crews" },
+<<<<<<< HEAD
     { include = "graph_r1_training" },
     { include = "tools" },
+=======
+    { include = "tools" },
+    { include = "graph_r1_training" },
+>>>>>>> 65d9beb8d0bc052adc1126a7a04d7db5b5ed5052
 ]
 
 [build-system]
