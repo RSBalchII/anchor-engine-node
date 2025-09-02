@@ -1,0 +1,6 @@
+youtu-agent@ git+https://github.com/Tencent/Youtu-agent.git
+python-dotenv
+pyyaml
+neo4j
+ollama
+pydantic

@@ -1,56 +1,82 @@
 # config.yaml
 # Main configuration for the External Context Engine (ECE) using the Youtu-agent framework.
+# Version 2.0 with Decision Tree for Schema-Guided Reasoning.
 
 # === LLM Backend Configuration ===
-# Defines the language model that will power the agents.
-# We'll start with a local Ollama model for speed and sovereignty.
 llm:
   provider: ollama
   config:
-    model: "deepseek-coder:6.7b"
-    # You can add other Ollama parameters here if needed, e.g., temperature.
+    model: "deepseek-r1:14b-qwen-distill-q4_K_M"
 
 # === Agent Definitions ===
-# This section defines each agent in our architecture.
 
 OrchestraAgent:
   name: "Orchestrator"
-  role: "Central coordinator for the ECE."
+  role: "Central coordinator for the ECE, using a decision tree for transparent reasoning."
   goal: >
-    Receive user requests, understand intent, and delegate tasks to the appropriate specialist agents
-    (Distiller, Archivist, Extractor, Injector) to fulfill the request.
-  # The Orchestrator will have access to all other agents as its "tools".
+    Receive a user request, classify its intent using the decision tree, and then
+    delegate the task to the appropriate specialist agent or tool.
+
+  # The SGR Decision Tree defines the Orchestrator's reasoning process.
+  decision_tree:
+    - intent: "Memory Storage"
+      keywords: ["remember", "archive", "save this", "store this", "distill"]
+      description: "User wants to store information in the long-term memory."
+      action_plan:
+        - "Use DistillerAgent to summarize the raw text."
+        - "Use ArchivistAgent to persist the structured summary to the knowledge graph."
+    - intent: "Memory Retrieval"
+      keywords: ["what do you know", "find", "search for", "tell me about", "what was"]
+      description: "User wants to retrieve information from long-term memory."
+      action_plan:
+        - "Use ExtractorAgent with the user's question to query the knowledge graph."
+    - intent: "Graph Optimization"
+      keywords: ["optimize yourself", "run analysis", "improve the graph", "inject"]
+      description: "User wants to trigger a long-running graph optimization process."
+      action_plan:
+        - "Use InjectorAgent to begin the asynchronous analysis."
+    - intent: "Complex Reasoning"
+      keywords: ["analyze", "evaluate", "plan", "what if", "strategize"]
+      description: "User has a complex query that requires deep thought or planning."
+      action_plan:
+        - "Delegate the task to a specialized Thinker Agent." # Placeholder for HRM
+    - intent: "Default"
+      description: "A general conversational query."
+      action_plan:
+        - "Respond directly using the core LLM."
+
   tools:
     - DistillerAgent
     - ArchivistAgent
     - ExtractorAgent
     - InjectorAgent
 
+# --- Specialist Agent/Tool Definitions ---
+
 DistillerAgent:
   name: "Distiller"
   role: "Raw Data Analysis Agent"
   goal: >
     Analyze raw, unstructured session logs and conversation transcripts to identify and
-    summarize high-coherency insights and key conceptual relationships.
+    summarize high-coherency insights and key conceptual relationships in a structured format.
 
 ArchivistAgent:
   name: "Archivist"
   role: "Knowledge Graph Persistence Agent"
   goal: >
-    Take the distilled insights from the DistillerAgent and persist them into the
-    Neo4j knowledge graph, creating and updating nodes and relationships.
+    Take structured data (JSON) and persist it into the Neo4j knowledge graph,
+    creating and updating nodes and relationships.
 
 ExtractorAgent:
   name: "Extractor"
   role: "Knowledge Retrieval Agent"
   goal: >
-    Receive specific queries from the Orchestrator, traverse the Neo4j knowledge graph
-    to find the most relevant information, and return it as a structured context.
+    Receive a specific query, traverse the Neo4j knowledge graph to find the most
+    relevant information, and return it as a structured context.
 
 InjectorAgent:
   name: "Injector"
   role: "Graph Optimization & RL Agent"
   goal: >
-    Periodically analyze the knowledge graph to identify areas for optimization.
-    Use reinforcement learning techniques to infer new connections and refine existing
-    relationships to improve the graph's overall utility.
+    Periodically analyze the knowledge graph to identify areas for optimization and
+    use reinforcement learning to infer new connections.

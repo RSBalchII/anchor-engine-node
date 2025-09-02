@@ -1,34 +1,24 @@
 [project]
 name = "external-context-engine"
 version = "0.1.0"
-description = ""
+description = "An external context engine for LLMs using the Youtu-agent framework."
 authors = [
-    {name = "RSBalchII",email = "robertbalchii@gmail.com"}
+    {name = "Rob Balch II", email = "robert.balch.ii@gmail.com"},
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "requests (>=2.32.4,<3.0.0)",
-    "beautifulsoup4 (>=4.13.4,<5.0.0)",
-    "ddgs (>=9.5.2,<10.0.0)",
-    "sentence-transformers (>=5.1.0,<6.0.0)",
-    "chromadb-client (>=1.0.15,<2.0.0)",
-    "duckduckgo-search (>=8.1.1,<9.0.0)",
-    "onnx (>=1.18.0,<2.0.0)",
-    "onnxruntime (>=1.18.0,<2.0.0)",
-    "ollama (>=0.2.1,<1.0.0)",
-    "pyautogui (>=0.9.54,<1.0.0)",
-]
-
-[tool.poetry]
-packages = [
-    { include = "agents" },
-    { include = "chimaera" },
-    { include = "crews" },
-    { include = "graph_r1_training" },
-    { include = "tools" },
+    "youtu-agent @ git+https://github.com/Tencent/Youtu-agent.git",
+    "python-dotenv",
+    "pyyaml",
+    "neo4j",
+    "ollama",
+    "pydantic",
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

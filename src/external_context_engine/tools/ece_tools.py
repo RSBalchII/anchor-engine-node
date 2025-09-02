@@ -1,11 +1,11 @@
-# tools/ece_tools.py
-# This file contains the implementation of the core tools for the
-# External Context Engine (ECE), used by the OrchestraAgent.
+# src/tools/ece_tools.py
+# This file contains the implementation of the core tools for the ECE.
 
 import json
-from youtu_agent.tool import Tool
+from utu.tools.base import Tool # <-- CORRECTED IMPORT
 from pydantic import BaseModel, Field
-from utils.db_manager import db_manager # <-- IMPORT our new DB manager
+# Corrected relative import for src-layout
+from ..utils.db_manager import db_manager
 
 # === Input Schemas for Tools ===
 # Using Pydantic models to define clear, validated input schemas for each tool.
