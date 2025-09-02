@@ -1,14 +1,18 @@
-requests==2.32.4
-beautifulsoup4==4.13.4
-ddgs==9.5.2
-sentence-transformers==5.1.0
-duckduckgo-search==8.1.1
-onnx==1.18.0
-onnxruntime==1.18.0
-ollama==0.2.1
-pyautogui==0.9.54
-redis==5.0.7
-pytest==8.3.2
-git+https://github.com/LHRLAB/Graph-R1.git#egg=verl
-aioboto3
-openai
+# requirements.txt
+# Dependencies for the Chimaera ECE (Youtu-agent refactor)
+
+# Core agent framework
+youtu-agent
+
+# For loading configuration from .env files (good practice for API keys)
+python-dotenv
+
+# For parsing the config.yaml file
+pyyaml
+
+# For interacting with the Neo4j knowledge graph
+neo4j
+
+# For local LLM serving
+ollama
+pydantic
