@@ -602,6 +602,24 @@ This document provides a comprehensive, prioritized task list for implementing t
   - **Dependencies**: TASK-055
   - **Output**: Feedback system
 
+- [ ] **TASK-076** | P0 | M | Create data ingestion script
+  - Develop `ingest_training_data.py`
+  - Use `ArchivistAgent` to ingest data
+  - **Dependencies**: ArchivistAgent, Neo4j
+  - **Output**: Data ingested into Neo4j
+
+- [ ] **TASK-077** | P0 | L | Create Q-Learning training script
+  - Develop `train_q_agent.py`
+  - Manage RL loop and Q-table updates
+  - **Dependencies**: QLearningGraphAgent, Neo4j
+  - **Output**: Trained Q-table saved
+
+- [ ] **TASK-078** | P0 | XL | Create end-to-end integration test
+  - Develop `test_end_to_end_integration.py`
+  - Simulate user query and validate full workflow
+  - **Dependencies**: Orchestrator, ArchivistAgent, QLearningGraphAgent
+  - **Output**: End-to-end system validation
+
 ---
 
 ## 📊 Task Summary

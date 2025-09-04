@@ -1,3 +1,4 @@
+# TASK-009: Create agent configuration
 # Orchestrator - The main orchestrator model for high-level coordination
 STRATEGIST_MODEL = 'mistral-nemo:12b-instruct-2407-q8_0'
 

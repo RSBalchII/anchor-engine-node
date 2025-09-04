@@ -1,0 +1,354 @@
+generated_by: spec_index.py
+generated_at: '2025-09-04T14:17:04.196854+00:00'
+tasks:
+- task_id: TASK-001
+  spec_ref: tasks.md
+  code_globs:
+    - docker-compose.yaml
+    - src/external_context_engine/memory_management/neo4j_manager.py
+  test_globs:
+    - tests/test_graph_db.py
+- task_id: TASK-002
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-003
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-004
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-005
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-006
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/archivist_agent.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-007
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/services/llm_service.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-008
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/orchestrator.py
+  test_globs:
+    - tests/test_orchestrator.py
+- task_id: TASK-009
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/config.py
+  test_globs:
+    - tests/test_orchestrator.py
+- task_id: TASK-010
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/models/memory_context.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-011
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/api/memory_endpoints.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-012
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/api/memory_endpoints.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-013
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/api/memory_endpoints.py
+  test_globs:
+    - tests/test_graph_db.py
+- task_id: TASK-014
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/api/memory_endpoints.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-015
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/api/memory_endpoints.py
+  test_globs:
+    - tests/test_archivist_agent.py
+- task_id: TASK-016
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-017
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-018
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-019
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-020
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-021
+  spec_ref: tasks.md
+  code_globs:
+    - src/external_context_engine/memory_management/agents/q_learning_agent.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-022
+  spec_ref: tasks.md
+  code_globs:
+    - scripts/setup_gpu.py
+  test_globs:
+    - tests/test_q_learning_agent.py
+- task_id: TASK-023
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-024
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-025
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-026
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-027
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-028
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-029
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-030
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-031
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-032
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-033
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-034
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-035
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-036
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-037
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-038
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-039
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-040
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-041
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-042
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-043
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-044
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-045
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-046
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-047
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-048
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-049
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-050
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-051
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-052
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-053
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-054
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-055
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-056
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-057
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-058
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-059
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-060
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-061
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-062
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-063
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-064
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-065
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-066
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-067
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-068
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-069
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-070
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-071
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-072
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-073
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-074
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-075
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-076
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-077
+  spec_ref: tasks.md
+  code_globs: []
+  test_globs: []
+- task_id: TASK-078
+  spec_ref: tasks.md
+  code_globs:
+    - tests/test_end_to_end_integration.py
+  test_globs: []
+notes: code_globs and test_globs can be refined manually if needed.

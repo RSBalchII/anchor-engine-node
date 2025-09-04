@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: require-task-id
+        name: Require TASK ID in commit message
+        entry: python scripts/hooks/require_task_id.py
+        language: system
+        stages: [commit-msg]
+
+      - id: spec-index
+        name: Spec Index
+        entry: .venv/bin/python scripts/spec_index.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: spec-validate
+        name: Spec Validate (staged changes)
+        entry: .venv/bin/python scripts/spec_validate.py --report
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+

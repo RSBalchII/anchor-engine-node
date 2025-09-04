@@ -21,6 +21,7 @@ command_exists() {
 }
 
 # Function to wait for service
+# Uses Python socket instead of netcat for better portability
 wait_for_service() {
     local service=$1
     local port=$2
@@ -28,7 +29,7 @@ wait_for_service() {
     local attempt=1
     
     echo -e "${YELLOW}Waiting for $service on port $port...${NC}"
-    while ! nc -z localhost $port 2>/dev/null; do
+    while ! python3 -c "import socket; s = socket.socket(); result = s.connect_ex(('localhost', $port)); s.close(); exit(0 if result == 0 else 1)" 2>/dev/null; do
         if [ $attempt -eq $max_attempts ]; then
             echo -e "${RED}$service failed to start on port $port${NC}"
             return 1
@@ -103,7 +104,14 @@ if [ ! -d ".venv" ]; then
 fi
 
 # Activate virtual environment
-source .venv/bin/activate
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+elif [ -f ".venv/Scripts/activate" ]; then
+    source .venv/Scripts/activate
+else
+    echo -e "${RED}Error: Could not find virtual environment activation script.${NC}"
+    exit 1
+fi
 
 # Upgrade pip
 pip install --quiet --upgrade pip

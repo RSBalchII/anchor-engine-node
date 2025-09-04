@@ -1,3 +1,9 @@
+# TASK-016: Create Q-Learning Agent class
+# TASK-017: Implement Q-Table management
+# TASK-018: Develop graph traversal algorithms
+# TASK-019: Create training pipeline
+# TASK-020: Add Q-Table update mechanism
+# TASK-021: Implement path optimization
 """
 Q-Learning Agent Implementation
 

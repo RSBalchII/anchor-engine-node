@@ -1,6 +1,9 @@
+# TASK-008: Update Orchestrator agent router
 # src/external_context_engine/orchestrator.py
 
 import yaml
+from src.external_context_engine.memory_management.agents.archivist_agent import EnhancedArchivistAgent
+from src.external_context_engine.memory_management.agents.q_learning_agent import QLearningGraphAgent
 
 class Orchestrator:
     """
@@ -8,18 +11,37 @@ class Orchestrator:
     Manages the flow of control and delegates tasks to specialized agents
     based on the intent derived from the user prompt.
     """
-    def __init__(self, config):
+    def __init__(self, config, archivist_agent: EnhancedArchivistAgent, q_learning_agent: QLearningGraphAgent):
         """
-        Initializes the Orchestrator with a configuration.
+        Initializes the Orchestrator with a configuration and agent instances.
 
         Args:
             config (dict): The configuration dictionary, expected to contain
                            a 'decision_tree'.
+            archivist_agent: An instance of EnhancedArchivistAgent.
+            q_learning_agent: An instance of QLearningGraphAgent.
         """
         print("Orchestrator Initialized with local SGR implementation.")
         if 'decision_tree' not in config:
             raise ValueError("Configuration must contain a 'decision_tree'.")
         self.decision_tree = config['decision_tree']
+        self.archivist_agent = archivist_agent
+        self.q_learning_agent = q_learning_agent
+
+    async def _execute_agent_plan(self, intent: str, user_prompt: str):
+        """
+        Executes the appropriate agent based on the matched intent.
+        """
+        if intent == "QueryMemory": # Example intent
+            # Assuming process_query takes the raw user prompt
+            return await self.archivist_agent.process_query(user_prompt)
+        elif intent == "TrainQLAgent": # Example intent
+            # This would typically be an offline process, but for demonstration
+            # we can imagine a simplified online training trigger.
+            # For now, just return a placeholder.
+            return {"status": "QLearning agent training triggered (placeholder)"}
+        else:
+            return {"status": f"No specific agent action for intent: {intent}"}
 
     async def run(self, user_prompt, execute_agents=True):
         """

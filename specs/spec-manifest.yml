@@ -1,0 +1,44 @@
+version: 1
+generated_by: spec_index.py
+generated_at: '2025-09-04T14:17:04.138933+00:00'
+documents:
+- path: README.md
+  title: Spec Package Index
+  sha256: f3399c75c0a8eb23d10365925f705c546b087375f0a88f4c0140ad2f85e078ca
+  lines: 16
+  approved: false
+- path: memory-management-system/README.md
+  title: ECE Memory Management System - Specification Package
+  sha256: d95ede1912e25fb814c3bdae08432d7849459957443e13795cac7a8a4a6fa49d
+  lines: 266
+  approved: false
+- path: memory-management-system/current-state-analysis.md
+  title: External Context Engine (ECE) - Current State Analysis
+  sha256: 676b32fcd7c6fe77ddd905019d453eac0883cb43aff45177e5b1b1ce3d9df0a2
+  lines: 214
+  approved: false
+- path: memory-management-system/feature-spec.md
+  title: 'Feature Specification: Archivist Agent & Query Interface'
+  sha256: 84f77637fa0d3d11793045e2577cae7ccd6d8528b271e8d41aa32f7390514864
+  lines: 412
+  approved: false
+- path: memory-management-system/implementation-plan.md
+  title: 'Technical Implementation Plan: ECE Memory Management System'
+  sha256: eee8e1d4926894dc0ccdd79c77e7d7cfa5ba4badb598e47c16da317e8dec0749
+  lines: 674
+  approved: false
+- path: memory-management-system/implementation-roadmap.md
+  title: 'Implementation Roadmap: ECE Memory Management System'
+  sha256: 18602cef6e65aa4fb0085ee392049aefb1995e33912e1e4f5efb6acbe9953908
+  lines: 518
+  approved: false
+- path: memory-management-system/tasks.md
+  title: 'Task Breakdown: ECE Memory Management System'
+  sha256: 00f02749052e45e7af66dcc3b84aaaf8774057830b3be1539a73310f5d69a32c
+  lines: 682
+  approved: true
+- path: memory-management-system/validation-report.md
+  title: 'Specification Validation Report: ECE Memory Management System'
+  sha256: d560fd31305d304c5960a1bc9b8af582f61d1dbbe7790d20c64ffd50148be489
+  lines: 290
+  approved: false
