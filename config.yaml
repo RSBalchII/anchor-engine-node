@@ -1,0 +1,89 @@
+# External Context Engine Configuration
+
+# Orchestrator configuration
+orchestrator:
+  # Decision tree for routing tasks to appropriate agents
+  decision_tree:
+    # Intents and their corresponding agents
+    intents:
+      web_search:
+        agent: WebSearchAgent
+        keywords:
+          - search
+          - find
+          - lookup
+          - research
+          - google
+      multi_modal_processing:
+        agent: MultiModalIngestionAgent
+        keywords:
+          - image
+          - video
+          - document
+          - pdf
+          - media
+      coherence_check:
+        agent: CoherenceAgent
+        keywords:
+          - coherence
+          - consistency
+          - flow
+          - readability
+      safety_check:
+        agent: SafetyAgent
+        keywords:
+          - safety
+          - appropriate
+          - filter
+          - moderation
+      distill_text:
+        agent: DistillerAgent
+        keywords:
+          - distill
+          - extract
+          - entities
+          - relationships
+          - structure
+          - summarize
+      inject_context:
+        agent: InjectorAgent
+        keywords:
+          - inject
+          - insert
+          - add to knowledge base
+          - integrate
+          - incorporate
+
+    # Default agent when no specific intent is matched
+    default_agent: WebSearchAgent
+
+# Agent configurations
+agents:
+  WebSearchAgent:
+    enabled: true
+    api_key: "YOUR_SEARCH_API_KEY"
+    max_results: 10
+    
+  MultiModalIngestionAgent:
+    enabled: true
+    supported_formats:
+      - image/jpeg
+      - image/png
+      - video/mp4
+      - application/pdf
+    max_file_size: "10MB"
+    
+  CoherenceAgent:
+    enabled: true
+    model: "gpt-3.5-turbo"
+    threshold: 0.8
+    
+  SafetyAgent:
+    enabled: true
+    model: "content-filter-safe"
+    threshold: 0.9
+
+# Logging configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
