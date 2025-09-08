@@ -1,4 +1,3 @@
-
 # Archivist Agent - tasks.md
 
 This document breaks down the work required to implement the `Archivist` agent.
@@ -15,9 +14,9 @@ This document breaks down the work required to implement the `Archivist` agent.
 
 -   [x] **Task 2.1: QLearningAgent Integration**
     -   Implement the internal client logic to call the `QLearningAgent`'s `find_optimal_path` method.
--   [ ] **Task 2.2: Injector Integration**
+-   [x] **Task 2.2: Injector Integration**
     -   Implement the internal client logic to call the `Injector`'s `receive_data_for_injection` method.
--   [ ] **Task 2.3: Distiller Integration**
+-   [x] **Task 2.3: Distiller Integration**
     -   Implement the internal API endpoint to receive structured data from the `Distiller`.
 
 ### Phase 3: Core Logic & Testing
