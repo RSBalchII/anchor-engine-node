@@ -74,18 +74,55 @@ async def receive_data_for_injection(data: InjectionData):
             "summary": data.summary
         }
         
+        # Log the data being sent to the injector agent
+        logger.debug(f"Data to send to injector agent: {data_dict}")
+        logger.debug(f"Data dict type: {type(data_dict)}")
+        
+        # Check if injector_agent is properly initialized
+        if not hasattr(injector_agent, 'receive_data_for_injection'):
+            logger.error("injector_agent does not have receive_data_for_injection method")
+            raise HTTPException(status_code=500, detail="Injector agent not properly initialized")
+        
+        # Check if receive_data_for_injection is callable
+        if not callable(getattr(injector_agent, 'receive_data_for_injection', None)):
+            logger.error("injector_agent.receive_data_for_injection is not callable")
+            raise HTTPException(status_code=500, detail="Injector agent method not callable")
+        
         # Call the injector agent to process the data
+        logger.info("Calling injector_agent.receive_data_for_injection")
         result = injector_agent.receive_data_for_injection(data_dict)
+        logger.info(f"Received result from injector_agent: {result}")
+        logger.debug(f"Result type: {type(result)}")
+        
+        # Check if result is a dict
+        if not isinstance(result, dict):
+            logger.error(f"Expected dict from injector_agent.receive_data_for_injection, got {type(result)}: {result}")
+            raise HTTPException(status_code=500, detail=f"Unexpected result type from injector agent: {type(result)}")
         
         if result.get("success"):
             logger.info("Data successfully injected")
             return {"status": "processed", "message": "Data injected successfully"}
         else:
-            logger.error(f"Failed to inject data: {result.get('error')}")
-            raise HTTPException(status_code=500, detail=f"Failed to inject data: {result.get('error')}")
+            error_msg = result.get('error', 'Unknown error')
+            logger.debug(f"error_msg: {error_msg}, type: {type(error_msg)}")
+            # Check if error_msg is callable (it shouldn't be)
+            if callable(error_msg):
+                logger.error("error_msg is callable, which is unexpected")
+                raise HTTPException(status_code=500, detail="error_msg is callable")
+            logger.error(f"Failed to inject data: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to inject data: {error_msg}")
+    except HTTPException:
+        # Re-raise HTTP exceptions directly
+        raise
     except Exception as e:
-        logger.error(f"Error processing injection data: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error processing injection data: {str(e)}", exc_info=True)
+        error_str = str(e)
+        logger.debug(f"error_str: {error_str}, type: {type(error_str)}")
+        # Check if error_str is callable (it shouldn't be)
+        if callable(error_str):
+            logger.error("error_str is callable, which is unexpected")
+            raise HTTPException(status_code=500, detail="error_str is callable")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {error_str}")
 
 # Cleanup on shutdown
 @app.on_event("shutdown")

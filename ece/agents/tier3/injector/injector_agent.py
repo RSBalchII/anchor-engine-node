@@ -49,6 +49,7 @@ class InjectorAgent:
         """
         # Log the incoming data (at debug level to avoid logging sensitive information in production)
         logger.debug(f"Received data for injection: {type(data)}")
+        logger.debug(f"Data content: {data}")
         
         # Validate input data
         if not data:
@@ -99,6 +100,7 @@ class InjectorAgent:
                 }
         except Exception as e:
             logger.error(f"Error during data injection: {e}")
+            logger.debug(f"Exception type: {type(e)}")
             return self._handle_error(e)
 
     def _translate_to_cypher(self, data: dict) -> List[Dict[str, Any]]:
@@ -202,6 +204,7 @@ class InjectorAgent:
         error_message = str(error)
         
         logger.error(f"Handling error [{error_type}]: {error_message}")
+        logger.debug(f"Error type: {error_type}, Error message type: {type(error_message)}")
         
         # Provide specific error messages based on error type
         if "database" in error_message.lower() or "connection" in error_message.lower():
