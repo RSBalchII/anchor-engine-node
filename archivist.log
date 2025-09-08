@@ -1,0 +1,23 @@
+/home/rsbiiw/projects/External-Context-Engine/ece/agents/tier3/archivist/archivist_agent.py:390: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("shutdown")
+INFO:     Will watch for changes in these directories: ['/home/rsbiiw/projects/External-Context-Engine']
+INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
+INFO:     Started reloader process [17436] using StatReload
+INFO:     Started server process [17438]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:archivist_agent:Received data from Distiller: 1 entities, 1 relationships
+INFO:archivist_agent:Filtered data: 1 entities, 1 relationships
+INFO:archivist_agent:Sending filtered data to Injector
+INFO:archivist_agent:Sending data to Injector at http://localhost:8004/internal/data_to_inject
+INFO:httpx:HTTP Request: POST http://localhost:8004/internal/data_to_inject "HTTP/1.1 500 Internal Server Error"
+INFO:archivist_agent:Received response from Injector: status_code=500
+ERROR:archivist_agent:Injector returned status 500 with body: {"detail":"Failed to inject data: Database connection error"}
+INFO:archivist_agent:Received response from Injector: {'success': False, 'error': 'Injector returned status 500: {"detail":"Failed to inject data: Database connection error"}'}
+ERROR:archivist_agent:Failed to send data to Injector: Injector returned status 500: {"detail":"Failed to inject data: Database connection error"}
+INFO:     127.0.0.1:40368 - "POST /internal/data_to_archive HTTP/1.1" 500 Internal Server Error
