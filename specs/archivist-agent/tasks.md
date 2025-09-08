@@ -1,52 +1,30 @@
-# Task Breakdown for Archivist Agent Implementation
 
-## 1. Setup and Dependencies
-- [ ] Install required libraries (neo4j-driver, pydantic)
-- [ ] Create the agent module file (`src/external_context_engine/tools/archivist_agent.py`)
-- [ ] Define the data models (Entity, Relationship, Query)
+# Archivist Agent - tasks.md
 
-## 2. Database Connection
-- [ ] Implement secure connection to the Neo4j database
-- [ ] Configure database connection settings
-- [ ] Test database connectivity
+This document breaks down the work required to implement the `Archivist` agent.
 
-## 3. Core Functionality Implementation
-- [ ] Implement data storage methods using Cypher queries
-- [ ] Implement data retrieval methods using Cypher queries
-- [ ] Implement data update methods
-- [ ] Implement data deletion methods
-- [ ] Implement error handling for database operations
+### Phase 1: Scaffolding & API
 
-## 4. Security Implementation
-- [ ] Implement authentication mechanisms for database access
-- [ ] Implement authorization mechanisms for database operations
-- [ ] Test security measures
+-   [ ] **Task 1.1: Project Scaffolding**
+    -   Create the directory and main agent file: `ece/agents/tier3/archivist/archivist_agent.py`.
+-   [ ] **Task 1.2: External API Gateway**
+    -   Implement a secure, public-facing API endpoint (e.g., using FastAPI) to handle context requests.
+    -   Define the request and response models for this endpoint.
 
-## 5. API Integration
-- [ ] Implement the `/store` endpoint for the agent
-- [ ] Implement the `/retrieve` endpoint for the agent
-- [ ] Implement the `/update` endpoint for the agent
-- [ ] Implement the `/delete` endpoint for the agent
-- [ ] Test all API endpoints with sample data
+### Phase 2: Internal Coordination
 
-## 6. Performance Optimization
-- [ ] Optimize database queries for performance
-- [ ] Implement caching mechanisms if necessary
-- [ ] Test performance with large volumes of data
+-   [ ] **Task 2.1: QLearningAgent Integration**
+    -   Implement the internal client logic to call the `QLearningAgent`'s `find_optimal_path` method.
+-   [ ] **Task 2.2: Injector Integration**
+    -   Implement the internal client logic to call the `Injector`'s `receive_data_for_injection` method.
+-   [ ] **Task 2.3: Distiller Integration**
+    -   Implement the internal API endpoint to receive structured data from the `Distiller`.
 
-## 7. Logging and Monitoring
-- [ ] Implement logging for the storage and retrieval processes
-- [ ] Add monitoring for performance metrics (query time, success rate, etc.)
-- [ ] Test logging and monitoring functionality
+### Phase 3: Core Logic & Testing
 
-## 8. Testing and Validation
-- [ ] Write unit tests for each component of the agent
-- [ ] Perform integration testing with the Neo4j database
-- [ ] Validate the agent's functionality with various data storage and retrieval scenarios
-- [ ] Verify error handling and edge case behavior
-- [ ] Verify security measures
-
-## 9. Documentation
-- [ ] Document the agent's functionality and API
-- [ ] Update the project's README with information about the Archivist Agent
-- [ ] Create usage examples for the agent
+-   [ ] **Task 3.1: Context Synthesis**
+    -   Implement the logic to process the path data returned by the `QLearningAgent` and synthesize it into a clean context package for the API response.
+-   [ ] **Task 3.2: Injection Logic**
+    -   Implement the business logic to decide which data received from the `Distiller` should be sent to the `Injector`.
+-   [ ] **Task 3.3: End-to-End Testing**
+    -   Write integration tests that simulate a call from the `PromptInjector`, ensuring the `Archivist` correctly coordinates with the `QLearningAgent` and returns a valid context.

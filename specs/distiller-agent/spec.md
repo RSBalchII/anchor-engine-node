@@ -1,44 +1,42 @@
+
+### 2. Distiller Agent Specification (Revised)
+
+* **Status:** This specification has been updated to clarify its precise role and integration points within the Memory Cortex.
+
 # Distiller Agent Specification
 
-## 1. User Story
+## 1. Overview
 
-As a knowledge base manager, I want to distill raw text into structured, meaningful data so that it can be efficiently stored in the knowledge graph.
+The Distiller is a specialized **Tier 3** agent that operates automatically in the background. Its sole function is to process the stream of information from the `Redis Context Cache`, create structured summaries, and pass them to the `Archivist` for potential long-term storage.
 
-## 2. Functional Requirements
+## 2. User Story
 
-### 2.1 Text Processing
-- The agent must process raw text from various sources.
-- The agent should identify entities, relationships, and key points from the text.
+As a knowledge processing agent, I want to periodically distill raw, unstructured text from the short-term cache into structured, meaningful data so that the `Archivist` can efficiently manage and store it in the long-term knowledge graph.
 
-### 2.2 Data Structuring
-- The agent must convert identified information into structured data formats.
-- The agent should prepare structured data for storage in the knowledge graph.
+## 3. Functional Requirements
 
-### 2.3 Entity and Relationship Identification
-- The agent must accurately identify entities within the text.
-- The agent must determine relationships between identified entities.
+### 3.1 Text Processing
+- The agent **must** monitor and process the contents of the `Redis Context Cache`. This can be triggered on a timer or based on the volume of new data.
+- The agent **must** identify key entities, relationships, and concepts from the unstructured text in the cache.
 
-## 3. Non-Functional Requirements
+### 3.2 Data Structuring
+- The agent **must** convert the identified information into a structured data format (e.g., JSON) that is optimized for the `Neo4j` knowledge graph.
+- The agent **must** forward this structured data to the `Archivist` for review and injection.
 
-### 3.1 Accuracy
-- The agent should have high accuracy in entity and relationship identification.
-- The agent should minimize false positives in entity extraction.
+## 4. Non-Functional Requirements
 
-### 3.2 Performance
-- The agent should process text efficiently, with minimal latency.
-- The agent should be able to handle large volumes of text.
+### 4.1 Accuracy
+- The agent should have high accuracy in entity and relationship extraction to ensure the quality of the knowledge graph.
 
-## 4. Acceptance Criteria
+### 4.2 Performance
+- The agent should process text efficiently and operate with a low-resource footprint, as it will be running continuously.
 
-- Given raw text input, when the agent processes it, then it should extract entities and relationships and structure them for storage.
-- Given text with various entities and relationships, when the agent processes it, then it should accurately identify and structure them.
-- Given a failure in text processing, when the agent encounters it, then it should provide a clear error message and not crash.
+## 5. Integration Points
 
-## 5. Review and Acceptance Checklist
+-   **Input:** `Redis Context Cache` (Tier 1)
+-   **Output:** `Archivist` Agent (Tier 3)
 
-- [ ] All functional requirements have been implemented.
-- [ ] All non-functional requirements have been addressed.
-- [ ] Acceptance criteria have been met.
-- [ ] The agent has been tested with various text inputs.
-- [ ] Entity and relationship identification accuracy has been validated.
-- [ ] Error handling has been implemented and tested.
+## 6. Acceptance Criteria
+
+-   **Given** a `Redis Context Cache` containing recent conversation logs, **when** the Distiller agent runs, **then** it should extract key entities and their relationships.
+-   **Given** the extracted entities, **when** the agent completes its process, **then** it should send a structured JSON object representing this information to the `Archivist`.

@@ -1,52 +1,55 @@
+
+### 1. Archivist Agent Specification (Revised)
+
+* **Status:** This specification has been substantially rewritten to reflect the `Archivist`'s new role as the central hub of the Memory Cortex and the primary API gateway for the entire ECE.
+
 # Archivist Agent Specification
 
-## 1. User Story
+## 1. Overview
 
-As a knowledge base manager, I want to store and retrieve structured information in the knowledge graph so that the system can maintain a persistent and organized memory.
+The Archivist is the master controller of the **Tier 3 Memory Cortex**. It serves as the primary API gateway for external requests for context and acts as the central coordinator for all long-term memory operations. It manages the flow of information between the `Distiller`, the `Extractor`'s input, the `QLearningAgent`, and the `Injector`, ensuring the `Neo4j` knowledge graph remains coherent and accessible.
 
-## 2. Functional Requirements
+## 2. User Story
 
-### 2.1 Data Storage
-- The agent must be able to store structured data in the knowledge graph.
-- The agent should handle different types of data entities and relationships.
-- The agent must ensure data integrity during storage operations.
+As the ECE's memory manager, I want to handle all requests for long-term context and manage the data pipeline for memory storage so that the ECE can provide relevant information to external tools and maintain a persistent, structured knowledge base.
 
-### 2.2 Data Retrieval
-- The agent must be able to retrieve information from the knowledge graph based on queries.
-- The agent should support complex queries involving multiple entities and relationships.
-- The agent must return relevant and accurate information.
+## 3. Functional Requirements
 
-### 2.3 Knowledge Base Maintenance
-- The agent must maintain the integrity and organization of the knowledge base.
-- The agent should handle updates, deletions, and modifications of existing data.
-- The agent must manage the lifecycle of data entities in the knowledge base.
+### 3.1 External API Gateway
+- The agent **must** expose a secure API endpoint to handle context retrieval requests from external modules (like the `PromptInjector`).
+- The API **must** accept a query (e.g., a raw user prompt) and return relevant context.
 
-## 3. Non-Functional Requirements
+### 3.2 Context Retrieval
+- Upon receiving an API request, the agent **must** task the `QLearningAgent` with finding the most relevant paths and concepts in the `Neo4j` knowledge graph.
+- The agent **must** synthesize the results from the `QLearningAgent` into a structured, coherent context package to be returned via the API.
 
-### 3.1 Performance
-- The agent should perform storage and retrieval operations efficiently.
-- The agent should minimize latency in responding to queries.
+### 3.3 Data Flow Management
+- The agent **must** receive distilled summaries from the `Distiller` agent.
+- The agent **must** receive scraped text from the external `Extractor` module.
+- The agent **must** make the final decision on what information is worthy of being stored in long-term memory.
+- The agent **must** command the `Injector` agent to write approved, structured data to the `Neo4j` knowledge graph.
 
-### 3.2 Reliability
-- The agent should handle errors gracefully and provide meaningful error messages.
-- The agent should maintain data consistency even in failure scenarios.
+## 4. Non-Functional Requirements
 
-### 3.3 Security
-- The agent should ensure secure access to the knowledge graph.
-- The agent should implement proper authentication and authorization mechanisms.
+### 4.1 Performance
+- API responses should be delivered with minimal latency. The agent should employ caching strategies where appropriate for frequently requested context.
 
-## 4. Acceptance Criteria
+### 4.2 Reliability
+- The agent must handle errors gracefully from any of its subordinate agents (`QLearningAgent`, `Injector`) and return a meaningful error status via the API.
 
-- Given structured data, when the agent stores it, then it should be correctly added to the knowledge graph.
-- Given a query, when the agent processes it, then it should return relevant and accurate information.
-- Given a request to update or delete data, when the agent processes it, then the knowledge base should be correctly modified.
-- Given a failure in storage or retrieval, when the agent encounters it, then it should provide a clear error message and not crash.
+### 4.3 Security
+- The API endpoint must be secured to prevent unauthorized access to the ECE's memory.
 
-## 5. Review and Acceptance Checklist
+## 5. Integration Points
 
-- [ ] All functional requirements have been implemented.
-- [ ] All non-functional requirements have been addressed.
-- [ ] Acceptance criteria have been met.
-- [ ] The agent has been tested with various data storage and retrieval scenarios.
-- [ ] Error handling has been implemented and tested.
-- [ ] Security measures have been implemented and verified.
+-   **External (API):** `PromptInjector`, `Extractor` (Browser Extension)
+-   **Subordinates (Internal):**
+    * `QLearningAgent` (for querying)
+    * `Injector` (for writing)
+-   **Data Sources (Internal):** `Distiller`
+
+## 6. Acceptance Criteria
+
+-   **Given** an API request from the `PromptInjector` containing a user query, **when** the Archivist processes it, **then** it must query the `QLearningAgent` and return a structured JSON object containing the most relevant context.
+-   **Given** a distilled summary received from the `Distiller`, **when** the Archivist processes it, **then** it must command the `Injector` to write the data to the knowledge graph.
+-   **Given** that the `QLearningAgent` fails to find a relevant path, **when** the Archivist receives the result, **then** it must return an empty context package via the API without crashing.

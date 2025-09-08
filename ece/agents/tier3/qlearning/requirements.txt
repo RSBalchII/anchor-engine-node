@@ -1,0 +1,3 @@
+# QLearning Agent Requirements
+neo4j>=5.15.0
+numpy>=1.24.0

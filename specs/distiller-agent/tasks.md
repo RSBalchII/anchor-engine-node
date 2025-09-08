@@ -1,46 +1,31 @@
-# Task Breakdown for Distiller Agent Implementation
 
-## 1. Setup and Dependencies
-- [ ] Install required NLP libraries (spaCy, scikit-learn)
-- [ ] Download the spaCy English language model (`en_core_web_sm`)
-- [ ] Create the agent module file (`src/external_context_engine/tools/distiller_agent.py`)
-- [ ] Define the input and output data models (`DistillationInput`, `DistillationOutput`)
+# Distiller Agent - tasks.md
 
-## 2. Core Functionality Implementation
-- [ ] Implement text preprocessing methods
-- [ ] Implement entity recognition using spaCy or other NLP libraries
-- [ ] Implement relationship extraction between identified entities
-- [ ] Implement key point identification algorithms
-- [ ] Implement error handling for text processing errors and invalid inputs
+This document breaks down the work required to implement the `Distiller` agent.
 
-## 3. Data Structuring
-- [ ] Design data structures for representing entities, relationships, and key points
-- [ ] Implement the conversion of identified information into structured data formats
-- [ ] Test data structuring with various text inputs
+### Phase 1: Core Functionality
 
-## 4. API Integration
-- [ ] Implement the `/execute` endpoint for the agent
-- [ ] Ensure the endpoint correctly processes `DistillationInput` and returns `DistillationOutput`
-- [ ] Test the API endpoint with sample text data
+-   [ ] **Task 1.1: Project Scaffolding**
+    -   Create the directory and main agent file: `ece/agents/tier3/distiller/distiller_agent.py`.
+-   [ ] **Task 1.2: Redis Cache Connection**
+    -   Implement the logic to connect to the Redis instance and read data from the context cache.
+-   [ ] **Task 1.3: Trigger Mechanism**
+    -   Implement a trigger for the distillation process (e.g., a simple cron-like timer that runs every N minutes).
 
-## 5. Performance Optimization
-- [ ] Optimize the distillation process for performance
-- [ ] Implement caching mechanisms if necessary
-- [ ] Test performance with large volumes of text
+### Phase 2: Text Processing
 
-## 6. Logging and Monitoring
-- [ ] Implement logging for the distillation process
-- [ ] Add monitoring for performance metrics (processing time, accuracy, etc.)
-- [ ] Test logging and monitoring functionality
+-   [ ] **Task 2.1: Entity Extraction Logic**
+    -   Integrate a library (like spaCy or a transformer model) to perform Named Entity Recognition (NER) on the text from the cache.
+-   [ ] **Task 2.2: Relationship Identification**
+    -   Implement logic to identify potential relationships between the extracted entities.
+-   [ ] **Task 2.3: Data Structuring**
+    -   Implement the logic to convert the extracted entities and relationships into the structured JSON format required by the `Archivist`.
 
-## 7. Testing and Validation
-- [ ] Write unit tests for each component of the agent
-- [ ] Perform integration testing with the main application
-- [ ] Validate the agent's functionality with various text inputs
-- [ ] Verify entity and relationship identification accuracy
-- [ ] Verify error handling and edge case behavior
+### Phase 3: Integration & Reliability
 
-## 8. Documentation
-- [ ] Document the agent's functionality and API
-- [ ] Update the project's README with information about the Distiller Agent
-- [ ] Create usage examples for the agent
+-   [ ] **Task 3.1: Output to Archivist**
+    -   Implement the internal API call to send the final structured JSON to the `Archivist`.
+-   [ ] **Task 3.2: State Management**
+    -   Implement a mechanism to track which cache entries have already been processed to avoid redundant work.
+-   [ ] **Task 3.3: Testing**
+    -   Write unit tests for the text processing and data structuring logic.
