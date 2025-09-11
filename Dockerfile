@@ -1,5 +1,5 @@
 # Use an official Python runtime as the base image
-FROM explosionai/spacy-models:latest-py3.9
+FROM python:3.9
 
 # Set the working directory in the container
 WORKDIR /app
@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # Define the command to run the application with uvicorn
-CMD ["uvicorn", "src.external_context_engine.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "ece.agents.tier1.orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000"]

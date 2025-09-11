@@ -28,12 +28,12 @@ class OrchestratorAgent:
         Initialize the OrchestratorAgent with Redis connection parameters.
         
         Args:
-            redis_host: Redis server host. Defaults to REDIS_HOST env var or 'localhost'.
+            redis_host: Redis server host. Defaults to REDIS_HOST env var or 'redis'.
             redis_port: Redis server port. Defaults to REDIS_PORT env var or 6379.
             redis_password: Redis password. Defaults to REDIS_PASSWORD env var.
             redis_db: Redis database number. Defaults to 0.
         """
-        self.redis_host = redis_host or os.getenv('REDIS_HOST', 'localhost')
+        self.redis_host = redis_host or os.getenv('REDIS_HOST', 'redis')
         self.redis_port = redis_port or int(os.getenv('REDIS_PORT', 6379))
         self.redis_password = redis_password or os.getenv('REDIS_PASSWORD')
         self.redis_db = redis_db
