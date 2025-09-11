@@ -4,16 +4,21 @@ Archivist Agent for the External Context Engine (ECE).
 
 The Archivist is the master controller of the Tier 3 Memory Cortex. It serves as the 
 primary API gateway for external requests for context and acts as the central coordinator 
-for all long-term memory operations.
+for all long-term memory operations. This version also includes continuous temporal scanning
+functionality to maintain a chronological record of all processed information.
 """
 
 import uvicorn
 import httpx
 import asyncio
+import redis
+from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
+import os
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,6 +58,56 @@ class MemoryPath(BaseModel):
     relationships: List[Dict[str, Any]] = []
     score: float = 0.0
     length: int = 0
+
+class TemporalNodeRequest(BaseModel):
+    """Model for temporal node requests."""
+    timestamp: str
+
+class MemoryLinkRequest(BaseModel):
+    """Model for linking memory to temporal nodes."""
+    memory_node_id: int
+    timestamp: str
+
+# Distiller client
+class DistillerClient:
+    """Client for communicating with the Distiller agent."""
+    
+    def __init__(self, base_url: str = "http://localhost:8001"):
+        self.base_url = base_url
+        self.client = httpx.AsyncClient()
+    
+    async def process_text(self, text: str, source: str = "context_cache") -> Dict[str, Any]:
+        """
+        Send text to the Distiller agent for processing.
+        
+        Args:
+            text: The text to process
+            source: The source of the text
+            
+        Returns:
+            Structured data from the Distiller
+        """
+        try:
+            data = {
+                "text": text,
+                "source": source,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            response = await self.client.post(
+                f"{self.base_url}/process_text",
+                json=data,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"Distiller returned status {response.status_code}")
+                return {"error": f"Distiller returned status {response.status_code}"}
+        except Exception as e:
+            logger.error(f"Error calling Distiller: {str(e)}")
+            return {"error": f"Error calling Distiller: {str(e)}"}
 
 # QLearningAgent client
 class QLearningAgentClient:
@@ -166,10 +221,92 @@ class InjectorClient:
                 "success": False,
                 "error": f"Unexpected error: {error_str}"
             }
+    
+    async def get_or_create_timenode(self, timestamp: str) -> Dict[str, Any]:
+        """
+        Create a chronological tree of nodes: (Year)->[:HAS_MONTH]->(Month)->[:HAS_DAY]->(Day).
+        
+        Args:
+            timestamp: The timestamp to create the chronological tree for (ISO format)
+            
+        Returns:
+            Dictionary containing the day node information
+        """
+        try:
+            # Parse the timestamp
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            
+            data = {
+                "timestamp": dt.isoformat()
+            }
+            
+            response = await self.client.post(
+                f"{self.base_url}/internal/temporal/get_or_create_timenode",
+                json=data,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"Temporal service returned status {response.status_code}")
+                return {"error": f"Temporal service returned status {response.status_code}"}
+        except Exception as e:
+            logger.error(f"Error calling temporal service: {str(e)}")
+            return {"error": f"Error calling temporal service: {str(e)}"}
+    
+    async def link_memory_to_timenode(self, memory_node_id: int, timestamp: str) -> bool:
+        """
+        Create a [:OCCURRED_AT] relationship to the appropriate Day node.
+        
+        Args:
+            memory_node_id: The ID of the memory node to link
+            timestamp: The timestamp to link the memory to (ISO format)
+            
+        Returns:
+            True if the relationship was created successfully, False otherwise
+        """
+        try:
+            # Parse the timestamp
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            
+            data = {
+                "memory_node_id": memory_node_id,
+                "timestamp": dt.isoformat()
+            }
+            
+            response = await self.client.post(
+                f"{self.base_url}/internal/temporal/link_memory_to_timenode",
+                json=data,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("success", False)
+            else:
+                logger.error(f"Temporal service returned status {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"Error calling temporal service: {str(e)}")
+            return False
 
 # Initialize clients
+distiller_client = DistillerClient()
 qlearning_client = QLearningAgentClient()
 injector_client = InjectorClient()
+
+# Redis client for cache monitoring
+redis_client = redis.Redis(
+    host=os.environ.get('REDIS_HOST', 'localhost'),
+    port=int(os.environ.get('REDIS_PORT', 6379)),
+    password=os.environ.get('REDIS_PASSWORD'),
+    db=0,
+    decode_responses=True
+)
+
+# Track processed entries
+processed_entries_key = "archivist:processed_entries"
 
 @app.get("/")
 async def root():
@@ -241,7 +378,7 @@ async def get_context(request: ContextRequest):
             context=context,
             metadata={
                 "query": request.query,
-                "timestamp": "2023-01-01T00:00:00Z",
+                "timestamp": datetime.now().isoformat(),
                 "source": "archivist",
                 "paths_found": len(paths),
                 "paths_returned": len(context)
@@ -386,10 +523,237 @@ async def receive_distiller_data(data: DistillerData):
                     logger.error(f"Object {obj_str} might be accidentally called as a function")
         raise HTTPException(status_code=500, detail=f"Internal server error: {error_str}")
 
+async def _process_cache_entry(key: str, value: str) -> bool:
+    """
+    Process a single cache entry.
+    
+    Args:
+        key: The cache key
+        value: The cache value
+        
+    Returns:
+        True if processing was successful, False otherwise
+    """
+    try:
+        logger.info(f"Processing cache entry: {key}")
+        
+        # Step 1: Send to Distiller for processing
+        distiller_result = await distiller_client.process_text(value, "context_cache")
+        
+        if "error" in distiller_result:
+            logger.error(f"Distiller processing failed for {key}: {distiller_result['error']}")
+            return False
+        
+        logger.info(f"Distiller processing successful for {key}")
+        logger.debug(f"Distiller result: {distiller_result}")
+        
+        # Step 2: Send to Injector for database storage
+        injector_result = await injector_client.send_data_for_injection(distiller_result)
+        
+        if not injector_result.get("success", False):
+            logger.error(f"Injector processing failed for {key}: {injector_result.get('error', 'Unknown error')}")
+            return False
+        
+        logger.info(f"Injector processing successful for {key}")
+        logger.debug(f"Injector result: {injector_result}")
+        
+        # Step 3: Link to temporal spine if we have a memory node ID
+        memory_node_id = injector_result.get("memory_node_id")
+        timestamp = distiller_result.get("timestamp", datetime.now().isoformat())
+        
+        if memory_node_id:
+            # Get or create the time node
+            timenode_result = await injector_client.get_or_create_timenode(timestamp)
+            
+            if "error" not in timenode_result:
+                # Link the memory to the time node
+                link_success = await injector_client.link_memory_to_timenode(memory_node_id, timestamp)
+                
+                if link_success:
+                    logger.info(f"Successfully linked memory {memory_node_id} to temporal spine")
+                else:
+                    logger.warning(f"Failed to link memory {memory_node_id} to temporal spine")
+            else:
+                logger.warning(f"Failed to create time node: {timenode_result['error']}")
+        
+        # Mark as processed
+        redis_client.sadd(processed_entries_key, key)
+        
+        return True
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error processing cache entry {key}: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            return False
+        # Retry processing
+        return await _process_cache_entry(key, value)
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout error processing cache entry {key}: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            return False
+        # Retry processing
+        return await _process_cache_entry(key, value)
+    except redis.ConnectionError as e:
+        logger.error(f"Redis connection error processing cache entry {key}: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            return False
+        # Retry processing
+        return await _process_cache_entry(key, value)
+    except redis.TimeoutError as e:
+        logger.error(f"Redis timeout error processing cache entry {key}: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            return False
+        # Retry processing
+        return await _process_cache_entry(key, value)
+    except Exception as e:
+        logger.error(f"Error processing cache entry {key}: {str(e)}", exc_info=True)
+        return False
+
+async def _scan_cache():
+    """Scan the Redis cache for new entries to process."""
+    try:
+        # Get all keys with the context_cache prefix
+        keys = redis_client.keys("context_cache:*")
+        
+        if not keys:
+            logger.debug("No cache entries found to process")
+            return
+        
+        logger.info(f"Found {len(keys)} cache entries to process")
+        
+        # Get already processed entries
+        processed_entries = redis_client.smembers(processed_entries_key)
+        
+        # Process each unprocessed entry
+        for key in keys:
+            try:
+                # Extract the actual key name (remove prefix)
+                actual_key = key.replace("context_cache:", "")
+                
+                # Skip if already processed
+                if actual_key in processed_entries:
+                    continue
+                
+                # Get the value
+                entry_data = redis_client.hgetall(key)
+                if not entry_data:
+                    continue
+                
+                value = entry_data.get("value", "")
+                if not value:
+                    continue
+                
+                # Process the entry
+                success = await _process_cache_entry(actual_key, value)
+                
+                if not success:
+                    logger.warning(f"Failed to process cache entry: {actual_key}")
+            except redis.ConnectionError as e:
+                logger.error(f"Redis connection error while processing key {key}: {str(e)}")
+                # Try to reconnect
+                if not await _reconnect_redis():
+                    raise
+                # Retry processing this key
+                continue
+            except redis.TimeoutError as e:
+                logger.error(f"Redis timeout error while processing key {key}: {str(e)}")
+                # Try to reconnect
+                if not await _reconnect_redis():
+                    raise
+                # Retry processing this key
+                continue
+            except Exception as e:
+                logger.error(f"Error processing cache entry {key}: {str(e)}", exc_info=True)
+    except redis.ConnectionError as e:
+        logger.error(f"Redis connection error while scanning cache: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            raise
+    except redis.TimeoutError as e:
+        logger.error(f"Redis timeout error while scanning cache: {str(e)}")
+        # Try to reconnect
+        if not await _reconnect_redis():
+            raise
+    except Exception as e:
+        logger.error(f"Error scanning cache: {str(e)}", exc_info=True)
+
+async def continuous_temporal_scanning():
+    """Run the continuous temporal scanning process."""
+    logger.info("Starting continuous temporal scanning")
+    
+    # Connect to Redis with retry logic
+    max_retries = 5
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            redis_client.ping()
+            logger.info("Connected to Redis for temporal scanning")
+            break
+        except Exception as e:
+            logger.warning(f"Failed to connect to Redis (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error("Failed to connect to Redis after all retries")
+                return
+    
+    # Main scanning loop
+    while True:
+        try:
+            # Scan the cache for new entries
+            await _scan_cache()
+            
+            # Wait before next scan
+            await asyncio.sleep(5)  # Scan every 5 seconds
+        except redis.ConnectionError as e:
+            logger.error(f"Redis connection error in temporal scanning loop: {str(e)}")
+            # Try to reconnect
+            await _reconnect_redis()
+        except redis.TimeoutError as e:
+            logger.error(f"Redis timeout error in temporal scanning loop: {str(e)}")
+            # Try to reconnect
+            await _reconnect_redis()
+        except Exception as e:
+            logger.error(f"Error in temporal scanning loop: {str(e)}", exc_info=True)
+            # Wait a bit before retrying
+            await asyncio.sleep(10)
+
+async def _reconnect_redis():
+    """Reconnect to Redis with exponential backoff."""
+    max_retries = 5
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            redis_client.ping()
+            logger.info("Reconnected to Redis")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to reconnect to Redis (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.error("Failed to reconnect to Redis after all retries")
+                return False
+
+# Start the continuous temporal scanning when the app starts
+@app.on_event("startup")
+async def startup_event():
+    """Start the continuous temporal scanning process on startup."""
+    # Start the temporal scanning in the background
+    asyncio.create_task(continuous_temporal_scanning())
+
 # Cleanup on shutdown
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on application shutdown."""
+    await distiller_client.client.aclose()
     await qlearning_client.client.aclose()
     await injector_client.client.aclose()
 

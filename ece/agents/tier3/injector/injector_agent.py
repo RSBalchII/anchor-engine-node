@@ -2,9 +2,12 @@
 Injector Agent Implementation
 """
 from typing import Dict, Any, List
+from datetime import datetime
 import logging
 import os
+import json
 from ece.agents.tier3.injector.db_manager import Neo4jManager
+from ece.common.poml_schemas import MemoryNode
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -67,8 +70,41 @@ class InjectorAgent:
             }
             
         try:
+            # Serialize the data into a MemoryNode POML string before injection
+            memory_node_poml = MemoryNode(
+                identity={
+                    "name": "InjectorAgent",
+                    "version": "1.0",
+                    "type": "Specialized Data Injection Agent"
+                },
+                operational_context={
+                    "project": "External Context Engine (ECE) v2.0",
+                    "objective": "Inject data into the Neo4j knowledge graph."
+                },
+                directive={
+                    "goal": "Store data in Neo4j with POML metadata.",
+                    "task": {
+                        "name": "SerializeAndInject",
+                        "steps": [
+                            "Serialize data into MemoryNode POML",
+                            "Translate POML to Cypher queries",
+                            "Execute queries in transaction"
+                        ]
+                    }
+                },
+                node_data=data,
+                node_type="InjectionData"
+            )
+            
+            # Convert the MemoryNode to a JSON string
+            poml_string = memory_node_poml.json()
+            
+            # Add the POML string to the data for injection
+            data_with_poml = data.copy()
+            data_with_poml["poml_metadata"] = poml_string
+            
             # Translate the data to Cypher queries
-            cypher_queries = self._translate_to_cypher(data)
+            cypher_queries = self._translate_to_cypher(data_with_poml)
             
             # Check if we have any queries to execute
             if not cypher_queries:
@@ -234,4 +270,60 @@ class InjectorAgent:
                 "error": "Data injection error",
                 "error_type": error_type,
                 "details": error_message
+            }
+            
+    def get_or_create_timenode(self, timestamp: str) -> Dict[str, Any]:
+        """
+        Create a chronological tree of nodes: (Year)->[:HAS_MONTH]->(Month)->[:HAS_DAY]->(Day).
+        
+        Args:
+            timestamp: The timestamp to create the chronological tree for (ISO format)
+            
+        Returns:
+            Dictionary containing the day node information
+        """
+        try:
+            # Parse the timestamp
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            
+            # Call the db_manager function
+            result = self.db_manager.get_or_create_timenode(dt)
+            
+            return {
+                "success": True,
+                "data": result
+            }
+        except Exception as e:
+            logger.error(f"Error creating time node: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def link_memory_to_timenode(self, memory_node_id: int, timestamp: str) -> Dict[str, Any]:
+        """
+        Create a [:OCCURRED_AT] relationship to the appropriate Day node.
+        
+        Args:
+            memory_node_id: The ID of the memory node to link
+            timestamp: The timestamp to link the memory to (ISO format)
+            
+        Returns:
+            Dictionary with success status
+        """
+        try:
+            # Parse the timestamp
+            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            
+            # Call the db_manager function
+            success = self.db_manager.link_memory_to_timenode(memory_node_id, dt)
+            
+            return {
+                "success": success
+            }
+        except Exception as e:
+            logger.error(f"Error linking memory to time node: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
             }

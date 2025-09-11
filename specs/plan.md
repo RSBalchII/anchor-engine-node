@@ -1,15 +1,21 @@
 
-# Core ECE Project - plan.md
+### **File: `/specs/plan.md`**
 
-This document outlines the high-level technical plan for the ECE infrastructure.
+```markdown
+# Core ECE Project - Implementation Plan v2.0
+
+This document outlines the high-level technical plan for the enhanced ECE.
 
 ### 1. Environment and Containerization
-* **Strategy:** We will use **Docker Compose** to orchestrate the entire application. A primary `Dockerfile` will define the Python environment for all our agents, ensuring consistency.
-* **Services:** The `docker-compose.yaml` file will define services for the core ECE application, a **Neo4j** database, and a **Redis** instance.
-* **Dependencies:** We will manage Python dependencies using a `requirements.txt` file, including libraries like `fastapi`, `uvicorn`, `neo4j`, `redis`, `spacy`, and `numpy`.
+* **Strategy:** Continue using **Docker Compose** to orchestrate all services (`Orchestrator`, agents, `Neo4j`, `Redis`). The environment will be updated to include the new `ExplorerAgent`, `CritiqueAgent`, and a secure `SandboxModule` container.
 
 ### 2. Inter-Agent Communication
-* **Strategy:** For simplicity and performance within our Docker network, direct internal API calls will be used. We will leverage **FastAPI** to define a simple, internal RESTful API for each agent that needs to be called by another. For instance, the `Archivist` will have endpoints that the `Distiller` can post to.
+* **Strategy:** Implement the **`POML` Inter-Agent Communication Protocol**. All internal API calls between agents (via FastAPI) will pass `POML` documents as the payload, ensuring structured, unambiguous tasking.
 
-### 3. Configuration
-* **Strategy:** A central `config.py` module will load settings from environment variables, which will be injected into the containers via the `docker-compose.yaml`. This keeps our configuration separate from the code and secure.
+### 3. Core Logic Enhancements
+* **Orchestrator:** The `Orchestrator`'s main loop will be refactored to manage the **Parallel Thinking** and **Exploratory Problem-Solving** workflows. This includes logic for instantiating multiple thinkers, managing the iterative scoring loop, and synthesizing diverse results.
+* **Archivist:** The `Archivist` will be re-implemented as a continuous, background process that monitors the Redis stream, creates temporal nodes in Neo4j, and links memories to them.
+* **Injector:** The `Injector` will be updated to serialize all incoming data into the **`POML` cognitive datatype** before writing to the Neo4j knowledge graph.
+
+### 4. Database Schema
+* **Strategy:** The Neo4j schema will be updated to include `TimeNodes` (e.g., `(y:Year)-[:HAS_MONTH]->(m:Month)-[:HAS_DAY]->(d:Day)`) to form the chronological spine. All `MemoryNodes` will be linked to a `TimeNode` via a `[:OCCURRED_AT]` relationship.

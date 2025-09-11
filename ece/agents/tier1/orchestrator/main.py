@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from orchestrator_agent import OrchestratorAgent
 from fastapi import FastAPI
+from ece.common.poml_schemas import POML, TaskDirective
 import uvicorn
 
 # Create the FastAPI app
@@ -32,19 +33,54 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/process_prompt")
-async def process_prompt(prompt: str):
+async def process_prompt(poml_request: POML):
     """
     Process a context-enriched prompt through the full Orchestrator pipeline.
     
     Args:
-        prompt: The context-enriched prompt to process.
+        poml_request: The POML document containing the prompt to process.
         
     Returns:
         The synthesized final response.
     """
     try:
+        # Extract the prompt from the POML document
+        prompt = poml_request.directive.goal
+        
+        # Process the prompt
         response = orchestrator.process_prompt(prompt)
-        return {"response": response}
+        
+        # Create a POML response
+        response_poml = TaskDirective(
+            identity={
+                "name": "OrchestratorAgent",
+                "version": "1.0",
+                "type": "Specialized Code Generation Agent"
+            },
+            operational_context={
+                "project": "External Context Engine (ECE) v2.0",
+                "objective": "Process user prompts and provide synthesized responses."
+            },
+            directive={
+                "goal": "Provide a synthesized response to the user's prompt.",
+                "task": {
+                    "name": "ProcessPrompt",
+                    "steps": [
+                        "Extract prompt from POML document",
+                        "Process prompt through cognitive pipeline",
+                        "Synthesize final response"
+                    ]
+                }
+            },
+            task_name="ProcessPrompt",
+            steps=[
+                "Extract prompt from POML document",
+                "Process prompt through cognitive pipeline",
+                "Synthesize final response"
+            ]
+        )
+        
+        return response_poml.dict()
     except Exception as e:
         return {"error": str(e)}
 

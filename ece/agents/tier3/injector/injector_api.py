@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
+from datetime import datetime
 import logging
 import os
 import sys
@@ -42,6 +43,15 @@ class InjectionData(BaseModel):
     entities: List[Dict[str, Any]] = []
     relationships: List[Dict[str, Any]] = []
     summary: str = ""
+
+class TemporalNodeRequest(BaseModel):
+    """Model for temporal node requests."""
+    timestamp: str
+
+class MemoryLinkRequest(BaseModel):
+    """Model for linking memory to temporal nodes."""
+    memory_node_id: int
+    timestamp: str
 
 @app.get("/")
 async def root():
@@ -123,6 +133,68 @@ async def receive_data_for_injection(data: InjectionData):
             logger.error("error_str is callable, which is unexpected")
             raise HTTPException(status_code=500, detail="error_str is callable")
         raise HTTPException(status_code=500, detail=f"Internal server error: {error_str}")
+
+@app.post("/internal/temporal/get_or_create_timenode")
+async def get_or_create_timenode(request: TemporalNodeRequest):
+    """
+    Internal endpoint to create a chronological tree of nodes.
+    
+    Args:
+        request: TemporalNodeRequest containing timestamp
+        
+    Returns:
+        Day node information
+    """
+    try:
+        logger.info(f"Received request to create time node for timestamp: {request.timestamp}")
+        
+        # Call the injector agent to process the request
+        result = injector_agent.get_or_create_timenode(request.timestamp)
+        
+        if result.get("success"):
+            logger.info("Time node created successfully")
+            return result.get("data", {})
+        else:
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"Failed to create time node: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to create time node: {error_msg}")
+    except HTTPException:
+        # Re-raise HTTP exceptions directly
+        raise
+    except Exception as e:
+        logger.error(f"Error processing time node request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/internal/temporal/link_memory_to_timenode")
+async def link_memory_to_timenode(request: MemoryLinkRequest):
+    """
+    Internal endpoint to link a memory node to a temporal node.
+    
+    Args:
+        request: MemoryLinkRequest containing memory node ID and timestamp
+        
+    Returns:
+        Status of the link operation
+    """
+    try:
+        logger.info(f"Received request to link memory {request.memory_node_id} to time node for timestamp: {request.timestamp}")
+        
+        # Call the injector agent to process the request
+        result = injector_agent.link_memory_to_timenode(request.memory_node_id, request.timestamp)
+        
+        if result.get("success"):
+            logger.info("Memory node linked to time node successfully")
+            return {"success": True, "message": "Memory node linked to time node successfully"}
+        else:
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"Failed to link memory node to time node: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to link memory node to time node: {error_msg}")
+    except HTTPException:
+        # Re-raise HTTP exceptions directly
+        raise
+    except Exception as e:
+        logger.error(f"Error processing memory link request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Cleanup on shutdown
 @app.on_event("shutdown")
