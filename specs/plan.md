@@ -1,83 +1,219 @@
-# Core ECE Project - Implementation Plan v3.1
-## Updated to Reflect Current Implementation
+# External Context Engine (ECE) Implementation Plan v3.4
 
-This document outlines the current technical plan for the enhanced ECE, with completed components marked as such.
+## Overview
 
-## 1. MVP Battle Plan: The Core Cohesion Loop - COMPLETED
+This document outlines the implementation plan for the External Context Engine (ECE) v3.4, aligning with the updated specifications. The plan focuses on implementing the Universal Tool Calling Protocol (UTCP) integration, replacing bespoke wrapper APIs with standardized tool definitions that can be discovered and called through a central UTCP Tool Registry. This upgrade enables dynamic tool discovery and calling between ECE agents while maintaining all existing functionality including tool integration capabilities that enable the system to help write and modify its own code. The plan includes phases for UTCP infrastructure implementation, agent migration, and continued self-development capabilities.
 
-All components of the Core Cohesion Loop have been successfully implemented:
+## Implementation Phases
 
-*   **Context Cache:** ✅ Fully operational as a fixed-size, short-term memory buffer using Redis.
-*   **Distiller Agent:** ✅ Periodically reads the entire contents of the Context Cache, condenses this raw context into a targeted, summarized memory using spaCy NLP, and sends the condensed memory to the Archivist Agent.
-*   **Archivist Agent:** ✅ Successfully routes data between the Q-Learning Agent, Distiller, and Injector. It also intercepts and captures truncated data from the Context Cache before it's lost. It implements periodic self-analysis through the Cohesion Loop and continuous temporal scanning.
-*   **Injector Agent:** ✅ Checks for verbatim duplicates before writing any new data to the graph. If the data is new, it creates a new node. If the data is a duplicate, it locates the existing node and appends the new information as a timestamped "additional context."
-*   **Q-Learning Agent:** ✅ Operational and actively analyzing the data flow to refine relationships within the graph.
+### Phase 1: Documentation Update and Task Definition (Completed)
+- Update `spec.md` to reflect v3.4 architecture with UTCP integration
+- Update `plan.md` (this document) with UTCP integration plan
+- Update `task.md` with new tasks for UTCP implementation and continued self-development
 
-## 2. Environment and Containerization - COMPLETED
+### Phase 2: UTCP Infrastructure Implementation (Current)
+- **Priority 1: UTCP Tool Registry Service**
+  - Design and implement central UTCP Tool Registry for tool discovery
+  - Implement API endpoints for tool registration and discovery
+  - Create tool definition schema validation
+  - Add health check and monitoring endpoints
+- **Priority 2: UTCP Client Library**  
+  - Design and implement standardized UTCP client interface
+  - Implement tool discovery functionality
+  - Implement tool calling functionality with parameter validation
+  - Add error handling and retry mechanisms
+- **Priority 3: Agent Tool Registration**
+  - Update Orchestrator to register its tools with the UTCP Registry
+  - Update Archivist to register its tools with the UTCP Registry
+  - Update Distiller to register its tools with the UTCP Registry
+  - Update QLearning to register its tools with the UTCP Registry
+  - Update Injector to register its tools with the UTCP Registry
 
-* **Strategy:** ✅ Docker Compose orchestrates all services (`Orchestrator`, agents, `Neo4j`, `Redis`). All containers are successfully communicating and operating.
+### Phase 3: Tool Agent Implementation (Planned)
+- **Priority 1: FileSystemAgent**
+  - Design and implement secure file system operations
+  - Implement read, write, create, and delete capabilities with security boundaries
+  - Integrate with context cache for file content storage
+- **Priority 2: WebSearchAgent**  
+  - Enhance existing web search capabilities with Tavily API
+  - Implement rate limiting and safe search parameters
+  - Add result storage in context cache
+- **Priority 3: Orchestrator Enhancement**
+  - Update decision tree with tool agent routing
+  - Implement security boundaries for tool access
+  - Test tool integration workflows
 
-## 3. Inter-Agent Communication - COMPLETED
+### Phase 4: Agent Migration to UTCP (Planned)
+- **Priority 1: Replace Bespoke HTTP Clients**
+  - Replace Orchestrator's ArchivistClient with UTCP tool calls
+  - Replace Archivist's clients (DistillerClient, QLearningAgentClient, InjectorClient) with UTCP tool calls
+- **Priority 2: Maintain Backward Compatibility**
+  - Ensure seamless transition during migration
+  - Test all agent communications via UTCP
+  - Monitor performance during migration
+- **Priority 3: Remove Deprecated Code**
+  - Remove old HTTP client code after successful migration
+  - Clean up deprecated functions and imports
+  - Update configuration to use UTCP client
 
-* **Strategy:** ✅ The `POML` Inter-Agent Communication Protocol is fully implemented. All internal API calls between agents (via FastAPI) pass `POML` documents as the payload, ensuring structured, unambiguous tasking.
+### Phase 5: CLI Quality of Life Improvements (Planned)
+- **Priority 1: Enhanced User Experience**
+  - Implement proper arrow key navigation for text editing
+  - Create professional welcome screen inspired by Gemini/Qwen CLIs
+  - Enable command history navigation with up/down arrows
+  - Add input validation and error handling
+- **Priority 2: Local-CLI Open Source Initiative**
+  - Prepare CLI for independent open-source release
+  - Create branding as "local-cli" to emphasize independence
+  - Document open-source contribution process
+  - Add customization options for users
+- **Priority 3: Performance and Usability**
+  - Optimize response times and interaction smoothness
+  - Implement user-configurable appearance settings
+  - Add advanced command history features
+  - Create help and documentation within CLI
 
-## 4. Core Logic Enhancements - COMPLETED
+### Phase 6: Self-Development Flow Implementation (Planned)
+- **Priority 1: Self-Analysis Flow**
+  - Enable ECE to read and understand its own codebase
+  - Store code files in context cache for analysis
+  - Create pattern recognition for code structures
+- **Priority 2: Self-Modification Flow**
+  - Implement safe code modification capabilities
+  - Add safeguards and validation for changes
+  - Create version control integration
+- **Priority 3: Self-Verification Flow**
+  - Generate tests for code changes
+  - Validate changes against specifications
+  - Implement build/test automation
 
-* **Orchestrator:** ✅ The `Orchestrator`'s main loop handles complex reasoning tasks asynchronously. It initiates a background task for the thinking and synthesis process and immediately returns an `analysis_id` to the user. It also extracts keywords from the user's prompt and sends them to the `Archivist` for context retrieval. It implements a periodic cohesion loop that analyzes the context cache every 5 seconds.
-* **Archivist:** ✅ The `Archivist` receives keywords from the `Orchestrator` and uses them to query the `QLearningAgent` for relevant context. It manages the context from the `QLearningAgent` and updates the context cache. It parses incoming POML blocks. It handles memory queries with resource limits for the cohesion loop.
-* **QLearningAgent:** ✅ The `QLearningAgent` performs keyword-based searches on the knowledge graph. The continuous training loop is activated with improved reward mechanism and exploration strategy. It parses incoming POML blocks.
-* **Injector:** ✅ The `Injector` serializes all incoming data into the `POML` cognitive datatype before writing to the Neo4j knowledge graph. It handles duplicate detection and appends new information as timestamped "additional context."
+### Phase 7: Advanced Self-Development (Future)
+- **Priority 1: Autonomous Improvement Loops**
+  - Implement iterative self-improvement cycles
+  - Create learning from usage patterns
+  - Develop feature suggestion capabilities
+- **Priority 2: Specification Evolution**
+  - Allow ECE to propose specification updates
+  - Implement feedback integration from usage
+  - Self-align with strategic goals
 
-## 5. Database Schema - COMPLETED
+## Detailed Task Breakdown
 
-* **Strategy:** ✅ The Neo4j schema includes `TimeNodes` to form the chronological spine. All `MemoryNodes` are linked to a `TimeNode` via a `[:OCCURRED_AT]` relationship using the Year->Month->Day structure.
+### Task T-001: Implement UTCP Tool Registry Service
+- **Description**: Design and implement the central UTCP Tool Registry for standardized tool discovery and access across all ECE agents.
+- **Priority**: High
+- **Target Components**: UTCP Tool Registry
+- **Status**: Planned
 
-## 6. Context Cache Solidification - COMPLETED
+### Task T-002: Implement UTCP Client Library
+- **Description**: Design and implement the standardized UTCP client interface for discovering and calling tools via the registry.
+- **Priority**: High
+- **Target Components**: UTCP Client
+- **Status**: Planned
 
-*   **Strategy:** ✅ Robust implementation and testing of the Context Cache. Reliable population during multi-step conversations and effective utilization to inform subsequent responses. Comprehensive unit and integration tests have been developed.
+### Task T-003: Agent Tool Registration Implementation
+- **Description**: Update each ECE agent to register its available tools with the UTCP Registry using standardized tool definitions.
+- **Priority**: High
+- **Target Agents**: OrchestratorAgent, ArchivistAgent, DistillerAgent, QLearningAgent, InjectorAgent
+- **Status**: Planned
 
-## 7. New Agent Implementation Strategies - FUTURE WORK
+### Task T-004: Replace Bespoke HTTP Clients with UTCP Calls
+- **Description**: Replace all custom HTTP client implementations with standardized UTCP tool calls for inter-agent communication.
+- **Priority**: High
+- **Target Agents**: OrchestratorAgent, ArchivistAgent
+- **Status**: Planned
 
-### 7.1. "Vault" Agent (Tier 0 Security) - NOT YET IMPLEMENTED
-*   **Strategy:** Implement as a dedicated FastAPI service, positioned as the absolute first point of contact for all external inputs. It will utilize a lightweight, security-focused LLM for intent classification and pattern matching for sanitization. Threat logs will be written to a secure, append-only file.
+### Task T-005: Implement FileSystemAgent
+- **Description**: Design and implement the `FileSystemAgent` for secure file operations, enabling the ECE to read and write its own codebase.
+- **Priority**: High
+- **Target Agents**: FileSystemAgent, ContextCache
+- **Status**: Planned
 
-### 7.2. "Janitor" Agent (Memory & Graph Hygiene) - NOT YET IMPLEMENTED
-*   **Strategy:** Implement as a background service, potentially a scheduled task within the `Archivist` or a standalone container. It will periodically query the Neo4j graph for nodes requiring maintenance (e.g., unstructured text, non-standard timestamps) and use the `Distiller` and `Injector` to re-process and update them. De-duplication will involve graph traversal and merging algorithms.
+### Task T-006: Implement WebSearchAgent Enhancement
+- **Description**: Enhance the existing `WebSearchAgent` to utilize the Tavily API with proper rate limiting and security boundaries.
+- **Priority**: High
+- **Target Agents**: WebSearchAgent
+- **Status**: Planned
 
-### 7.3. "Oculus" Agent (Tier 1 Visual Cortex & Motor Control) - NOT YET IMPLEMENTED
-*   **Strategy:** Implement as a dedicated service that integrates with screen capture utilities (e.g., `mss` or platform-specific APIs) and an input control library (`pyautogui`). A specialized Visual Language Model (VLM) will be integrated to interpret screen captures and generate structured POML descriptions of UI elements. The operational loop will involve continuous perception, planning (via Orchestrator), and execution of actions.
+### Task T-007: Update Orchestrator Decision Tree
+- **Description**: Modify the Orchestrator's decision tree to route file and web requests to the appropriate tool agents.
+- **Priority**: High
+- **Target Agents**: OrchestratorAgent
+- **Status**: Planned
 
-## 8. Current System Architecture
+### Task T-008: Implement Security Boundaries
+- **Description**: Define and implement security boundaries for tool agent access to prevent unauthorized operations.
+- **Priority**: High
+- **Target Agents**: All agents
+- **Status**: Planned
 
-### 8.1. Data Flow
-1. User input received by Orchestrator
-2. Context retrieved from Neo4j via Archivist/QLearningAgent
-3. Processing through Thinker agents for complex reasoning
-4. Results stored in Redis Context Cache
-5. Periodic processing by Archivist (every 5 seconds)
-6. Distillation of cache contents by Distiller Agent
-7. Injection into Neo4j by Injector Agent with temporal linking
-8. Relationship optimization by QLearning Agent
+### Task T-009: Implement Self-Analysis Capability
+- **Description**: Enable the ECE to read and analyze its own codebase using the new tool agents.
+- **Priority**: Medium
+- **Target Agents**: FileSystemAgent, OrchestratorAgent
+- **Status**: Planned
 
-### 8.2. Container Orchestration
-- **chimaera-dev:** Main orchestrator service
-- **neo4j:** Graph database for persistent memory
-- **redis:** In-memory cache for context storage
-- **distiller:** NLP processing service
-- **injector:** Neo4j data injection service
-- **archivist:** Memory cortex controller
-- **qlearning:** Graph optimization service
+### Task T-010: Implement Self-Modification Capability
+- **Description**: Allow the ECE to modify its own code with proper validation and safeguards.
+- **Priority**: Medium
+- **Target Agents**: FileSystemAgent, OrchestratorAgent
+- **Status**: Planned
 
-## 9. Monitoring and Maintenance
+### Task T-011: Implement Self-Verification Flow
+- **Description**: Create automated testing and validation for self-modifications.
+- **Priority**: Medium
+- **Target Agents**: All agents
+- **Status**: Planned
 
-### 9.1. Health Checks
-- All services implement `/health` endpoints
-- Continuous monitoring of Redis and Neo4j connections
-- Error handling with retry logic and exponential backoff
+## Implementation Timeline
 
-### 9.2. Logging
-- Comprehensive logging at all levels
-- Error tracking and debugging information
-- Performance monitoring for cache operations
+- **Week 1-2**: Complete Phase 2 tasks (UTCP Infrastructure Implementation)
+- **Week 3**: Complete Phase 3 tasks (Tool Agent Implementation)
+- **Week 4**: Complete Phase 4 tasks (Agent Migration to UTCP)
+- **Week 5**: Complete Phase 5 tasks (CLI Interface Development)
+- **Week 6**: Complete Phase 6 tasks (Self-Development Flow Implementation)
+- **Week 7**: Testing, integration, and documentation finalization
+- **Week 8+**: Begin Phase 7 (Advanced Self-Development)
 
-This updated plan reflects the current state of the ECE project, with all MVP components successfully implemented and operational.
+## Success Criteria
+
+- UTCP Tool Registry is operational and serving tool definitions
+- UTCP Client library is implemented and functional across all agents
+- All agents successfully register their tools with the UTCP Registry
+- Bespoke HTTP clients are replaced with UTCP tool calls
+- Tool agents are correctly implemented and securely integrated
+- ECE-CLI provides rich command-line interface with persistent context
+- CLI incorporates POML persona and emotional lexicon display
+- Local Ollama integration provides low-latency, private responses
+- ECE can safely read and analyze its own codebase
+- Self-modification flows include proper validation and safeguards
+- System maintains stability while enabling autonomous development
+- All new tasks from the updated specification are completed
+- Updated documentation accurately reflects the new UTCP integration and self-development capabilities
+- Performance and security standards are maintained during UTCP integration and self-modification
+
+## Security Considerations
+
+- All tool access must be logged and auditable
+- File system access boundaries must prevent unauthorized operations
+- Code modification safeguards must prevent breaking changes
+- Rate limiting must prevent abuse of web search capabilities
+- Access to system files must be restricted to prevent privilege escalation
+- CLI configuration must securely store API keys and model settings
+
+## Self-Development Guidelines
+
+- All code modifications must be reversible
+- Changes must be validated against specifications before application
+- Automated testing must pass before any self-modification is applied
+- Human oversight should be available for critical changes
+- Backup and recovery mechanisms must be in place
+
+## Local Ollama Integration
+
+- Direct communication with local Ollama instance for enhanced privacy
+- Optimized resource utilization leveraging local GPU/CPU
+- Reduced latency through local processing
+- Support for multiple local models simultaneously
+- Configuration management for model selection and parameters
+- Model download and management capabilities within the CLI interface

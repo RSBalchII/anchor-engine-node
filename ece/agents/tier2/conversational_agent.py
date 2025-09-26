@@ -9,12 +9,15 @@ class ConversationalAgent:
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
         self.system_prompt = "You are a helpful AI assistant. Provide concise and relevant responses."
 
-    async def respond(self, prompt: str) -> str:
+    async def respond(self, prompt: str, system_prompt: str = None) -> str:
+        # Use the custom system prompt if provided, otherwise use the default
+        effective_system_prompt = system_prompt if system_prompt is not None else self.system_prompt
+        
         print(f"  -> ConversationalAgent processing with model {self.model}...")
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": self.system_prompt},
+                {"role": "system", "content": effective_system_prompt},
                 {"role": "user", "content": prompt}
             ],
             "stream": False,

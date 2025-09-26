@@ -6,7 +6,7 @@
 llm:
   provider: ollama
   config:
-    model: "nemotron-mini:4b-instruct-q4_K_M"
+    model: "nuextract:3.8b-q4_K_M"
 
 # === Cache Configuration ===
 cache:
@@ -65,8 +65,8 @@ ThinkerAgent:
   name: "Thinker"
   role: "Specialized Reasoning Agent"
   goal: "Provide a specific perspective on a complex problem."
-  model: "nemotron-mini:4b-instruct-q4_K_M"
-  synthesis_model: "nemotron-mini:4b-instruct-q4_K_M"
+  model: "nuextract:3.8b-q4_K_M"
+  synthesis_model: "nuextract:3.8b-q4_K_M"
   personas: ["Optimist", "Pessimist", "Creative", "Analytical", "Pragmatic"]
 
 

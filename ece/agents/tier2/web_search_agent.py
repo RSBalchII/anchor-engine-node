@@ -10,7 +10,7 @@ class WebSearchAgent:
         self.tavily_client = TavilyClient(api_key=tavily_api_key or os.getenv("TAVILY_API_KEY"))
         self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 
-    async def search(self, query: str) -> str:
+    async def search(self, query: str, system_prompt: str = "You are a helpful AI assistant that answers questions based on web search results.") -> str:
         print(f"WebSearchAgent searching for: '{query}'")
         try:
             search_results = self.tavily_client.search(query, search_depth="advanced")
@@ -21,7 +21,7 @@ class WebSearchAgent:
             payload = {
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": "You are a helpful AI assistant that answers questions based on web search results."},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
                 "stream": False,

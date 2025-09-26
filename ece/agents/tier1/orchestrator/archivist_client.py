@@ -1,27 +1,61 @@
 # ece/agents/tier1/orchestrator/archivist_client.py
 import httpx
+import logging
 from typing import List, Dict, Any
+
 
 class ArchivistClient:
     def __init__(self, base_url: str):
         self.base_url = base_url
         self.client = httpx.AsyncClient()
+        self.logger = logging.getLogger(__name__)
 
     async def get_context(self, query: str, keywords: List[str]) -> List[Dict[str, Any]]:
         """
         Get context from the Archivist agent.
         """
         try:
+            self.logger.info(f"Calling Archivist at {self.base_url}/context with query: {query[:100]}...")
             response = await self.client.post(
                 f"{self.base_url}/context",
                 json={"query": query, "keywords": keywords},
                 timeout=30.0
             )
             if response.status_code == 200:
-                return response.json().get("context", [])
+                context_data = response.json().get("context", [])
+                self.logger.info(f"Received {len(context_data)} context items from Archivist")
+                return context_data
             else:
-                print(f"Archivist returned status {response.status_code}")
+                self.logger.error(f"Archivist returned status {response.status_code}")
                 return []
         except Exception as e:
-            print(f"Error calling Archivist: {str(e)}")
+            self.logger.error(f"Error calling Archivist: {str(e)}")
             return []
+
+    async def get_enhanced_context(self, context_request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Get enhanced context from the Archivist agent, which coordinates with the QLearning Agent.
+        
+        Args:
+            context_request: Dictionary containing query, keywords, max_tokens, and session_id
+            
+        Returns:
+            Dictionary with enhanced_context and related_memories
+        """
+        try:
+            self.logger.info(f"Calling Archivist at {self.base_url}/enhanced_context with query: {context_request.get('query', '')[:100]}...")
+            response = await self.client.post(
+                f"{self.base_url}/enhanced_context",
+                json=context_request,
+                timeout=60.0
+            )
+            if response.status_code == 200:
+                enhanced_context_data = response.json()
+                self.logger.info(f"Received enhanced context from Archivist: {len(enhanced_context_data.get('enhanced_context', ''))} characters")
+                return enhanced_context_data
+            else:
+                self.logger.error(f"Archivist returned status {response.status_code}")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Error calling Archivist for enhanced context: {str(e)}")
+            return {}

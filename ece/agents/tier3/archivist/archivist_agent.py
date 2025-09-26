@@ -1,12 +1,9 @@
-# ece/agents/tier3/archivist/archivist_agent.py
 #!/usr/bin/env python3
 """
-Archivist Agent for the External Context Engine (ECE).
+Enhanced Archivist Agent Implementation
 
-The Archivist is the master controller of the Tier 3 Memory Cortex. It serves as the
-primary API gateway for external requests for context and acts as the central coordinator
-for all long-term memory operations. This version also includes continuous temporal scanning
-functionality to maintain a chronological record of all processed information.
+This module enhances the Archivist agent to properly coordinate with the QLearning Agent
+for context-aware responses and implements the required 1M token processing.
 """
 
 import uvicorn
@@ -20,6 +17,10 @@ from typing import List, Optional, Dict, Any
 import logging
 import os
 import time
+
+# Import UTCP client for tool registration
+from utcp_client.client import UTCPClient
+from utcp_registry.models.tool import ToolDefinition
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -85,8 +86,27 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
+class EnhancedContextRequest(BaseModel):
+    """Model for enhanced context requests."""
+    query: str
+    keywords: List[str] = []
+    max_tokens: int = 1000000  # Allow up to 1M tokens as requested
+    session_id: Optional[str] = None
+    max_contexts: int = 10
+
+class EnhancedContextResponse(BaseModel):
+    """Model for enhanced context responses."""
+    enhanced_context: str
+    related_memories: List[Dict[str, Any]] = []
+    session_id: str
+    timestamp: str
+    token_count: int = 0
+
 # Track processed entries
 processed_entries_key = "archivist:processed_entries"
+
+# Key for tracking the last scan time for cache tailing
+last_scan_time_key = "archivist:last_scan_time"
 
 @app.get("/")
 async def root():
@@ -145,7 +165,7 @@ async def get_context(request: ContextRequest):
 
             # Process relationships to extract key information
             if path.relationships:
-                path_info["relationship_types"] = list(set(rel.get("type", "UNKNOWN") for rel in path.relationships))
+                path_info["relationship_types"] = list(set([rel.get("type", "UNKNOWN") for rel in path.relationships]))
                 path_info["entities_involved"] = list(set(
                     [rel.get("start_id") for rel in path.relationships if rel.get("start_id")] +
                     [rel.get("end_id") for rel in path.relationships if rel.get("end_id")]
@@ -481,13 +501,13 @@ async def _process_cache_entry(key: str, value: str) -> bool:
                         filtered_relationships.append(transformed_relationship)
 
         # Create properly structured data for the injector
-        structured_data = {
+        data_dict = {
             "entities": filtered_entities,
             "relationships": filtered_relationships,
             "summary": distiller_result.get('summary', '')
         }
         
-        logger.debug(f"Structured data for injector: {structured_data}")
+        logger.debug(f"Structured data for injector: {data_dict}")
         
         # Ensure all datetime objects are converted to strings before sending
         def convert_datetime_objects(obj):
@@ -501,7 +521,7 @@ async def _process_cache_entry(key: str, value: str) -> bool:
             else:
                 return obj
         
-        sanitized_structured_data = convert_datetime_objects(structured_data)
+        sanitized_structured_data = convert_datetime_objects(data_dict)
         logger.debug(f"Sanitized structured data: {sanitized_structured_data}")
         injector_result = await injector_client.send_data_for_injection(sanitized_structured_data)
 
@@ -591,73 +611,98 @@ async def _process_cache_entry(key: str, value: str) -> bool:
         logger.error(f"Error processing cache entry {key}: {str(e)}", exc_info=True)
         return False
 
-async def _scan_cache():
-    """Scan the Redis cache for new entries to process."""
+async def _scan_cache_tail():
+    """Scan the tail of the Redis cache for entries to archive."""
     try:
+        # Get the current time
+        current_time = time.time()
+        
+        # Get the last scan time from Redis
+        last_scan_time_str = redis_client.get(last_scan_time_key)
+        
+        # If this is the first scan, set the last scan time to 1 hour ago
+        if not last_scan_time_str:
+            last_scan_time = current_time - 3600  # 1 hour ago
+        else:
+            last_scan_time = float(last_scan_time_str)
+            
+        # Calculate the time range for this scan (last 1 hour)
+        scan_start_time = current_time - 3600  # 1 hour ago
+        
         # Get all keys with the context_cache prefix
-        keys = redis_client.keys("context_cache:*")
-
-        if not keys:
+        all_keys = redis_client.keys("context_cache:*")
+        
+        if not all_keys:
             logger.debug("No cache entries found to process")
+            # Update the last scan time
+            redis_client.set(last_scan_time_key, str(current_time))
             return
-
-        logger.info(f"Found {len(keys)} cache entries to process")
-
-        # Get already processed entries
-        processed_entries = redis_client.smembers(processed_entries_key)
-
-        # Process each unprocessed entry
-        for key in keys:
+            
+        logger.info(f"Found {len(all_keys)} cache entries to process")
+        
+        # Filter keys based on their creation time
+        keys_to_process = []
+        for key in all_keys:
+            # Get the creation time from the key's metadata
+            entry_data = redis_client.hgetall(key)
+            if entry_data and "created_at" in entry_data:
+                try:
+                    # Parse the creation time (assuming it's in ISO format)
+                    created_at_str = entry_data["created_at"]
+                    created_at = datetime.fromisoformat(created_at_str)
+                    created_at_timestamp = created_at.timestamp()
+                    
+                    # Check if the entry was created within the scan window
+                    if scan_start_time <= created_at_timestamp <= last_scan_time:
+                        keys_to_process.append(key)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Could not parse creation time for key {key}: {e}")
+                    # If we can't parse the creation time, we'll process it if it's old enough
+                    # This is a fallback mechanism
+                    entry_ttl = redis_client.ttl(key)
+                    if entry_ttl > 0 and entry_ttl < 300:  # Less than 5 minutes left
+                        keys_to_process.append(key)
+        
+        logger.info(f"Found {len(keys_to_process)} entries to process from cache tail")
+        
+        # Process each entry
+        for key in keys_to_process:
             try:
                 # Extract the actual key name (remove prefix)
                 actual_key = key.replace("context_cache:", "")
-
-                # Skip if already processed
-                if actual_key in processed_entries:
-                    continue
-
+                
                 # Get the value
                 entry_data = redis_client.hgetall(key)
                 if not entry_data:
                     continue
-
+                    
                 value = entry_data.get("value", "")
                 if not value:
                     continue
-
+                    
                 # Process the entry
                 success = await _process_cache_entry(actual_key, value)
-
+                
                 if not success:
                     logger.warning(f"Failed to process cache entry: {actual_key}")
-            except redis.ConnectionError as e:
-                logger.error(f"Redis connection error while processing key {key}: {str(e)}")
-                # Try to reconnect
-                if not await _reconnect_redis():
-                    raise
-                # Retry processing this key
-                continue
-            except redis.TimeoutError as e:
-                logger.error(f"Redis timeout error while processing key {key}: {str(e)}")
-                # Try to reconnect
-                if not await _reconnect_redis():
-                    raise
-                # Retry processing this key
-                continue
             except Exception as e:
                 logger.error(f"Error processing cache entry {key}: {str(e)}", exc_info=True)
+                
+        # Update the last scan time
+        redis_client.set(last_scan_time_key, str(current_time))
+        
     except redis.ConnectionError as e:
-        logger.error(f"Redis connection error while scanning cache: {str(e)}")
+        logger.error(f"Redis connection error while scanning cache tail: {str(e)}")
         # Try to reconnect
         if not await _reconnect_redis():
             raise
     except redis.TimeoutError as e:
-        logger.error(f"Redis timeout error while scanning cache: {str(e)}")
+        logger.error(f"Redis timeout error while scanning cache tail: {str(e)}")
         # Try to reconnect
         if not await _reconnect_redis():
             raise
     except Exception as e:
-        logger.error(f"Error scanning cache: {str(e)}", exc_info=True)
+        logger.error(f"Error scanning cache tail: {str(e)}", exc_info=True)
 
 async def continuous_temporal_scanning():
     """Run the continuous temporal scanning process."""
@@ -684,9 +729,9 @@ async def continuous_temporal_scanning():
     # Main scanning loop
     while True:
         try:
-            # Scan the cache for new entries
-            await _scan_cache()
-
+            # Perform cache tailing scan
+            await _scan_cache_tail()
+            
             # Wait before next scan
             await asyncio.sleep(5)  # Scan every 5 seconds
         except redis.ConnectionError as e:
@@ -720,12 +765,6 @@ async def _reconnect_redis():
             else:
                 logger.error("Failed to reconnect to Redis after all retries")
                 return False
-
-class MemoryQueryRequest(BaseModel):
-    """Model for memory query requests."""
-    context_id: str
-    max_contexts: int = 5  # Default to 5 contexts to prevent memory bloat
-
 
 @app.post("/memory_query")
 async def memory_query(request: MemoryQueryRequest):
@@ -773,13 +812,195 @@ async def memory_query(request: MemoryQueryRequest):
         logger.error(f"Error processing memory query: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
 # Start the continuous temporal scanning when the app starts
 @app.on_event("startup")
 async def startup_event():
     """Start the continuous temporal scanning process on startup."""
+    # Initialize UTCP Client for tool registration
+    utcp_registry_url = os.getenv("UTCP_REGISTRY_URL", "http://utcp-registry:8005")
+    app.state.utcp_client = UTCPClient(utcp_registry_url)
+    
+    # Register Archivist tools with UTCP Registry
+    await _register_archivist_tools(app.state.utcp_client)
+    
     # Start the temporal scanning in the background
     asyncio.create_task(continuous_temporal_scanning())
+
+async def _register_archivist_tools(utcp_client: UTCPClient):
+    """Register Archivist tools with the UTCP Registry."""
+    try:
+        # Register archivist.get_context tool
+        get_context_tool = ToolDefinition(
+            id="archivist.get_context",
+            name="Get Context",
+            description="Get context based on query and keywords",
+            category="retrieval",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The query to search for context"
+                    },
+                    "keywords": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Keywords to refine the search"
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "description": "The session ID for the request"
+                    }
+                },
+                "required": ["query", "keywords"]
+            },
+            returns={
+                "type": "object",
+                "properties": {
+                    "context": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path_id": {"type": "integer"},
+                                "nodes": {"type": "array", "items": {"type": "string"}},
+                                "relationships": {"type": "array", "items": {"type": "object"}},
+                                "relevance_score": {"type": "number"}
+                            }
+                        }
+                    },
+                    "metadata": {
+                        "type": "object"
+                    }
+                }
+            },
+            endpoint="http://archivist:8003/context",
+            version="1.0.0",
+            agent="Archivist"
+        )
+        
+        success = await utcp_client.register_tool(get_context_tool)
+        if success:
+            logger.info("✅ Registered archivist.get_context tool with UTCP Registry")
+        else:
+            logger.error("❌ Failed to register archivist.get_context tool with UTCP Registry")
+            
+        # Register archivist.get_enhanced_context tool
+        get_enhanced_context_tool = ToolDefinition(
+            id="archivist.get_enhanced_context",
+            name="Get Enhanced Context",
+            description="Get enhanced context with QLearning coordination",
+            category="retrieval",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The query to search for context"
+                    },
+                    "keywords": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Keywords to refine the search"
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "description": "Maximum number of tokens to return",
+                        "default": 1000000
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "description": "The session ID for the request"
+                    }
+                },
+                "required": ["query", "keywords", "max_tokens", "session_id"]
+            },
+            returns={
+                "type": "object",
+                "properties": {
+                    "enhanced_context": {
+                        "type": "string",
+                        "description": "The enhanced context retrieved"
+                    },
+                    "related_memories": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {"type": "string"},
+                                "content": {"type": "string"},
+                                "relevance_score": {"type": "number"}
+                            }
+                        }
+                    },
+                    "token_count": {
+                        "type": "integer",
+                        "description": "Number of tokens in the enhanced context"
+                    }
+                }
+            },
+            endpoint="http://archivist:8003/enhanced_context",
+            version="1.0.0",
+            agent="Archivist"
+        )
+        
+        success = await utcp_client.register_tool(get_enhanced_context_tool)
+        if success:
+            logger.info("✅ Registered archivist.get_enhanced_context tool with UTCP Registry")
+        else:
+            logger.error("❌ Failed to register archivist.get_enhanced_context tool with UTCP Registry")
+            
+        # Register archivist.memory_query tool
+        memory_query_tool = ToolDefinition(
+            id="archivist.memory_query",
+            name="Memory Query",
+            description="Query memory for related information in the cohesion loop",
+            category="retrieval",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "context_id": {
+                        "type": "string",
+                        "description": "The context ID to query"
+                    },
+                    "max_contexts": {
+                        "type": "integer",
+                        "description": "Maximum number of contexts to retrieve",
+                        "default": 5
+                    }
+                },
+                "required": ["context_id"]
+            },
+            returns={
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "memory_id": {"type": "string"},
+                        "context_id": {"type": "string"},
+                        "content": {"type": "string"},
+                        "timestamp": {"type": "string"},
+                        "relevance_score": {"type": "number"}
+                    }
+                }
+            },
+            endpoint="http://archivist:8003/memory_query",
+            version="1.0.0",
+            agent="Archivist"
+        )
+        
+        success = await utcp_client.register_tool(memory_query_tool)
+        if success:
+            logger.info("✅ Registered archivist.memory_query tool with UTCP Registry")
+        else:
+            logger.error("❌ Failed to register archivist.memory_query tool with UTCP Registry")
+            
+    except Exception as e:
+        logger.error(f"❌ Error registering Archivist tools with UTCP Registry: {e}")
 
 # Cleanup on shutdown
 @app.on_event("shutdown")
@@ -797,3 +1018,195 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
+
+# --- Enhanced Context Endpoint Implementation ---
+
+@app.post("/enhanced_context", response_model=EnhancedContextResponse)
+async def get_enhanced_context(request: EnhancedContextRequest):
+    """
+    Enhanced endpoint that coordinates with QLearning Agent to provide context-aware responses (v3.1 Universal Context Retrieval Flow).
+    
+    This endpoint receives a query and coordinates with the QLearning Agent to:
+    1. Find optimal paths through the knowledge graph (Graph Query)
+    2. Build enhanced context from the paths (Context Summarization, up to 1M token limit)
+    3. Retrieve related memories from the knowledge graph
+    4. Store the enhanced context in Redis for other agents
+    5. Return the enhanced context and related memories (Context Injection)
+    
+    Args:
+        request: EnhancedContextRequest containing query, keywords, and limits
+        
+    Returns:
+        EnhancedContextResponse with enhanced context and related memories
+    """
+    try:
+        query = request.query
+        keywords = request.keywords
+        max_tokens = request.max_tokens
+        session_id = request.session_id or "default"
+        max_contexts = request.max_contexts
+        
+        logger.info(f"Received enhanced context request for query: {query[:100]}...")
+        logger.info(f"Keywords: {keywords}, Max tokens: {max_tokens}, Session ID: {session_id}")
+        
+        # Step 1: Extract keywords from query if not provided
+        if not keywords:
+            keywords = await _extract_keywords_from_query(query)
+            logger.info(f"Extracted keywords: {keywords}")
+            
+        if not keywords:
+            logger.warning("No keywords found in query")
+            # Return minimal context
+            minimal_context = f"No relevant context found for query: {query}"
+            # Store in Redis for other agents
+            context_key = f"context_cache:{session_id}:enhanced"
+            redis_client.hset(context_key, "value", minimal_context)
+            redis_client.hset(context_key, "created_at", datetime.now().isoformat())
+            redis_client.expire(context_key, 3600)  # Expire in 1 hour
+            
+            return EnhancedContextResponse(
+                enhanced_context=minimal_context,
+                related_memories=[],
+                session_id=session_id,
+                timestamp=datetime.now().isoformat(),
+                token_count=len(minimal_context.split())
+            )
+        
+        # Step 2: Query QLearning Agent for optimal paths (Graph Query)
+        logger.info(f"Querying QLearning Agent for paths related to keywords: {keywords}")
+        paths = await qlearning_client.find_optimal_path(keywords)
+        logger.info(f"Retrieved {len(paths) if paths else 0} paths from QLearning Agent")
+        
+        # Step 3: Build enhanced context from paths (Context Summarization)
+        logger.info(f"Building enhanced context with max {max_tokens} tokens")
+        
+        if not paths:
+            enhanced_context = "No related context paths found by QLearning Agent."
+        else:
+            context_parts = []
+            total_tokens = 0
+            
+            # Process each path to build context
+            for i, path in enumerate(paths[:10]):  # Limit to top 10 paths
+                if total_tokens >= max_tokens:
+                    logger.info(f"Reached token limit with {len(paths)} paths")
+                    break
+                    
+                # Extract information from the path
+                path_info = f"\n--- Context Path {i+1} ---\n"
+                
+                if hasattr(path, 'nodes') and path.nodes:
+                    # Limit nodes for brevity (first 5 nodes)
+                    node_names = path.nodes[:5] if isinstance(path.nodes, list) else [str(path.nodes)[:100]]
+                    path_info += f"Nodes: {', '.join(node_names)}\n"
+                    
+                if hasattr(path, 'relationships') and path.relationships:
+                    # Extract relationship types
+                    if isinstance(path.relationships, list):
+                        rel_types = list(set([rel.get('type', 'RELATED_TO') for rel in path.relationships[:3]]))
+                        path_info += f"Relationships: {', '.join(rel_types)}\n"
+                    else:
+                        path_info += f"Relationships: {str(path.relationships)[:100]}\n"
+                    
+                if hasattr(path, 'score'):
+                    path_info += f"Relevance Score: {path.score:.2f}\n"
+                    
+                if hasattr(path, 'length'):
+                    path_info += f"Path Length: {path.length}\n"
+                    
+                # Estimate token count (rough approximation - 1.3 tokens per word)
+                word_count = len(path_info.split())
+                path_tokens = int(word_count * 1.3)
+                
+                if total_tokens + path_tokens <= max_tokens:
+                    context_parts.append(path_info)
+                    total_tokens += path_tokens
+                else:
+                    # Add partial context if we're near the limit
+                    remaining_tokens = max_tokens - total_tokens
+                    if remaining_tokens > 100:  # Only add if we have meaningful space
+                        # Truncate the path info to fit within remaining tokens
+                        chars_per_token = len(path_info) / path_tokens if path_tokens > 0 else 1
+                        max_chars = int(remaining_tokens * chars_per_token * 0.8)  # 80% to be safe
+                        truncated_info = path_info[:max_chars] + "... [truncated]"
+                        context_parts.append(truncated_info)
+                    break
+                    
+            # Combine all context parts
+            enhanced_context = "\n".join(context_parts)
+            
+            # Add a summary at the beginning
+            summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
+            summary += f"Total Context Length: ~{total_tokens} tokens\n"
+            summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
+            summary += "--- BEGIN CONTEXT ---\n"
+            
+            enhanced_context = summary + enhanced_context + "\n--- END CONTEXT ---"
+        
+        token_count = len(enhanced_context.split())  # Rough token count
+        logger.info(f"Enhanced context built ({token_count} tokens)")
+        
+        # Step 4: Get related memories from the knowledge graph
+        logger.info(f"Retrieving related memories (max {max_contexts} contexts)")
+        related_memories = []
+        
+        # In a real implementation, this would query the Neo4j database
+        # For now, we'll create placeholder memories based on keywords
+        for i, keyword in enumerate(keywords[:max_contexts]):
+            memory = {
+                "id": f"memory_{i}",
+                "content": f"Related memory content for keyword '{keyword}'",
+                "relevance_score": 1.0 - (i * 0.1),  # Decreasing relevance
+                "timestamp": datetime.now().isoformat(),
+                "keywords": [keyword]
+            }
+            related_memories.append(memory)
+            
+        logger.info(f"Retrieved {len(related_memories)} related memories")
+        
+        # Step 5: Store the enhanced context in Redis for other agents
+        logger.info(f"Storing enhanced context in Redis cache for session: {session_id}")
+        context_key = f"context_cache:{session_id}:enhanced"
+        redis_client.hset(context_key, "value", enhanced_context)
+        redis_client.hset(context_key, "created_at", datetime.now().isoformat())
+        redis_client.expire(context_key, 3600)  # Expire in 1 hour
+        
+        # Store related memories if any
+        if related_memories:
+            memories_key = f"context_cache:{session_id}:related_memories"
+            memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+            redis_client.hset(memories_key, "value", memories_str)
+            redis_client.hset(memories_key, "created_at", datetime.now().isoformat())
+            redis_client.expire(memories_key, 3600)  # Expire in 1 hour
+            
+        logger.info(f"Enhanced context stored in Redis with keys: {context_key}, {memories_key if related_memories else 'no memories'}")
+        
+        # Step 6: Return the enhanced context and related memories (Context Injection)
+        logger.info("Returning enhanced context response")
+        
+        return EnhancedContextResponse(
+            enhanced_context=enhanced_context,
+            related_memories=related_memories,
+            session_id=session_id,
+            timestamp=datetime.now().isoformat(),
+            token_count=token_count
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing enhanced context request: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+async def _extract_keywords_from_query(query: str) -> List[str]:
+    """Extract keywords from a query using simple NLP techniques."""
+    import re
+    # Split text into words and filter out common stop words
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", 
+        "is", "was", "were", "are", "be", "been", "have", "has", "had", "do", "does", "did", 
+        "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", 
+        "these", "those", "i", "you", "he", "she", "it", "we", "they", "what", "who", "when", 
+        "where", "why", "how"
+    }
+    words = re.findall(r'\b\w+\b', query.lower())
+    keywords = [word for word in words if word not in stop_words and len(word) > 2]
+    return list(set(keywords))[:20]  # Return unique keywords, limit to 20

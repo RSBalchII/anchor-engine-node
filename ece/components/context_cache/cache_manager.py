@@ -107,8 +107,17 @@ class CacheManager:
                     if self.truncation_callback:
                         self.truncation_callback(keys_to_delete)
                     else:
-                        # If no callback is provided, call the archivist client
-                        asyncio.run(self.archivist_client.handle_truncated_entries(keys_to_delete))
+                        # If no callback is provided, try to call the archivist client
+                        # Use a background task approach to avoid 'asyncio.run() cannot be called from a running event loop' error
+                        try:
+                            # Try to get the running event loop
+                            loop = asyncio.get_running_loop()
+                            # If we're in a running loop, create a task
+                            asyncio.create_task(self.archivist_client.handle_truncated_entries(keys_to_delete))
+                        except RuntimeError:
+                            # No running loop, so we can use asyncio.run() or just ignore for now
+                            # For safety in sync contexts, we'll just print a warning instead of triggering the archivist
+                            print(f"Warning: Cache entries were trimmed but archivist client could not be notified asynchronously: {keys_to_delete}")
                     self.redis_client.delete(*keys_to_delete)
                     print(f"Trimmed {len(keys_to_delete)} oldest entries from the cache.")
         except Exception as e:

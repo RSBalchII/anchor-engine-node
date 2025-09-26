@@ -26,6 +26,11 @@ from ece.common.sandbox import run_code_in_sandbox
 from ece.components.context_cache.cache_manager import CacheManager
 from ece.agents.tier1.orchestrator.archivist_client import ArchivistClient
 
+# Import UTCP client for tool registration
+from utcp_client.client import UTCPClient
+from utcp_registry.models.tool import ToolDefinition
+import asyncio
+
 
 class BaseThinker:
     def __init__(self, name="Default", model=None, semaphore: asyncio.Semaphore = None):
@@ -169,8 +174,18 @@ class OrchestratorAgent:
         archivist_url = self.config.get('archivist', {}).get('url', 'http://archivist:8003')
         self.archivist_client = ArchivistClient(base_url=archivist_url)
 
+        # Initialize UTCP Client for tool registration
+        utcp_registry_url = os.getenv("UTCP_REGISTRY_URL", "http://utcp-registry:8005")
+        self.utcp_client = UTCPClient(utcp_registry_url)
+        
         # Start the cohesion loop
         self.cohesion_loop_task = None
+        
+        # Load POML persona at initialization
+        self._load_poml_persona()
+        
+        # Register Orchestrator tools with UTCP Registry
+        asyncio.create_task(self._register_orchestrator_tools())
 
     def start_cohesion_loop(self):
         """Start the periodic cohesion loop that analyzes context every 5 seconds"""
@@ -437,3 +452,107 @@ class OrchestratorAgent:
         final_answer = await self.synthesis_thinker.think(synthesis_prompt)
         logging.info(f"Final answer: {final_answer}")
         return final_answer
+
+    async def _register_orchestrator_tools(self):
+        """Register Orchestrator tools with the UTCP Registry."""
+        try:
+            # Register orchestrator.process_prompt tool
+            process_prompt_tool = ToolDefinition(
+                id="orchestrator.process_prompt",
+                name="Process Prompt",
+                description="Process a user prompt using the Orchestrator",
+                category="processing",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "The user prompt to process"
+                        }
+                    },
+                    "required": ["prompt"]
+                },
+                returns={
+                    "type": "object",
+                    "properties": {
+                        "response": {
+                            "type": "string",
+                            "description": "The processed response"
+                        }
+                    }
+                },
+                endpoint=f"http://orchestrator:8000/process_prompt",
+                version="1.0.0",
+                agent="Orchestrator"
+            )
+            
+            success = await self.utcp_client.register_tool(process_prompt_tool)
+            if success:
+                print("✅ Registered orchestrator.process_prompt tool with UTCP Registry")
+            else:
+                print("❌ Failed to register orchestrator.process_prompt tool with UTCP Registry")
+                
+            # Register orchestrator.get_analysis_result tool
+            get_analysis_result_tool = ToolDefinition(
+                id="orchestrator.get_analysis_result",
+                name="Get Analysis Result",
+                description="Retrieve the result of a complex reasoning analysis",
+                category="retrieval",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "analysis_id": {
+                            "type": "string",
+                            "description": "The ID of the analysis to retrieve"
+                        }
+                    },
+                    "required": ["analysis_id"]
+                },
+                returns={
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "description": "Status of the analysis (pending or complete)"
+                        },
+                        "response": {
+                            "type": "string",
+                            "description": "The analysis response if complete"
+                        }
+                    }
+                },
+                endpoint=f"http://orchestrator:8000/get_analysis_result",
+                version="1.0.0",
+                agent="Orchestrator"
+            )
+            
+            success = await self.utcp_client.register_tool(get_analysis_result_tool)
+            if success:
+                print("✅ Registered orchestrator.get_analysis_result tool with UTCP Registry")
+            else:
+                print("❌ Failed to register orchestrator.get_analysis_result tool with UTCP Registry")
+                
+        except Exception as e:
+            print(f"❌ Error registering Orchestrator tools with UTCP Registry: {e}")
+
+    def _load_poml_persona(self):
+        """Load the POML persona file and integrate it into the agent's context."""
+        try:
+            with open('/app/poml/orchestrator.poml', 'r') as f:
+                self.poml_content = f.read()
+            print("POML persona loaded successfully.")
+        except FileNotFoundError:
+            print("POML file not found. Using default persona.")
+            self.poml_content = "<poml><identity><name>Default Orchestrator</name></identity></poml>"
+        except Exception as e:
+            print(f"Error loading POML persona: {e}")
+            self.poml_content = "<poml><identity><name>Default Orchestrator</name></identity></poml>"
+
+    async def _load_and_integrate_poml_persona(self):
+        """
+        Integrate the POML persona into the current processing context.
+        This method should be called before processing each user prompt.
+        """
+        # For now, we'll just print the POML content to show it's being loaded
+        # In a real implementation, this would be used to influence the agent's behavior
+        print(f"Loading POML persona: {self.poml_content[:200]}...")

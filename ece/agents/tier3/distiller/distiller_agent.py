@@ -6,6 +6,11 @@ from typing import Dict, Any, List
 from fastapi import FastAPI
 from pydantic import BaseModel
 import logging
+import uvicorn
+
+# Import UTCP client for tool registration
+from utcp_client.client import UTCPClient
+from utcp_registry.models.tool import ToolDefinition
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -118,6 +123,16 @@ class DistillerAgent:
 # Initialize the DistillerAgent
 distiller_agent = DistillerAgent()
 
+@app.on_event("startup")
+async def startup_event():
+    """Initialize UTCP Client and register Distiller tools on startup."""
+    # Initialize UTCP Client for tool registration
+    utcp_registry_url = os.getenv("UTCP_REGISTRY_URL", "http://utcp-registry:8005")
+    app.state.utcp_client = UTCPClient(utcp_registry_url)
+    
+    # Register Distiller tools with UTCP Registry
+    await _register_distiller_tools(app.state.utcp_client)
+
 @app.post("/process_text")
 async def process_text(data: DistillerData):
     """
@@ -132,6 +147,79 @@ async def process_text(data: DistillerData):
     
     return structured_data
 
+async def _register_distiller_tools(utcp_client: UTCPClient):
+    """Register Distiller tools with the UTCP Registry."""
+    try:
+        # Register distiller.process_text tool
+        process_text_tool = ToolDefinition(
+            id="distiller.process_text",
+            name="Process Text",
+            description="Process raw text to extract entities and relationships",
+            category="processing",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "The raw text to process"
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "The source of the text"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "The timestamp of the text processing"
+                    }
+                },
+                "required": ["text", "source", "timestamp"]
+            },
+            returns={
+                "type": "object",
+                "properties": {
+                    "timestamp": {
+                        "type": "string",
+                        "description": "Timestamp of processing"
+                    },
+                    "entities": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {"type": "string"},
+                                "label": {"type": "string"},
+                                "description": {"type": "string"}
+                            }
+                        }
+                    },
+                    "relationships": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "summary": {
+                        "type": "object",
+                        "properties": {
+                            "total_entities": {"type": "integer"},
+                            "total_relationships": {"type": "integer"}
+                        }
+                    }
+                }
+            },
+            endpoint="http://distiller:8001/process_text",
+            version="1.0.0",
+            agent="Distiller"
+        )
+        
+        success = await utcp_client.register_tool(process_text_tool)
+        if success:
+            logger.info("✅ Registered distiller.process_text tool with UTCP Registry")
+        else:
+            logger.error("❌ Failed to register distiller.process_text tool with UTCP Registry")
+            
+    except Exception as e:
+        logger.error(f"❌ Error registering Distiller tools with UTCP Registry: {e}")
+
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)

@@ -29,6 +29,31 @@ def save_state(chunk_index):
     with open(STATE_FILE, 'w') as f:
         json.dump({"last_completed_chunk": chunk_index}, f)
 
+def clear_neo4j_database():
+    """Clear all data from the Neo4j database."""
+    console = Console()
+    try:
+        # Initialize Neo4jManager with connection details
+        neo4j_manager = Neo4jManager(
+            uri="bolt://localhost:7687",  # Use localhost since we're running outside the container
+            user="neo4j",
+            password="password"
+        )
+        neo4j_manager.connect()
+        
+        # Execute a query to delete all nodes and relationships
+        console.print("[yellow]Clearing Neo4j database...[/yellow]")
+        delete_query = """
+        MATCH (n)
+        DETACH DELETE n
+        """
+        neo4j_manager.execute_query(delete_query)
+        console.print("[green]Neo4j database cleared successfully.[/green]")
+        
+        neo4j_manager.disconnect()
+    except Exception as e:
+        console.print(f"[bold red]Error clearing Neo4j database: {e}[/bold red]")
+
 async def bootstrap_corpus():
     """
     Reads a large text corpus, breaks it into chunks, and sends each chunk
@@ -37,9 +62,12 @@ async def bootstrap_corpus():
     console = Console()
     console.print(f"[bold green]Starting corpus bootstrapping process...[/bold green]")
 
+    # Clear the Neo4j database before starting
+    clear_neo4j_database()
+
     # === NEW CODE: Initialize Neo4jManager with correct connection details ===
     neo4j_manager = Neo4jManager(
-        uri="bolt://neo4j:7687",  # Use the service name from docker-compose.yml
+        uri="bolt://localhost:7687",  # Use localhost since we're running outside the container
         user="neo4j",
         password="password"
     )

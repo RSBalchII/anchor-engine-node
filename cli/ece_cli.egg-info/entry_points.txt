@@ -1,0 +1,2 @@
+[console_scripts]
+ece-cli = cli.ece_cli:main

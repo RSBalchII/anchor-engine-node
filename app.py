@@ -12,16 +12,43 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "ece", "agents", "tie
 from orchestrator_agent import OrchestratorAgent
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG) # Keep DEBUG for now
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # Log to stdout
+    ]
+)
 
-# Add a filter to exclude /v1/models from the logs
+# Create a custom filter to exclude specific log messages
 class NoModelsFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/v1/models" not in record.getMessage()
+        # Exclude /v1/models endpoint logs
+        if "/v1/models" in record.getMessage():
+            return False
+        # Exclude uvicorn access logs (these are too verbose)
+        if record.name == "uvicorn.access":
+            return False
+        # Exclude health check logs
+        if "GET /health" in record.getMessage():
+            return False
+        # Exclude root endpoint logs
+        if "GET /" in record.getMessage() and "HTTP/1.1" in record.getMessage():
+            return False
+        return True
 
-# Add the filter to the uvicorn.access logger
+# Apply the filter to the root logger and uvicorn.access
+logging.getLogger().addFilter(NoModelsFilter())
 logging.getLogger("uvicorn.access").addFilter(NoModelsFilter())
+
+# Set specific log levels for some libraries to reduce noise
+logging.getLogger("uvicorn").setLevel(logging.WARNING)
+logging.getLogger("fastapi").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 # Create the FastAPI app
@@ -103,5 +130,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="debug" # Keep debug log level
+        log_level="info"  # Changed from debug to info
     )

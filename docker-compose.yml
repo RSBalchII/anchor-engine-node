@@ -25,11 +25,12 @@ services:
     depends_on:
       - neo4j
       - archivist
+      - utcp-registry
     env_file:
       - .env
     environment:
       - OLLAMA_MODEL_LOAD_MODE=full
-      - OLLAMA_NUM_GPU_LAYERS=37
+      - OLLAMA_NUM_GPU_LAYERS=999
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -54,7 +55,7 @@ services:
       - main_net
 
   redis:
-    image: redis:latest
+    image: redis/redis-stack-server:latest
     ports:
       - "6379:6379"
     volumes:
@@ -76,6 +77,8 @@ services:
     command: ["uvicorn", "ece.agents.tier3.distiller.distiller_agent:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
     ports:
       - "8001:8001"
+    depends_on:
+      - utcp-registry
     networks:
       - main_net
 
@@ -88,11 +91,13 @@ services:
     command: ["uvicorn", "ece.agents.tier3.injector.injector_app:app", "--host", "0.0.0.0", "--port", "8004", "--reload"]
     ports:
       - "8004:8004"
-    networks:
-      - main_net
     depends_on:
       neo4j:
         condition: service_healthy
+      utcp-registry:
+        condition: service_started
+    networks:
+      - main_net
 
   archivist:
     build:
@@ -113,6 +118,8 @@ services:
         condition: service_started
       qlearning:
         condition: service_started
+      utcp-registry:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
       interval: 10s
@@ -132,6 +139,20 @@ services:
     depends_on:
       neo4j:
         condition: service_healthy
+      utcp-registry:
+        condition: service_started
+    networks:
+      - main_net
+
+  utcp-registry:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/python-fastapi/Dockerfile
+    command: ["python", "-m", "utcp_registry.main", "--host", "0.0.0.0", "--port", "8005"]
+    volumes:
+      - .:/app
+    ports:
+      - "8005:8005"
     networks:
       - main_net
 
