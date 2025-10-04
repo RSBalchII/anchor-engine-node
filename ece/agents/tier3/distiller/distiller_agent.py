@@ -110,7 +110,7 @@ class DistillerAgent:
         for key in keys:
             entry = cache_manager.retrieve(key.decode('utf-8').replace('context_cache:', ''))
             if entry:
-                all_text += entry.value + "\n"
+                all_text += entry.value + "n"
         
         if not all_text:
             return "No new context to distill."

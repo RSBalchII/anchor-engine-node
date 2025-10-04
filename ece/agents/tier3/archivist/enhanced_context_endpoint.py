@@ -108,7 +108,7 @@ async def build_context_from_paths(paths: List[Any], max_tokens: int = 1000000) 
             break
             
         # Extract information from the path
-        path_info = f"\n--- Context Path {i+1} ---\n"
+        path_info = f"n--- Context Path {i+1} ---\n"
         
         if hasattr(path, 'nodes') and path.nodes:
             # Limit nodes for brevity (first 5 nodes)
@@ -148,7 +148,7 @@ async def build_context_from_paths(paths: List[Any], max_tokens: int = 1000000) 
             break
             
     # Combine all context parts
-    enhanced_context = "\n".join(context_parts)
+    enhanced_context = "n".join(context_parts)
     
     # Add a summary at the beginning
     summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
@@ -156,7 +156,7 @@ async def build_context_from_paths(paths: List[Any], max_tokens: int = 1000000) 
     summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
     summary += "--- BEGIN CONTEXT ---\n"
     
-    return summary + enhanced_context + "\n--- END CONTEXT ---"
+    return summary + enhanced_context + "n--- END CONTEXT ---"
 
 async def get_related_memories(keywords: List[str], max_contexts: int = 10) -> List[Dict[str, Any]]:
     """
@@ -227,7 +227,7 @@ async def store_enhanced_context_in_cache(
         # Store related memories if any
         if related_memories:
             memories_key = f"context_cache:{session_id}:related_memories"
-            memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+            memories_str = "n".join([mem.get("content", "") for mem in related_memories])
             redis_client.hset(memories_key, "value", memories_str)
             redis_client.hset(memories_key, "created_at", datetime.now().isoformat())
             redis_client.expire(memories_key, 3600)  # Expire in 1 hour

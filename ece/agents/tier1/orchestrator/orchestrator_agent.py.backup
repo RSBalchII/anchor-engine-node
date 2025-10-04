@@ -271,7 +271,7 @@ class OrchestratorAgent:
                 print(f"Retrieved {len(related_memories)} related memories from Archivist")
                 
                 # Add the related memories to the analysis
-                analysis += f"\n\nRelated Memories:\n"
+                analysis += f"n\nRelated Memories:\n"
                 for memory in related_memories:
                     analysis += f"- {memory.get('content', '')} (Relevance: {memory.get('relevance_score', 0):.2f})\n"
             else:
@@ -346,7 +346,7 @@ class OrchestratorAgent:
                     # Also store related memories if any
                     if related_memories:
                         memories_key = f"{self.session_id}:related_memories"
-                        memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+                        memories_str = "n".join([mem.get("content", "") for mem in related_memories])
                         self.cache_manager.store(memories_key, memories_str)
                         print(f"✅ Related memories stored in cache with key: {memories_key}")
                 
@@ -446,7 +446,7 @@ Read the context carefully before formulating your answer."""
                 return f"Query received. Routed to {target_agent_name}. This agent should read the full context before responding."
 
         except Exception as e:
-            print(f"\n--- [!!!] ECE INTERNAL ERROR ---")
+            print(f"n--- [!!!] ECE INTERNAL ERROR ---")
             print(f"Error occurred while processing prompt: '{prompt[:100]}...' ")
             import traceback
             traceback.print_exc()
@@ -491,7 +491,7 @@ Read the context carefully before formulating your answer."""
         try:
             return await self.process_prompt_with_context(prompt)
         except Exception as e:
-            print(f"\n--- [!!!] Enhanced context processing failed, falling back to original method ---")
+            print(f"n--- [!!!] Enhanced context processing failed, falling back to original method ---")
             print(f"Error: {str(e)}")
             # Fallback to original method
             pass
@@ -530,7 +530,7 @@ Read the context carefully before formulating your answer."""
                 return f"Query received. Routed to {target_agent_name}. This agent should read the full context before responding."
 
         except Exception as e:
-            print(f"\n--- [!!!] ECE INTERNAL ERROR ---")
+            print(f"n--- [!!!] ECE INTERNAL ERROR ---")
             print(f"Error occurred while processing prompt: '{prompt[:100]}...' ")
             traceback.print_exc()
             print(f"--- [!!!] END OF ERROR ---")
@@ -578,7 +578,7 @@ Read the context carefully before formulating your answer."""
                 thinker_name = root.find('.//perspective').get('thinker', 'Unknown')
                 analysis = root.find('.//analysis')
                 if analysis is not None and analysis.text:
-                    synthesis_prompt += f"\n* {thinker_name}'s View: {analysis.text.strip()}"
+                    synthesis_prompt += f"n* {thinker_name}'s View: {analysis.text.strip()}"
             except ET.ParseError:
                 continue # Skip unparseable perspectives
 

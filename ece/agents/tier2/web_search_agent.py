@@ -4,11 +4,11 @@ import logging
 from tavily import TavilyClient
 
 class WebSearchAgent:
-    def __init__(self, model: str, tavily_api_key: str = None):
+    def __init__(self, model: str, tavily_api_key: str = None, api_base: str = None):
         self.model = model
         # Use the provided API key, or fall back to environment variable
         self.tavily_client = TavilyClient(api_key=tavily_api_key or os.getenv("TAVILY_API_KEY"))
-        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        self.api_base = api_base
 
     async def search(self, query: str, system_prompt: str = "You are a helpful AI assistant that answers questions based on web search results.") -> str:
         print(f"WebSearchAgent searching for: '{query}'")
@@ -30,7 +30,11 @@ class WebSearchAgent:
                 }
             }
 
-            url = f"{self.ollama_base_url}/api/chat"
+            if "ollama" in self.api_base:
+                url = f"{self.api_base}/api/chat"
+            else:
+                url = f"{self.api_base}/chat/completions"
+
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()

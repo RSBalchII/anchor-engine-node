@@ -51,7 +51,7 @@ class ECEComplianceChecker:
     
     def check_implemented_tasks(self) -> List[Dict[str, Any]]:
         """Check which tasks from specs are implemented in code."""
-        print("\n🔍 Checking implemented tasks...")
+        print("n🔍 Checking implemented tasks...")
         
         tasks_file = self.specs_dir / "tasks.md"
         if not tasks_file.exists():
@@ -132,7 +132,7 @@ class ECEComplianceChecker:
     
     def check_architecture_compliance(self) -> bool:
         """Check if implementation follows specified architecture."""
-        print("\n🔍 Checking architecture compliance...")
+        print("n🔍 Checking architecture compliance...")
         
         # Check for required directory structure
         required_dirs = [
@@ -156,7 +156,7 @@ class ECEComplianceChecker:
     
     def check_core_components(self) -> Dict[str, Any]:
         """Check core components implementation."""
-        print("\n🔍 Checking core components implementation...")
+        print("n🔍 Checking core components implementation...")
         
         components = {
             "Archivist Agent": {
@@ -212,7 +212,7 @@ class ECEComplianceChecker:
     
     def generate_compliance_report(self) -> Dict[str, Any]:
         """Generate a comprehensive compliance report."""
-        print("\n📋 Generating compliance report...")
+        print("n📋 Generating compliance report...")
         
         # Run all checks
         specs_exist = self.check_spec_files_exist()
@@ -258,7 +258,7 @@ class ECEComplianceChecker:
         
         report = self.generate_compliance_report()
         
-        print("\n" + "=" * 60)
+        print("n" + "=" * 60)
         print("COMPLIANCE CHECK RESULTS")
         print("=" * 60)
         
@@ -270,7 +270,7 @@ class ECEComplianceChecker:
         print(f"Overall Compliance: {report['compliance_percentage']}%")
         
         # Print core components status
-        print(f"\n📊 Core Components Status:")
+        print(f"n📊 Core Components Status:")
         for component, status in report['core_components_status'].items():
             if status['implemented']:
                 print(f"   ✅ {component}")
@@ -281,13 +281,13 @@ class ECEComplianceChecker:
                 
         # Print issues
         if report['issues']:
-            print(f"\n❌ ISSUES ({len(report['issues'])}):")
+            print(f"n❌ ISSUES ({len(report['issues'])}):")
             for issue in report['issues']:
                 print(f"   • {issue}")
                 
         # Print warnings
         if report['warnings']:
-            print(f"\n⚠️ WARNINGS ({len(report['warnings'])}):")
+            print(f"n⚠️ WARNINGS ({len(report['warnings'])}):")
             for warning in report['warnings']:
                 print(f"   • {warning}")
                 
@@ -299,7 +299,7 @@ class ECEComplianceChecker:
             all(comp['implemented'] for comp in report['core_components_status'].values())
         )
         
-        print(f"\n{'🎉 COMPLIANCE CHECK PASSED' if is_compliant else '💥 COMPLIANCE CHECK FAILED'}")
+        print(f"n{'🎉 COMPLIANCE CHECK PASSED' if is_compliant else '💥 COMPLIANCE CHECK FAILED'}")
         print(f"Issues: {len(report['issues'])}, Warnings: {len(report['warnings'])}")
         print(f"Compliance: {report['compliance_percentage']}%")
         
@@ -325,7 +325,7 @@ def main():
         report_file = "spec_kit_compliance_report.json"
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
-        print(f"\n📄 Detailed report saved to {report_file}")
+        print(f"n📄 Detailed report saved to {report_file}")
         
     sys.exit(0 if success else 1)
 

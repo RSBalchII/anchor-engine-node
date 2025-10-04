@@ -113,7 +113,7 @@ class TaskMapper:
             yaml_content += "  files:\n"
             for file_path in files:
                 yaml_content += f"    - {file_path}\n"
-            yaml_content += "\n"
+            yaml_content += "n"
             
         return yaml_content
     
@@ -151,7 +151,7 @@ class TaskMapper:
         coverage_stats = self.verify_task_coverage(tasks, task_file_map)
         
         # Display results
-        print(f"\n📊 Task Mapping Results:")
+        print(f"n📊 Task Mapping Results:")
         print(f"   Total Tasks: {coverage_stats['total_tasks']}")
         print(f"   Completed Tasks: {coverage_stats['completed_tasks']}")
         print(f"   Mapped Tasks: {coverage_stats['mapped_tasks']}")
@@ -159,7 +159,7 @@ class TaskMapper:
         print(f"   Coverage: {coverage_stats['coverage_percentage']}%")
         
         # Show sample mappings
-        print(f"\n📋 Sample Task Mappings:")
+        print(f"n📋 Sample Task Mappings:")
         sample_count = 0
         for task_id, files in list(task_file_map.items())[:5]:
             print(f"   {task_id}: {files}")
@@ -175,7 +175,7 @@ class TaskMapper:
         task_map_file = self.specs_dir / "task_map.yml"
         with open(task_map_file, 'w') as f:
             f.write(yaml_content)
-        print(f"\n📄 Generated task map file: {task_map_file}")
+        print(f"n📄 Generated task map file: {task_map_file}")
         
         # Check for unmapped tasks
         unmapped = []
@@ -184,7 +184,7 @@ class TaskMapper:
                 unmapped.append(task["id"])
                 
         if unmapped:
-            print(f"\n⚠️ Unmapped Tasks:")
+            print(f"n⚠️ Unmapped Tasks:")
             for task_id in unmapped[:10]:  # Show first 10
                 print(f"   • {task_id}")
             if len(unmapped) > 10:

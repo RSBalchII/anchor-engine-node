@@ -49,7 +49,7 @@ async def main():
         print(f"Error finding path: {e}")
     
     # Example: Start continuous training
-    print("\nStarting continuous training...")
+    print("nStarting continuous training...")
     try:
         await qlearning_agent.start_continuous_training()
         print("Continuous training started.")
@@ -64,7 +64,7 @@ async def main():
         print(f"Error with continuous training: {e}")
     
     # Example: Get convergence metrics
-    print("\nConvergence metrics:")
+    print("nConvergence metrics:")
     try:
         metrics = qlearning_agent.get_convergence_metrics()
         for key, value in metrics.items():
@@ -73,7 +73,7 @@ async def main():
         print(f"Error getting convergence metrics: {e}")
     
     # Example: Synchronize Q-values to graph
-    print("\nSynchronizing Q-values to graph...")
+    print("nSynchronizing Q-values to graph...")
     try:
         await qlearning_agent.sync_q_values_to_graph()
         print("Q-values synchronized.")

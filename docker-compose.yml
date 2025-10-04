@@ -33,6 +33,7 @@ services:
       - OLLAMA_NUM_GPU_LAYERS=999
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]
     extra_hosts:
+      - "model-runner.docker.internal:host-gateway"
       - "host.docker.internal:host-gateway"
     networks:
       - main_net
@@ -120,6 +121,10 @@ services:
         condition: service_started
       utcp-registry:
         condition: service_started
+      filesystem-agent:
+        condition: service_started
+      websearch-agent:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8003/health || exit 1"]
       interval: 10s
@@ -156,10 +161,40 @@ services:
     networks:
       - main_net
 
-networks:
-  main_net:
-    driver: bridge
+  filesystem-agent:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/python-fastapi/Dockerfile
+    command: ["uvicorn", "ece.agents.tier2.filesystem_agent:app", "--host", "0.0.0.0", "--port", "8006", "--reload"]
+    volumes:
+      - .:/app
+    ports:
+      - "8006:8006"
+    depends_on:
+      - utcp-registry
+    networks:
+      - main_net
+
+  websearch-agent:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/python-fastapi/Dockerfile
+    command: ["uvicorn", "ece.agents.tier2.web_search_app:app", "--host", "0.0.0.0", "--port", "8007", "--reload"]
+    volumes:
+      - .:/app
+    ports:
+      - "8007:8007"
+    depends_on:
+      - utcp-registry
+    networks:
+      - main_net
+    environment:
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
 
 volumes:
   neo4j_data:
   redis_data:
+
+networks:
+  main_net:
+    driver: bridge

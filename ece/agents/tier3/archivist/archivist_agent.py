@@ -1093,7 +1093,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
                     break
                     
                 # Extract information from the path
-                path_info = f"\n--- Context Path {i+1} ---\n"
+                path_info = f"n--- Context Path {i+1} ---\n"
                 
                 if hasattr(path, 'nodes') and path.nodes:
                     # Limit nodes for brevity (first 5 nodes)
@@ -1133,7 +1133,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
                     break
                     
             # Combine all context parts
-            enhanced_context = "\n".join(context_parts)
+            enhanced_context = "n".join(context_parts)
             
             # Add a summary at the beginning
             summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
@@ -1141,7 +1141,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
             summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
             summary += "--- BEGIN CONTEXT ---\n"
             
-            enhanced_context = summary + enhanced_context + "\n--- END CONTEXT ---"
+            enhanced_context = summary + enhanced_context + "n--- END CONTEXT ---"
         
         token_count = len(enhanced_context.split())  # Rough token count
         logger.info(f"Enhanced context built ({token_count} tokens)")
@@ -1174,7 +1174,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
         # Store related memories if any
         if related_memories:
             memories_key = f"context_cache:{session_id}:related_memories"
-            memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+            memories_str = "n".join([mem.get("content", "") for mem in related_memories])
             redis_client.hset(memories_key, "value", memories_str)
             redis_client.hset(memories_key, "created_at", datetime.now().isoformat())
             redis_client.expire(memories_key, 3600)  # Expire in 1 hour

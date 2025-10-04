@@ -94,7 +94,7 @@ async def bootstrap_corpus():
     async with httpx.AsyncClient(timeout=120.0) as client:
         for i in range(start_chunk, num_chunks):
             chunk = chunks[i]
-            console.print(f"\n[yellow]Processing chunk {i + 1} of {num_chunks}...[/yellow]")
+            console.print(f"n[yellow]Processing chunk {i + 1} of {num_chunks}...[/yellow]")
             
             prompt = f"BOOTSTRAP_DISTILL: {chunk}"
             # Use GET method with query parameters for the orchestrator endpoint
@@ -144,7 +144,7 @@ async def bootstrap_corpus():
                 console.print(f"[bold red]An unexpected error occurred with chunk {i + 1}: {e}[/bold red]")
                 return
 
-    console.print(f"\n[bold green]Corpus bootstrapping complete. All {num_chunks} chunks processed.[/bold green]")
+    console.print(f"n[bold green]Corpus bootstrapping complete. All {num_chunks} chunks processed.[/bold green]")
     # Clean up state file on successful completion
     if os.path.exists(STATE_FILE):
         os.remove(STATE_FILE)

@@ -20,11 +20,11 @@ class CritiqueAgent:
     Problem-Solving Loop.
     """
 
-    def __init__(self, model: str, success_threshold: float = 0.8):
+    def __init__(self, model: str, success_threshold: float = 0.8, api_base: str = None):
         """Initialize the CritiqueAgent."""
         self.model = model
         self.success_threshold = success_threshold
-        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        self.api_base = api_base
         self.system_prompt = "You are a critique agent. Your task is to evaluate a proposed solution and its execution result against an original problem. Provide a score between 0.0 and 1.0, and a detailed rationale. The score should be clearly indicated as 'SCORE: 0.X'. Also provide suggestions for improvement."
 
     async def critique(self, original_prompt: str, proposed_solution: str, execution_result: str) -> str:
@@ -39,9 +39,14 @@ class CritiqueAgent:
             "stream": False
         }
 
+        if "ollama" in self.api_base:
+            url = f"{self.api_base}/api/chat"
+        else:
+            url = f"{self.api_base}/chat/completions"
+
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(f"{self.ollama_base_url}/api/chat", json=payload)
+                response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
                 content = data.get('message', {}).get('content', '')

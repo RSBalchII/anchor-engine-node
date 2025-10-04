@@ -46,7 +46,7 @@ async def test_extractor_agent():
             print(f"Error: {result['metadata']['error_message']}")
             
         # Test keyword-based extraction
-        print("\nTesting keyword-based extraction...")
+        print("nTesting keyword-based extraction...")
         result = await agent.execute(
             data_source="/tmp/test_extractor.txt",
             data_type="text",
@@ -62,7 +62,7 @@ async def test_extractor_agent():
             print("Keyword-based extraction test FAILED")
             
         # Test pattern-based extraction
-        print("\nTesting pattern-based extraction...")
+        print("nTesting pattern-based extraction...")
         result = await agent.execute(
             data_source="/tmp/test_extractor.txt",
             data_type="text",
@@ -81,14 +81,14 @@ async def test_extractor_agent():
             print("Pattern-based extraction test FAILED")
             
         # Test performance metrics
-        print("\nTesting performance metrics...")
+        print("nTesting performance metrics...")
         metrics = agent.get_performance_metrics()
         print(f"Total extractions: {metrics['total_extractions']}")
         print(f"Successful extractions: {metrics['successful_extractions']}")
         print(f"Failed extractions: {metrics['failed_extractions']}")
         print("Performance metrics test PASSED")
         
-        print("\nAll tests completed!")
+        print("nAll tests completed!")
         
     except Exception as e:
         print(f"Error during testing: {e}")

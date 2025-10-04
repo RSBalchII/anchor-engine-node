@@ -137,7 +137,7 @@ class OrchestratorAgent:
                 return await self.conversational_agent.respond(prompt)
 
         except Exception as e:
-            print(f"\n--- [!!!] ECE INTERNAL ERROR ---")
+            print(f"n--- [!!!] ECE INTERNAL ERROR ---")
             traceback.print_exc()
             print(f"--- [!!!] END OF ERROR --- \n")
             raise e

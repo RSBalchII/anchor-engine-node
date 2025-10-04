@@ -258,7 +258,7 @@ def _create_context_summary(paths: List[EnhancedMemoryPath], max_tokens: int) ->
     ]
     
     # Add information about top paths
-    summary_parts.append("\nTop Paths:")
+    summary_parts.append("nTop Paths:")
     for i, path in enumerate(paths[:3]):  # Top 3 paths
         path_summary = f"  Path {i+1}: "
         if path.nodes:
@@ -269,9 +269,9 @@ def _create_context_summary(paths: List[EnhancedMemoryPath], max_tokens: int) ->
         
     # Add overall relevance information
     avg_score = sum(p.score for p in paths) / len(paths)
-    summary_parts.append(f"\nAverage Path Relevance Score: {avg_score:.2f}")
+    summary_parts.append(f"nAverage Path Relevance Score: {avg_score:.2f}")
     
-    summary = "\n".join(summary_parts)
+    summary = "n".join(summary_parts)
     
     # Ensure summary fits within token limits
     if _estimate_token_count(summary) > max_tokens:

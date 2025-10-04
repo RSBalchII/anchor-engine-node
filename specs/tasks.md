@@ -161,7 +161,7 @@ This document outlines the tasks required to implement the ECE v3.2 architecture
   - [ ] Design and implement the `FileSystemAgent` for secure file operations
   - [ ] Implement read, write, create, and delete operations with security boundaries
   - [ ] Integrate with the context cache to store file contents
-  - [ ] Add file search capabilities by pattern
+  - [ ] Implement `execute_command` for general file and system interaction
 - [ ] **Task 10.2: Implement WebSearchAgent**
   - [ ] Enhance existing `WebSearchAgent` to use Tavily API with current key
   - [ ] Implement rate limiting and safe search parameters
@@ -319,3 +319,18 @@ This document outlines the tasks required to implement the ECE v3.2 architecture
 - Enhanced decision tree routing
 
 The ECE system is currently functioning with all core MVP components operational and integrated. The system demonstrates the complete Core Cohesion Loop with continuous temporal scanning and POML-based inter-agent communication, plus the enhanced context flow that coordinates between Orchestrator, Archivist, and QLearning Agent for up to 1M token processing with GPU acceleration. The next phase focuses on enabling the system to access and modify its own codebase through integrated tool agents.
+
+## Phase 14: Llama.cpp Integration - NEW
+
+- [ ] **Task 14.1: Implement Llama.cpp Provider**
+  - [ ] Develop a new provider for Llama.cpp in `llm_providers`.
+  - [ ] Ensure it's compatible with the existing `LLMProvider` interface.
+- [ ] **Task 14.2: Update Configuration**
+  - [ ] Add `llama_cpp` to the `config.yaml` with appropriate settings (e.g., `model_path`, `api_base`).
+  - [ ] Update `llm_configuration.md` to reflect the new provider.
+- [ ] **Task 14.3: Docker Integration**
+  - [ ] Add a new service to `docker-compose.yml` for the Llama.cpp server.
+  - [ ] Ensure the ECE can connect to the Llama.cpp container.
+- [ ] **Task 14.4: Testing and Validation**
+  - [ ] Create unit and integration tests for the Llama.cpp provider.
+  - [ ] Validate that the ECE can generate responses using Llama.cpp.

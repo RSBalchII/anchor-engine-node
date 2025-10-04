@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-\"\"\"
+\"""
 Manual fix for orchestrator_agent.py - handles the escaped characters properly
-\"\"\"
+\"""
 import re
 
 # Read the file content
@@ -22,7 +22,7 @@ for i, line in enumerate(lines):
     if 'logger.info(f\"Full context after response:' in line:
         # This line contains the issue - need to fix the escapes
         lines[i] = line.replace('\\\"', '\"')
-    elif 'context_summary = \"\\\\n\".join' in line:
+    elif 'context_summary = \"\\\n\".join' in line:
         # Fix the line that joins with newlines
         lines[i] = line.replace('\\\"', '\"').replace('\\\\n', '\\n')
     elif '\"ConversationalAgent\":' in line:

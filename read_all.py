@@ -76,7 +76,7 @@ def create_full_corpus_recursive():
             except Exception as e:
                 print(f"An unexpected error occurred with file '{file_path}': {e}")
                 
-    print(f"\nCorpus aggregation complete. All content has been saved to '{output_file}'.")
+    print(f"nCorpus aggregation complete. All content has been saved to '{output_file}'.")
 
 if __name__ == '__main__':
     create_full_corpus_recursive()

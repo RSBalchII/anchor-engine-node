@@ -20,10 +20,10 @@ class ExplorerAgent:
     Problem-Solving Loop.
     """
 
-    def __init__(self, model: str):
+    def __init__(self, model: str, api_base: str = None):
         """Initialize the ExplorerAgent."""
         self.model = model
-        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        self.api_base = api_base
         self.system_prompt = "You are an expert problem solver and code generator. Your task is to propose solutions, often in the form of Python code, to given problems. Think step by step and provide the code within ```python\n...\n``` blocks."
 
     async def explore(self, prompt: str, current_solution: str = "", iteration_history: list = None) -> str:
@@ -47,9 +47,14 @@ class ExplorerAgent:
             "stream": False
         }
 
+        if "ollama" in self.api_base:
+            url = f"{self.api_base}/api/chat"
+        else:
+            url = f"{self.api_base}/chat/completions"
+
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(f"{self.ollama_base_url}/api/chat", json=payload)
+                response = await client.post(url, json=payload)
                 response.raise_for_status()
                 data = response.json()
                 content = data.get('message', {}).get('content', '')

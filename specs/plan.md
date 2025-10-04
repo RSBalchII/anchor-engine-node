@@ -97,6 +97,20 @@ This document outlines the implementation plan for the External Context Engine (
   - Implement feedback integration from usage
   - Self-align with strategic goals
 
+### Phase 8: Llama.cpp Integration (Planned)
+- **Priority 1: Llama.cpp Provider Implementation**
+  - Develop a new provider for Llama.cpp in `llm_providers`.
+  - Ensure it's compatible with the existing `LLMProvider` interface.
+- **Priority 2: Configuration Update**
+  - Add `llama_cpp` to the `config.yaml` with appropriate settings (e.g., `model_path`, `api_base`).
+  - Update `llm_configuration.md` to reflect the new provider.
+- **Priority 3: Docker Integration**
+  - Add a new service to `docker-compose.yml` for the Llama.cpp server.
+  - Ensure the ECE can connect to the Llama.cpp container.
+- **Priority 4: Testing and Validation**
+  - Create unit and integration tests for the Llama.cpp provider.
+  - Validate that the ECE can generate responses using Llama.cpp.
+
 ## Detailed Task Breakdown
 
 ### Task T-001: Implement UTCP Tool Registry Service

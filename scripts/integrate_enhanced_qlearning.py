@@ -149,7 +149,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
                     break
                     
                 # Extract information from the path
-                path_info = f"\n--- Context Path {i+1} ---\n"
+                path_info = f"n--- Context Path {i+1} ---\n"
                 
                 if hasattr(path, 'nodes') and path.nodes:
                     # Limit nodes for brevity (first 5 nodes)
@@ -189,7 +189,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
                     break
                     
             # Combine all context parts
-            enhanced_context = "\n".join(context_parts)
+            enhanced_context = "n".join(context_parts)
             
             # Add a summary at the beginning
             summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
@@ -197,7 +197,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
             summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
             summary += "--- BEGIN CONTEXT ---\n"
             
-            enhanced_context = summary + enhanced_context + "\n--- END CONTEXT ---"
+            enhanced_context = summary + enhanced_context + "n--- END CONTEXT ---"
         
         token_count = len(enhanced_context.split())  # Rough token count
         logger.info(f"Enhanced context built ({token_count} tokens)")
@@ -230,7 +230,7 @@ async def get_enhanced_context(request: EnhancedContextRequest):
         # Store related memories if any
         if related_memories:
             memories_key = f"context_cache:{session_id}:related_memories"
-            memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+            memories_str = "n".join([mem.get("content", "") for mem in related_memories])
             redis_client.hset(memories_key, "value", memories_str)
             redis_client.hset(memories_key, "created_at", datetime.now().isoformat())
             redis_client.expire(memories_key, 3600)  # Expire in 1 hour
@@ -277,24 +277,24 @@ def main():
     # Apply fixes in order
     success = True
     
-    print("\n1. Integrating Enhanced QLearning Agent...")
+    print("n1. Integrating Enhanced QLearning Agent...")
     if not integrate_enhanced_qlearning_agent():
         success = False
         
-    print("\n2. Updating Archivist Agent...")
+    print("n2. Updating Archivist Agent...")
     if not update_archivist_agent():
         success = False
         
     if success:
-        print("\n🎉 Enhanced QLearning Agent integration completed successfully!")
-        print("\n📝 Next steps:")
+        print("n🎉 Enhanced QLearning Agent integration completed successfully!")
+        print("n📝 Next steps:")
         print("1. Review the backup files to ensure changes are correct")
         print("2. Test the enhanced context flow with sample prompts")
         print("3. Verify that the QLearning Agent processes up to 1M tokens")
         print("4. Ensure all agents read the full context cache before responding")
-        print("\n📄 See the updated files for details on the changes made")
+        print("n📄 See the updated files for details on the changes made")
     else:
-        print("\n❌ Some integration steps failed. Please check the logs above.")
+        print("n❌ Some integration steps failed. Please check the logs above.")
         
     return success
 

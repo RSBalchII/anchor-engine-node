@@ -29,7 +29,7 @@ async def test_context_flow():
     print("=" * 60)
     
     # Test 1: Initialize components
-    print("\n1. Initializing components...")
+    print("n1. Initializing components...")
     try:
         # Initialize Orchestrator Agent
         print("✅ Orchestrator Agent initialized")
@@ -48,7 +48,7 @@ async def test_context_flow():
         return False
         
     # Test 2: Test enhanced context retrieval
-    print("\n2. Testing enhanced context retrieval...")
+    print("n2. Testing enhanced context retrieval...")
     try:
         # Create a test prompt
         test_prompt = "Analyze the conditions of modern airplanes that have caused so many accidents"
@@ -104,7 +104,7 @@ async def test_context_flow():
         return False
         
     # Test 3: Test context storage in cache
-    print("\n3. Testing context storage in cache...")
+    print("n3. Testing context storage in cache...")
     try:
         # Store enhanced context in cache (similar to what Archivist would do)
         context_key = f"context_cache:test_session_001:enhanced"
@@ -123,7 +123,7 @@ async def test_context_flow():
         return False
         
     # Test 4: Test context-aware prompt creation
-    print("\n4. Testing context-aware prompt creation...")
+    print("n4. Testing context-aware prompt creation...")
     try:
         # Create context-aware prompt (similar to what Orchestrator would do)
         context_aware_prompt = f"""[ENHANCED CONTEXT FROM KNOWLEDGE GRAPH]
@@ -144,7 +144,7 @@ Read the context carefully before formulating your answer."""
         return False
         
     # Test 5: Test QLearning Agent token processing
-    print("\n5. Testing QLearning Agent token processing...")
+    print("n5. Testing QLearning Agent token processing...")
     try:
         # Simulate QLearning Agent processing large context
         large_context = "A" * 1000000  # 1M character context (approx 250K tokens)
@@ -163,7 +163,7 @@ Read the context carefully before formulating your answer."""
         return False
         
     # Test 6: Test agent context reading
-    print("\n6. Testing agent context reading...")
+    print("n6. Testing agent context reading...")
     try:
         # Simulate an agent reading the full context cache
         print("✅ Agent can read full context cache")
@@ -173,11 +173,11 @@ Read the context carefully before formulating your answer."""
         print(f"❌ Failed to test agent context reading: {e}")
         return False
         
-    print("\n" + "=" * 60)
+    print("n" + "=" * 60)
     print("🎉 All tests passed! ECE Memory Management System is working correctly.")
     print("=" * 60)
     
-    print("\n📋 Test Results Summary:")
+    print("n📋 Test Results Summary:")
     print("1. ✅ Component initialization successful")
     print("2. ✅ Enhanced context retrieval working")
     print("3. ✅ Context storage in cache verified")
@@ -185,7 +185,7 @@ Read the context carefully before formulating your answer."""
     print("5. ✅ QLearning Agent can process 1M tokens")
     print("6. ✅ Agents can read full context cache")
     
-    print("\n🚀 The ECE Memory Management System is now properly:")
+    print("n🚀 The ECE Memory Management System is now properly:")
     print("   - Coordinating context retrieval between Orchestrator, Archivist, and QLearning Agent")
     print("   - Processing up to 1M tokens of context as requested")
     print("   - Storing context in Redis cache for other agents")
@@ -202,16 +202,16 @@ def main():
         success = asyncio.run(test_context_flow())
         
         if success:
-            print("\n🎉 ECE Memory Management System Test Suite PASSED")
-            print("\n📝 Next steps:")
+            print("n🎉 ECE Memory Management System Test Suite PASSED")
+            print("n📝 Next steps:")
             print("1. Run the full ECE system with docker-compose up")
             print("2. Test with actual prompts to verify context flow")
             print("3. Monitor system performance and resource utilization")
             print("4. Validate that all agents read full context cache before responding")
             sys.exit(0)
         else:
-            print("\n❌ ECE Memory Management System Test Suite FAILED")
-            print("\n🔧 Troubleshooting steps:")
+            print("n❌ ECE Memory Management System Test Suite FAILED")
+            print("n🔧 Troubleshooting steps:")
             print("1. Check that all components are properly initialized")
             print("2. Verify Redis and Neo4j connections")
             print("3. Ensure QLearning Agent can process large contexts")
@@ -219,7 +219,7 @@ def main():
             sys.exit(1)
             
     except Exception as e:
-        print(f"\n💥 Test suite crashed: {e}")
+        print(f"n💥 Test suite crashed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

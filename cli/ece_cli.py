@@ -141,9 +141,9 @@ class ECECLI:
                     self._display_response(response)
                     
             except KeyboardInterrupt:
-                self.console.print("\n[yellow]Use /exit to quit[/yellow]")
+                self.console.print("n[yellow]Use /exit to quit[/yellow]")
             except EOFError:
-                self.console.print("\n[red]Goodbye![/red]")
+                self.console.print("n[red]Goodbye![/red]")
                 break
     
     async def _handle_command(self, command: str):
@@ -188,7 +188,7 @@ def main():
     try:
         asyncio.run(cli.run())
     except KeyboardInterrupt:
-        print("\nGoodbye!")
+        print("nGoodbye!")
 
 
 if __name__ == "__main__":

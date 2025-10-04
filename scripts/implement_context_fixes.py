@@ -86,7 +86,7 @@ def fix_orchestrator_agent():
                     # Also store related memories if any
                     if related_memories:
                         memories_key = f"{self.session_id}:related_memories"
-                        memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+                        memories_str = "n".join([mem.get("content", "") for mem in related_memories])
                         self.cache_manager.store(memories_key, memories_str)
                         print(f"✅ Related memories stored in cache with key: {memories_key}")
                     
@@ -186,7 +186,7 @@ Read the context carefully before formulating your answer."""
                 return f"Query received. Routed to {target_agent_name}. This agent should read the full context before responding."
 
         except Exception as e:
-            print(f"\n--- [!!!] ECE INTERNAL ERROR ---")
+            print(f"n--- [!!!] ECE INTERNAL ERROR ---")
             print(f"Error occurred while processing prompt: '{prompt[:100]}...' ")
             import traceback
             traceback.print_exc()
@@ -371,29 +371,29 @@ def main():
     # Apply fixes in order
     success = True
     
-    print("\n1. Fixing Orchestrator Agent...")
+    print("n1. Fixing Orchestrator Agent...")
     if not fix_orchestrator_agent():
         success = False
         
-    print("\n2. Fixing Archivist Client...")
+    print("n2. Fixing Archivist Client...")
     if not fix_archivist_client():
         success = False
         
-    print("\n3. Creating Implementation README...")
+    print("n3. Creating Implementation README...")
     if not create_implementation_readme():
         success = False
         
     if success:
-        print("\n🎉 All context flow fixes applied successfully!")
-        print("\n📝 Next steps:")
+        print("n🎉 All context flow fixes applied successfully!")
+        print("n📝 Next steps:")
         print("1. Review the backup files to ensure changes are correct")
         print("2. Update the Archivist Agent to add the /enhanced_context endpoint")
         print("3. Enhance the QLearning Agent to process up to 1M tokens")
         print("4. Update all agents to read the full context cache before responding")
         print("5. Test the end-to-end context flow")
-        print("\n📄 See IMPLEMENTATION_CHANGES.md for details on the changes made")
+        print("n📄 See IMPLEMENTATION_CHANGES.md for details on the changes made")
     else:
-        print("\n❌ Some fixes failed to apply. Please check the logs above.")
+        print("n❌ Some fixes failed to apply. Please check the logs above.")
         
     return success
 

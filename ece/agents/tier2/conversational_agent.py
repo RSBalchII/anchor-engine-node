@@ -4,9 +4,9 @@ import yaml
 import os
 
 class ConversationalAgent:
-    def __init__(self, model: str = "gemma2:9b"):
+    def __init__(self, model: str = "gemma2:9b", api_base: str = None):
         self.model = model
-        self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        self.api_base = api_base
         self.system_prompt = "You are a helpful AI assistant. Provide concise and relevant responses."
 
     async def respond(self, prompt: str, system_prompt: str = None) -> str:
@@ -26,9 +26,14 @@ class ConversationalAgent:
             }
         }
         
+        if "ollama" in self.api_base:
+            url = f"{self.api_base}/api/chat"
+        else:
+            url = f"{self.api_base}/chat/completions"
+            
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(f"{self.ollama_base_url}/api/chat", json=payload)
+                response = await client.post(url, json=payload)
                 response.raise_for_status()
                 
                 data = response.json()

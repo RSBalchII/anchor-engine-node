@@ -212,7 +212,7 @@ class EnhancedCacheManager:
             # Store related memories if provided
             if related_memories:
                 memories_key = f"context_cache:{session_id}:related_memories"
-                memories_str = "\n".join([mem.get("content", "") for mem in related_memories])
+                memories_str = "n".join([mem.get("content", "") for mem in related_memories])
                 memories_token_count = self._estimate_token_count(memories_str)
                 
                 memories_entry = EnhancedCacheEntry(
@@ -372,7 +372,7 @@ class EnhancedCacheManager:
             
             if memories_entry and memories_entry.value:
                 # Split memories by newline
-                memories = memories_entry.value.split("\n")
+                memories = memories_entry.value.split("n")
                 result["related_memories"] = [{"content": mem} for mem in memories if mem.strip()]
                 
             print(f"✅ Retrieved enhanced context for session {session_id}")

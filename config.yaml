@@ -4,9 +4,14 @@
 
 # === LLM Backend Configuration ===
 llm:
-  provider: ollama
-  config:
-    model: "nuextract:3.8b-q4_K_M"
+  active_provider: ollama
+  providers:
+    ollama:
+      model: "ai/mistral:latest"
+      api_base: "http://localhost:12434/v1"
+    docker_desktop:
+      model: "ai/mistral:latest"
+      api_base: "http://localhost:12434/v1"
 
 # === Cache Configuration ===
 cache:
@@ -38,6 +43,16 @@ OrchestraAgent:
       description: "User wants to retrieve information from long-term memory."
       action_plan:
         - "Use ExtractorAgent with the user's question to query the knowledge graph."
+    - intent: "File/Directory Access"
+      keywords: ["list", "directory", "ls", "dir", "files", "show me", "contents of"]
+      description: "User wants to access local files or directories."
+      action_plan:
+        - "Use UTCP tool discovery to find appropriate filesystem tools."
+    - intent: "Web Search"
+      keywords: ["search", "web", "online", "find on the internet", "tavily", "google"]
+      description: "User wants to perform a web search."
+      action_plan:
+        - "Use UTCP tool discovery to find appropriate web search tools."
     - intent: "Graph Optimization"
       keywords: ["optimize yourself", "run analysis", "improve the graph", "inject"]
       description: "User wants to trigger a long-running graph optimization process."
@@ -58,6 +73,8 @@ OrchestraAgent:
     - ArchivistAgent
     - ExtractorAgent
     - InjectorAgent
+    - FileSystemAgent
+    - WebSearchAgent
 
 # --- Specialist Agent/Tool Definitions ---
 
@@ -65,8 +82,8 @@ ThinkerAgent:
   name: "Thinker"
   role: "Specialized Reasoning Agent"
   goal: "Provide a specific perspective on a complex problem."
-  model: "nuextract:3.8b-q4_K_M"
-  synthesis_model: "nuextract:3.8b-q4_K_M"
+  model: "ai/mistral:latest"
+  synthesis_model: "ai/mistral:latest"
   personas: ["Optimist", "Pessimist", "Creative", "Analytical", "Pragmatic"]
 
 

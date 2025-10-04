@@ -687,7 +687,7 @@ class QLearningGraphAgent:
                 break
                 
             # Extract information from the path
-            path_info = f"\n--- Context Path {i+1} ---\n"
+            path_info = f"n--- Context Path {i+1} ---\n"
             
             if hasattr(path, 'nodes') and path.nodes:
                 # Limit nodes for brevity (first 5 nodes)
@@ -730,7 +730,7 @@ class QLearningGraphAgent:
                 break
                 
         # Combine all context parts
-        enhanced_context = "\n".join(context_parts)
+        enhanced_context = "n".join(context_parts)
         
         # Add a summary at the beginning
         summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
@@ -738,7 +738,7 @@ class QLearningGraphAgent:
         summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
         summary += "--- BEGIN CONTEXT ---\n"
         
-        enhanced_context = summary + enhanced_context + "\n--- END CONTEXT ---"
+        enhanced_context = summary + enhanced_context + "n--- END CONTEXT ---"
         
         # Get related memories (placeholder implementation)
         related_memories = []

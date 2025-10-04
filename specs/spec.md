@@ -219,16 +219,12 @@ The process for the ECE's self-reflection, triggered by an empty prompt.
 - **Privacy**: Keeps sensitive conversations on local system
 - **Flexibility**: Supports multiple local models simultaneously
 
-## Tool Agent Specifications
-
-### FileSystemAgent
-- **Purpose**: Provide secure access to the file system for reading, writing, and directory operations
-- **Security**: Implements read/write boundaries to prevent unauthorized access
 - **Capabilities**: 
   - Read files with proper encoding handling
   - List directory contents
   - Write and update files
-  - Search for files by pattern
+  - Execute shell commands (requires careful security considerations)
+
 - **Integration**: Works with context cache to store accessed files for reference
 
 ### WebSearchAgent
@@ -249,7 +245,7 @@ The process for the ECE's self-reflection, triggered by an empty prompt.
   - Read files with proper encoding handling
   - List directory contents
   - Write and update files
-  - Search for files by pattern
+  - Execute shell commands (requires careful security considerations)
 - **Integration**: Works with context cache to store accessed files for reference
 - **UTCP Registration**: Registers tools as `filesystem.read_file`, `filesystem.write_file`, etc.
 

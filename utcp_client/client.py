@@ -112,9 +112,7 @@ class UTCPClient:
     async def call_tool(self, tool_id: str, **kwargs) -> Any:
         """
         Call a tool by ID with the provided parameters.
-        Note: This is a simplified implementation. In a real scenario, this would need
-        to make a call to the actual tool's endpoint as specified in the ToolDefinition,
-        potentially through a gateway service.
+        This implementation makes an actual HTTP call to the tool's endpoint.
         
         Args:
             tool_id: The ID of the tool to call
@@ -133,19 +131,25 @@ class UTCPClient:
         # For now, we'll just pass the parameters through
         # In a real implementation, you might want to validate against the parameter schema
         try:
-            # In a real implementation, you would call the actual tool endpoint
-            # This is just a placeholder that returns the parameters
             logger.info(f"Calling tool {tool_id} at {tool_def.endpoint} with parameters {kwargs}")
             
-            # Here we would normally make an HTTP call to tool_def.endpoint
-            # For this MVP, we'll just return the parameters as a mock response
-            return {
-                "tool_id": tool_id,
-                "endpoint": tool_def.endpoint,
-                "parameters": kwargs,
-                "result": f"Mock result for {tool_id}",
-                "timestamp": __import__('datetime').datetime.now().isoformat()
-            }
+            # Make an HTTP call to the actual tool endpoint
+            # The endpoint in the tool definition might be a full URL or need to be constructed
+            # For now, we'll try to call it directly as specified
+            response = await self.client.post(
+                tool_def.endpoint,
+                json=kwargs,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"Tool {tool_id} called successfully, result: {result}")
+                return result
+            else:
+                logger.error(f"Error calling tool {tool_id}: {response.status_code} - {response.text}")
+                raise Exception(f"Tool call failed with status {response.status_code}: {response.text}")
+                
         except Exception as e:
             logger.error(f"Error calling tool {tool_id}: {e}")
             raise

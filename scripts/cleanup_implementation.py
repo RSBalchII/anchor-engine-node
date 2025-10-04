@@ -138,9 +138,9 @@ def main():
     clean_pycache_directories()
     clean_test_cache_directories()
     
-    print("\n🎉 ECE Implementation Clean-up Complete!")
+    print("n🎉 ECE Implementation Clean-up Complete!")
     print("=" * 50)
-    print("\n✅ All temporary and backup files have been removed.")
+    print("n✅ All temporary and backup files have been removed.")
     print("✅ Project directory is now clean and ready for production.")
 
 if __name__ == "__main__":

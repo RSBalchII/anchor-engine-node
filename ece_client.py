@@ -101,7 +101,7 @@ async def main():
 
                 params = {"prompt": prompt_text}
                 
-                console.print("\n[italic yellow]Sending request to Orchestrator...[/italic yellow]")
+                console.print("n[italic yellow]Sending request to Orchestrator...[/italic yellow]")
                 
                 response = await client.get(orchestrator_url, params=params)
                 if response.status_code != 200:
@@ -144,18 +144,18 @@ async def main():
                             console.print(response_text)
 
             except httpx.RequestError as e:
-                console.print(f"\n[bold red]Connection Error:[/bold red] Could not connect to the ECE Orchestrator. Please ensure the ECE is running.")
+                console.print(f"n[bold red]Connection Error:[/bold red] Could not connect to the ECE Orchestrator. Please ensure the ECE is running.")
             except KeyboardInterrupt:
                 break
             except Exception as e:
-                console.print(f"\n[bold red]An unexpected error occurred:[/bold red] {e}")
+                console.print(f"n[bold red]An unexpected error occurred:[/bold red] {e}")
                 console.print_exception()
 
-    console.print("\n[bold blue]ECE Client disconnected.[/bold blue]")
+    console.print("n[bold blue]ECE Client disconnected.[/bold blue]")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nClient terminated.")
+        print("nClient terminated.")

@@ -233,13 +233,13 @@ validate-all: spec-validate task-map
             success = False
             
         if success:
-            print("\n🎉 CI/CD setup completed successfully!")
-            print("\nNext steps:")
+            print("n🎉 CI/CD setup completed successfully!")
+            print("nNext steps:")
             print("1. Run 'make install-hooks' to install pre-commit hooks")
             print("2. Run 'make spec-validate' to validate your implementation")
             print("3. Run 'make task-map' to generate task mappings")
         else:
-            print("\n❌ CI/CD setup had some issues")
+            print("n❌ CI/CD setup had some issues")
             
         return success
 

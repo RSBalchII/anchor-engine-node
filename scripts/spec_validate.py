@@ -50,7 +50,7 @@ class SpecKitValidator:
     
     def validate_task_mapping(self) -> bool:
         """Validate that tasks are properly mapped to implementation."""
-        print("\n🔍 Validating task mapping...")
+        print("n🔍 Validating task mapping...")
         
         tasks_file = self.specs_dir / "tasks.md"
         if not tasks_file.exists():
@@ -96,7 +96,7 @@ class SpecKitValidator:
     
     def validate_architecture_compliance(self) -> bool:
         """Validate that implementation follows specified architecture."""
-        print("\n🔍 Validating architecture compliance...")
+        print("n🔍 Validating architecture compliance...")
         
         # Check for required directories
         required_dirs = [
@@ -119,7 +119,7 @@ class SpecKitValidator:
     
     def validate_agent_implementation(self) -> bool:
         """Validate that key agents are properly implemented."""
-        print("\n🔍 Validating agent implementations...")
+        print("n🔍 Validating agent implementations...")
         
         # Check Archivist agent (already examined)
         archivist_path = self.src_dir / "agents/tier3/archivist/archivist_agent.py"
@@ -154,7 +154,7 @@ class SpecKitValidator:
     
     def generate_validation_report(self) -> Dict[str, Any]:
         """Generate a comprehensive validation report."""
-        print("\n📋 Generating validation report...")
+        print("n📋 Generating validation report...")
         
         report = {
             "project": "External Context Engine (ECE)",
@@ -180,7 +180,7 @@ class SpecKitValidator:
         
         report = self.generate_validation_report()
         
-        print("\n" + "=" * 50)
+        print("n" + "=" * 50)
         print("VALIDATION RESULTS")
         print("=" * 50)
         
@@ -192,13 +192,13 @@ class SpecKitValidator:
         
         # Print errors
         if report['errors']:
-            print(f"\n❌ ERRORS ({len(report['errors'])}):")
+            print(f"n❌ ERRORS ({len(report['errors'])}):")
             for error in report['errors']:
                 print(f"  • {error}")
                 
         # Print warnings
         if report['warnings']:
-            print(f"\n⚠️ WARNINGS ({len(report['warnings'])}):")
+            print(f"n⚠️ WARNINGS ({len(report['warnings'])}):")
             for warning in report['warnings']:
                 print(f"  • {warning}")
                 
@@ -211,7 +211,7 @@ class SpecKitValidator:
             len(report['errors']) == 0
         )
         
-        print(f"\n{'🎉 VALIDATION PASSED' if is_valid else '💥 VALIDATION FAILED'}")
+        print(f"n{'🎉 VALIDATION PASSED' if is_valid else '💥 VALIDATION FAILED'}")
         print(f"Errors: {len(report['errors'])}, Warnings: {len(report['warnings'])}")
         
         return is_valid
@@ -236,7 +236,7 @@ def main():
         report_file = "spec_validation_report.json"
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
-        print(f"\n📄 Detailed report saved to {report_file}")
+        print(f"n📄 Detailed report saved to {report_file}")
         
     sys.exit(0 if success else 1)
 
