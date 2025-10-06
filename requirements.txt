@@ -78,8 +78,8 @@ nest-asyncio==1.6.0
 numpy==2.3.2
 ollama==0.5.3
 omegaconf==2.3.0
-openai==1.99.6
-openai-agents==0.2.8
+openai==1.102.0
+openai-agents==0.2.10
 openinference-instrumentation==0.1.37
 openinference-instrumentation-openai==0.1.31
 openinference-instrumentation-openai-agents==1.2.0
@@ -162,3 +162,4 @@ wrapt==1.17.3
 yarl==1.20.1
 
 zipp==3.23.0
+pytest==8.3.5

@@ -1,0 +1,95 @@
+# Python environment and cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+.ENV
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker-specific
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Local config files
+.env
+.env.local
+.env.*.local
+
+# Large directories that don't need to be in Docker context
+External-Context-Engine-ECE/cli/.venv/
+External-Context-Engine-ECE/.venv/
+.venv2/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.cov/
+.jupyter/
+.pip/
+.pipx/
+.pdm/
+
+# Large data files that shouldn't be copied to Docker
+*.db
+*.db3
+*.sqlite
+*.sqlite3
+chroma_db_data/
+logs/
+
+# Large model files if they exist
+/models/
+*.bin
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+*.onnx
+
+# Node modules if any exist
+node_modules/
+
+# Large backup files
+*.bak
+*.backup
+*.zip
+*.tar
+*.gz
+*.rar

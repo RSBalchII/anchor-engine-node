@@ -40,7 +40,18 @@ class Neo4jManager:
         """
         with self._driver.session() as session:
             result = session.run(query, parameters)
-            return [record for record in result]
+            # De-nest the record objects into a list of dictionaries
+            return [dict(record) for record in result]
+
+    def get_schema(self):
+        """
+        Retrieves the database schema, including node labels and relationship types.
+        This is used to provide context to the LLM for query generation.
+        """
+        with self._driver.session() as session:
+            labels = [record["label"] for record in session.run("CALL db.labels()")]
+            rel_types = [record["relationshipType"] for record in session.run("CALL db.relationshipTypes()")]
+            return {"node_labels": labels, "relationship_types": rel_types}
 
 # You can create a single instance to be imported by other modules
 db_manager = Neo4jManager()

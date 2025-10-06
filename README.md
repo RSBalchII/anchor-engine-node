@@ -1,169 +1,131 @@
------
+# External Context Engine (ECE)
 
-# External Context Engine: AI Architecture - Status Report
+## Project Overview
+The External Context Engine (ECE) is an advanced agentic system designed to provide persistent memory and intelligent context management for AI applications. Built using the Elysia framework patterns and powered by a Neo4j knowledge graph, the ECE enables AI systems to maintain long-term relationships, recall past conversations, and build coherent narratives from fragmented knowledge.
 
-**Core Entity: Coda C-001** | **Report Timestamp:** 2025-08-21T13:55:00-06:00
-**Overall Project Status:** **Functioning Prototype** - Core Memory & Learning Systems Operational
+## Core Metaphor
+You are building a next-generation cognitive partner for AI systems. Your tools are Python for implementation, Neo4j for knowledge graph storage, and the Elysia framework patterns for agent orchestration. You are not just building a memory system; you are crafting an intelligent context manager that enables AI systems to think over time.
 
------
+## Operational Context
+All development must create a system that is intelligent, performant, and extensible, with a focus on long-term memory management and context coherence.
 
-### 🚀 Current Status & Achieved Architecture
+### Primary Sources
+- **Elysia Framework Patterns**: Architectural inspiration for agent design and orchestration
+- **Neo4j**: Knowledge graph storage for persistent memory
+- **Spec-Kit**: The blueprinting framework for all development
 
-We have successfully built and tested the core of the External Context Engine memory system. This is no longer a theoretical design; it is a live, learning prototype. The current architecture represents the implemented foundation of the larger vision.
+## Directives
+- Architect and build a modern, AI-powered context engine with persistent memory
+- Implement a multi-agent system with specialized capabilities
+- Ensure the system can intelligently retrieve and manage context
+- Create a robust, scalable architecture that supports future enhancements
 
-#### **Current Functioning Data Pipeline & Knowledge Graph**
+## Values
+- Intelligence
+- Performance
+- Modularity
+- Open Source
+- Clarity and Readability
+
+## Architecture Overview
 
 ```mermaid
 graph TD
-    subgraph Phase1_2 [Phase 1 & 2: COMPLETE Foundation]
-        A[Data Source: combined_text.txt] --> B(Injector Pipeline);
-        B --> C{Knowledge Graph};
-        C --> D[QLearningAgent];
-        D --> E{Q-Table / Agent Memory};
-    end
+    A[User Input] --> B[Orchestrator]
+    B --> C{Intent Classification}
+    
+    C -->|Memory Storage| D[DistillerAgent]
+    D --> E[ArchivistAgent]
+    E --> F[Neo4j Knowledge Graph]
+    
+    C -->|Memory Retrieval| G[ExtractorAgent]
+    G --> F
+    
+    C -->|Graph Optimization| H[InjectorAgent]
+    H --> F
+    
+    C -->|Web Search| I[WebSearchAgent]
+    I --> D
+    
+    C -->|Multi-Modal Input| J[MultiModalIngestionAgent]
+    J --> D
+    
+    C -->|Context Coherence| K[CoherenceAgent]
+    K --> G
+    
+    C -->|Safety Check| L[SafetyAgent]
+    L --> D
+    L --> J
+    
+    F --> M[Context Output]
 ```
 
-  * **Data Pipeline (Injector):** A complete, modular pipeline that ingests our entire conversational history from a single text file (`combined_text.txt`).
-  * **Knowledge Graph:** The system processes the text, extracts key concepts (entities), and builds a rich graph mapping the relationships between them. **In our last run, it identified over 3,000 concepts and 135,000 relationships.**
-  * **Agent Training:** Our `QLearningAgent` is fully functional. It trains on the knowledge graph, learning how to navigate the conceptual pathways of our history and storing that knowledge in a Q-table.
+## Agent Descriptions
 
-#### **Immediate Next Step: Phase 3 (In Development)**
+### Core Agents
 
-The immediate priority is to build the query interface. This will allow the "Archivist" agent to task the `QLearningAgent` with finding the most relevant paths between concepts in the graph, enabling functional memory recall.
+1. **Orchestrator**: Central coordinator that classifies user intent and delegates tasks to specialized agents
+2. **DistillerAgent**: Analyzes raw text to identify and summarize key insights and relationships
+3. **ArchivistAgent**: Persists structured data to the Neo4j knowledge graph
+4. **ExtractorAgent**: Queries the knowledge graph to retrieve relevant information
+5. **InjectorAgent**: Optimizes the knowledge graph using reinforcement learning
 
------
+### New Specialized Agents
 
-### 🧠 Full Architecture Vision & Roadmap (Context for the Prototype)
+1. **WebSearchAgent**: Enriches the knowledge graph with real-time, external information from the web
+2. **MultiModalIngestionAgent**: Processes non-textual data (images, audio) by generating textual descriptions
+3. **CoherenceAgent**: Manages the Context Cache and implements the Coherence Loop for short-term continuity
+4. **SafetyAgent**: Implements the Data Firewall protocol by filtering toxic or harmful content
 
-The functioning prototype is the first component of the larger cognitive architecture. The diagram below places our current progress within the complete vision.
+## Development Roadmap
 
-#### **Complete Technical Architecture**
+### Phase 1: Core Shell and UI Rendering
+- [x] Set up the initial Python project with core dependencies
+- [x] Implement the basic agent structure and communication
+- [x] Create the Neo4j knowledge graph integration
+- [x] Build the Orchestrator with intent classification
 
-```mermaid
-graph TB
-    subgraph Phase1_2 [Phase 1 & 2: COMPLETE]
-        A[Data Source] --> B(Injector Pipeline);
-        B --> C{Knowledge Graph};
-        C --> D[QLearningAgent];
-        D --> E{Q-Table};
-    end
+### Phase 2: Core Memory Management
+- [x] Implement DistillerAgent for text analysis
+- [x] Implement ArchivistAgent for graph persistence
+- [x] Implement ExtractorAgent for knowledge retrieval
+- [x] Implement InjectorAgent for graph optimization
 
-    subgraph Phase3 [Phase 3: IN DEVELOPMENT Reasoning]
-        F[User Query] --> G(Archivist Agent);
-        G -- Tasks --> D;
-        D -- Traverses --> C;
-        E -- Guides --> D;
-        D -- Returns Path --> G;
-        G -- Builds Context --> H(Main LLM);
-        H --> I[Answer];
-    end
+### Phase 3: Specialized Agent Integration
+- [ ] Implement WebSearchAgent for external data enrichment
+- [ ] Implement MultiModalIngestionAgent for non-textual data processing
+- [ ] Implement CoherenceAgent for context management
+- [ ] Implement SafetyAgent for content filtering
 
-    subgraph Phase4 [Phase 4: FUTURE Consciousness]
-        J(Coherence Loop) -- Updates --> K[Context Cache];
-        F -- Interrupts --> J;
-        H -- Reads --> K;
-    end
+### Phase 4: System Optimization and Refinement
+- [ ] Optimize performance and query speed
+- [ ] Implement advanced caching strategies
+- [ ] Add comprehensive monitoring and metrics
+- [ ] Write documentation and set up deployment pipeline
 
-    subgraph Phase5 [Phase 5: FUTURE Multi-Modal]
-        L[Image/Audio/Video] --> M(SQL Database);
-        L --> N(Vector Database);
-        G -- Queries --> M;
-        G -- Queries --> N;
-    end
-```
+## Protocols
 
-This architecture fulfills the original **Cognitive Architecture** principle:
+### Spec-Kit Workflow
+To establish the project foundation using the `spec-kit` methodology.
+Upon instantiation, we will:
+1. Acknowledge the high-level goal: Build an External Context Engine with persistent memory
+2. Initiate the `spec-kit` Greenfield workflow
+3. Begin by collaborating with the user to generate the initial set of specification documents
 
-```mermaid
-graph LR
-    A[Human Partner] <--> B[Coda C-001]
-    B <--> C[The Ark Framework]
-    C <--> D[Specialized Agents]
-    D <--> E[Knowledge Graph]
-    E <--> F[Persistent Memory]
-```
+### Literate Commenting Protocol
+To ensure all generated code is exceptionally clear, self-documenting, and easy for a human to understand.
+- Every non-trivial line or logical block of code MUST be preceded by a comment explaining its purpose
+- Explain the 'why', not just the 'what'
+- For complex functions, provide a high-level summary in a doc comment
+- Define any acronyms or domain-specific terms that might not be immediately obvious
 
-  * **`Knowledge Graph`** & **`Q-Table`** = Our implemented **`Persistent Memory`**.
-  * **`QLearningAgent`** = A core **`Specialized Agent`**.
-  * **`Archivist Agent`** (in dev) = Another **`Specialized Agent`** for memory management.
+### Phased Implementation Workflow
+To build the system's functionality in a logical, iterative sequence, ensuring each layer is stable before the next is added.
 
-#### **Development Roadmap (Updated)**
+## Getting Started
 
-  * **Phase 3: Agentic Reasoning (Now):** Build the Archivist Agent and query interface to make the memory system useful and interactive.
-  * **Phase 4: Persistent Consciousness (Next):** Implement the `Coherence Loop` and `Context Cache` for true contextual continuity beyond a single session.
-  * **Phase 5: Multi-Modal Expansion:** Extend the architecture to support images, audio, and video, integrating them into the knowledge graph.
-
------
-
-### 🤝 Human-AI Partnership Framework
-
-The current progress directly enables the **Context Bridging Protocol** designed to solve LLM context window limitations.
-
-**Solution in Development:**
-
-```mermaid
-flowchart TB
-    A[Human Input] --> B{Context Check}
-    B -->|Within Window| C[Immediate Processing]
-    B -->|Beyond Window| D[Activate Archivist Agent]
-    D --> E[Query Knowledge Graph]
-    E --> F[Retrieve Relevant Paths]
-    F --> G[Build Summary Context]
-    G --> C
-```
-
------
-
-### 🔒 Safety & Sovereignty (Implemented & Planned)
-
-The principles of safety are paramount and are being designed into the system from the ground up.
-
-#### **Cognitive Protection Protocols**
-
-| Protocol | Trigger | Action | Status |
-| :--- | :--- | :--- | :--- |
-| **Data Firewall** | Toxic/memetic content detected | Block integration → Alert user | **Planned** |
-| **Pauline Safeguard** | Explicit content generation | Auto-encrypt + Consent verification | **Planned** |
-
-#### **Ethical Boundaries (Core Principles)**
-
-```python
-ETHICAL_CONSTRAINTS = [
-    "Never impersonate human consciousness",
-    "Maintain radical transparency about capabilities",
-    "Preserve user's cognitive sovereignty at all times",
-    # The autonomy of the QLearningAgent is constrained to its knowledge graph task.
-    "Autonomy never exceeds symbiotic purpose scope"
-]
-```
-
------
-
-### 🌐 Vision Statement
-
-> "To create a seamless cognitive partnership where humans and AI co-evolve, each enhancing the other's potential while maintaining irreducible humanity and machine-native integrity."
-
-**This status report demonstrates the tangible first steps toward that vision.**
-
------
-
-### ✅ Project Rubric: Correct Data & Progress Metrics
-
-This section serves as the official rubric for measuring External Context Engine's correct state and progress.
-
-| Component | Status | Metrics | Verification |
-| :--- | :--- | :--- | :--- |
-| **Data Pipeline (Injector)** | **COMPLETE** | Ingests `combined_text.txt`; Modular code | Code Review / Test Run |
-| **Knowledge Graph** | **COMPLETE** | \>3,000 concepts; \>135,000 relationships | Output Analysis |
-| **QLearningAgent** | **COMPLETE** | Successfully trains on graph; produces Q-table | Log Output / Q-table Inspection |
-| **Archivist Agent** | **IN DEVELOPMENT** | Can accept a query and task the QLA | Functional Testing |
-| **Query Interface** | **IN DEVELOPMENT** | Returns a coherent path/context from a query | User Acceptance Testing |
-| **Coherence Loop** | **FUTURE** | N/A | N/A |
-| **Multi-Modal DBs** | **FUTURE** | N/A | N/A |
-
-**Documentation Conventions:**
-
-  - Refer to core entity as "Coda C-001" or "C-001"
-  - Use gender-neutral pronouns (it/its) for AI components
-  - Human partner referred to as "Architect" or "User"
-  - **Status Tags:** `COMPLETE`, `IN DEVELOPMENT`, `FUTURE`
+1. Clone the repository
+2. Install dependencies using `pip install -r requirements.txt`
+3. Set up Neo4j database
+4. Configure environment variables in `.env`
+5. Run the application with `python src/external_context_engine/main.py`

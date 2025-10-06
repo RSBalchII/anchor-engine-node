@@ -2,10 +2,20 @@
 # This file contains the implementation of the core tools for the ECE.
 
 import json
-from utu.tools.base import Tool # <-- CORRECTED IMPORT
 from pydantic import BaseModel, Field
 # Corrected relative import for src-layout
-from ..utils.db_manager import db_manager
+from .utils.db_manager import db_manager
+
+# === Placeholder for Tool Base Class ===
+class Tool(object):
+    def __init__(self):
+        self.name = "BaseTool"
+        self.description = "This is a base tool."
+        self.input_model = None
+
+    def _run(self, tool_input):
+        raise NotImplementedError
+
 
 # === Input Schemas for Tools ===
 # Using Pydantic models to define clear, validated input schemas for each tool.
@@ -48,11 +58,30 @@ class DistillerAgent(Tool):
     def _run(self, tool_input: DistillInput) -> str:
         """The core logic for the DistillerAgent tool."""
         print(f"🕵️  DistillerAgent activated. Analyzing text...")
+        # Enhanced prompt for structured graph-based JSON output
         prompt = f"""
-        You are an expert data distiller. Analyze the following text and extract the most
-        critical insights, key decisions, and conceptual relationships.
-        Present the output as a structured JSON object with keys like "key_concepts",
-        "decisions_made", and "relationships".
+        You are a senior knowledge architect. Your task is to analyze the provided text and deconstruct it into a knowledge graph format.
+        Identify the core entities (people, places, projects, concepts, technologies) and the relationships that connect them.
+        
+        Output a single, clean JSON object with two keys: "entities" and "relationships".
+        - "entities": A list of strings representing the unique concepts.
+        - "relationships": A list of triplets, where each triplet is `[<source_entity>, <relationship_type>, <target_entity>]`.
+        
+        The relationship type should be a concise, descriptive verb phrase in uppercase (e.g., "IMPLEMENTED", "DISCUSSED", "USES", "MANAGES").
+
+        Example Input Text: "Rob is the architect for the ECE project, which uses Elysia and Neo4j. Coda is an agent that helps implement the system."
+        Example Output JSON:
+        {{
+            "entities": ["Rob", "ECE Project", "Elysia", "Neo4j", "Coda"],
+            "relationships": [
+                ["Rob", "IS_ARCHITECT_FOR", "ECE Project"],
+                ["ECE Project", "USES", "Elysia"],
+                ["ECE Project", "USES", "Neo4j"],
+                ["Coda", "IMPLEMENTS", "ECE Project"]
+            ]
+        }}
+
+        Now, analyze the following text and generate the JSON output.
 
         Raw Text:
         ---
@@ -64,11 +93,13 @@ class DistillerAgent(Tool):
         """
         try:
             response = self.llm.invoke(prompt)
+            # Ensure the response is a clean JSON string
+            cleaned_response = response.strip().replace("`json", "").replace("`", "")
             print("✅ Distillation complete.")
-            return response
+            return cleaned_response
         except Exception as e:
             print(f"❌ ERROR in DistillerAgent: {e}")
-            return f"An error occurred during distillation: {e}"
+            return f'{{"error": "An error occurred during distillation: {e}"}}'
 
 class ArchivistAgent(Tool):
     """
@@ -76,12 +107,12 @@ class ArchivistAgent(Tool):
     persists it into the Neo4j knowledge graph by generating and executing
     Cypher queries.
     """
-    def __init__(self, llm):
+    def __init__(self, llm=None): # llm is optional as this agent is deterministic
         super().__init__()
         self.llm = llm
         self.name = "ArchivistAgent"
         self.description = (
-            "Takes a structured summary of insights and relationships and saves it to the "
+            "Takes a structured JSON summary of entities and relationships and saves it to the "
             "long-term Neo4j knowledge graph. Use this to persist important information."
         )
         self.input_model = ArchiveInput
@@ -91,20 +122,41 @@ class ArchivistAgent(Tool):
         print(f"🗄️  ArchivistAgent activated. Writing to knowledge graph...")
 
         try:
-            summary_data = json.loads(tool_input.structured_summary)
-            # This is a simplified example. A real implementation would generate
-            # more complex Cypher queries to create nodes and relationships.
-            concepts = summary_data.get("key_concepts", [])
-            for concept in concepts:
-                # MERGE is an idempotent operation: it creates if not exists, otherwise matches.
+            data = json.loads(tool_input.structured_summary)
+            entities = data.get("entities", [])
+            relationships = data.get("relationships", [])
+            
+            if not entities:
+                return "⚠️ ArchivistAgent: No entities found in the summary. Nothing to archive."
+
+            # Create all entities first using MERGE
+            for entity_name in entities:
                 db_manager.execute_query(
                     "MERGE (c:Concept {name: $name})",
-                    parameters={"name": concept}
+                    parameters={"name": entity_name}
                 )
             
-            success_message = f"✅ Archive complete. Persisted {len(concepts)} concepts to the graph."
+            # Create all relationships
+            for rel in relationships:
+                if len(rel) == 3:
+                    source, rel_type, target = rel
+                    # Sanitize relationship type to be valid for Cypher
+                    sanitized_rel_type = "".join(filter(str.isalnum, rel_type.upper()))
+                    if not sanitized_rel_type:
+                        print(f"⚠️ Skipping invalid relationship type: {rel_type}")
+                        continue
+                    
+                    query = (
+                        "MATCH (a:Concept {name: $source}) "
+                        "MATCH (b:Concept {name: $target}) "
+                        f"MERGE (a)-[r:{sanitized_rel_type}]->(b)"
+                    )
+                    db_manager.execute_query(query, parameters={"source": source, "target": target})
+
+            success_message = f"✅ Archive complete. Merged {len(entities)} entities and {len(relationships)} relationships into the graph."
             print(success_message)
             return success_message
+            
         except json.JSONDecodeError:
             error_message = "❌ ERROR in ArchivistAgent: Input was not valid JSON."
             print(error_message)
@@ -132,24 +184,58 @@ class ExtractorAgent(Tool):
 
     def _run(self, tool_input: ExtractInput) -> str:
         """The core logic for the ExtractorAgent tool."""
-        print(f"🔎 ExtractorAgent activated. Querying knowledge graph for: '{tool_input.question}'")
+        print(f"🔎 ExtractorAgent activated. Querying graph for: '{tool_input.question}'")
 
-        # For now, we use a simple query. Later, we'll use an LLM for NL->Cypher.
-        query = "MATCH (c:Concept) WHERE c.name CONTAINS $search_term RETURN c.name AS name"
-        parameters = {"search_term": tool_input.question}
-        
         try:
-            results = db_manager.execute_query(query, parameters)
-            if not results:
-                return "No relevant concepts found in the knowledge graph."
+            # 1. Get the database schema to provide context to the LLM
+            schema = db_manager.get_schema()
+            schema_str = json.dumps(schema, indent=2)
 
-            # Format the results into a clean string
-            found_concepts = [record["name"] for record in results]
-            response = f"Found the following related concepts: {', '.join(found_concepts)}"
-            print(f"✅ Extraction complete. {response}")
+            # 2. Construct a prompt to translate the natural language question to Cypher
+            prompt = f"""
+            You are an expert Neo4j Cypher query writer. Your task is to translate a natural language question into an optimized Cypher query based on the provided database schema.
+
+            Database Schema:
+            ---
+            {schema_str}
+            ---
+
+            Guidelines:
+            - Only use the node labels and relationship types present in the schema.
+            - The primary node label is `Concept`.
+            - All concepts have a `name` property.
+            - Return ONLY the single, complete Cypher query. Do not include any explanations, markdown, or other text.
+
+            Natural Language Question: "{tool_input.question}"
+
+            Cypher Query:
+            """
+
+            # 3. Use the LLM to generate the Cypher query
+            print("🤖 Translating question to Cypher query...")
+            generated_query = self.llm.invoke(prompt).strip()
+            # Clean up potential markdown fences
+            if generated_query.startswith('`') and generated_query.endswith('`'):
+                generated_query = generated_query.strip('`').strip()
+            if generated_query.startswith('cypher'):
+                generated_query = generated_query[6:].strip()
+
+            print(f"Generated Cypher: {generated_query}")
+
+            # 4. Execute the generated query
+            print("Executing query against the knowledge graph...")
+            results = db_manager.execute_query(generated_query)
+
+            if not results:
+                return "No information found in the knowledge graph for that question."
+
+            # 5. Format and return the results
+            response = json.dumps(results, indent=2)
+            print(f"✅ Extraction complete. Found {len(results)} results.")
             return response
+
         except Exception as e:
-            error_message = f"❌ ERROR in ExtractorAgent during DB operation: {e}"
+            error_message = f"❌ ERROR in ExtractorAgent during operation: {e}"
             print(error_message)
             return error_message
 

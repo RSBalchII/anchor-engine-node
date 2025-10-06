@@ -9,3 +9,6 @@ __pycache__/
 
 # Docker
 docker-compose.override.yml
+
+.venv/*
+.venv
