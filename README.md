@@ -239,17 +239,31 @@ Based on the actual implementation in the codebase, the ECE has evolved from its
 - Correctly handles model paths and API base configuration in config.yaml
 - Fixed double `.gguf` extension issue in model paths
 - Fixed redundant path structure in model configuration
-- Properly manages API base URLs with appropriate port assignments for different models
+- Properly manages API base URLs with appropriate port assignments for different models (e.g., port 8091 for gemma model)
+- Recently updated to ensure correct communication flow between all components
+- Automatically updates configuration when model is changed via forge-cli
 
 ### Tool Agent Implementation
 - FileSystemAgent and WebSearchAgent are available via UTCP endpoints
 - Tool discovery happens dynamically from individual service UTCP endpoints
+- Recent fixes ensure proper communication and error handling between orchestrator and tool agents
 
 ### Context Loading Implementation
 - POML/JSON persona loading is implemented via PersonaLoader
 - Context loading follows the correct sequence through ContextSequenceManager
 - Redis context caching is implemented via CacheManager
 - Tool outputs are integrated after persona and conversation history
+
+### Communication and Logging Updates
+- Debug logging has been improved to better track communication between agents
+- Fixed communication issues between orchestrator and agent services
+- Improved error reporting and logging for better troubleshooting
+- Enhanced visibility into system operations for development and debugging
+- Debug logs are now properly directed to files in the logs/ directory:
+  - `logs/debug_log_ecosystem.txt` - for ecosystem-related logs
+  - `logs/debug_log_model_inference.txt` - for model inference logs
+  - `logs/debug_log_orchestrator.txt` - for orchestrator logs
+- The system uses a rotating file handler to manage log sizes and prevent disk space issues
 
 ## Debug Launcher
 
@@ -269,6 +283,28 @@ The debug mode addresses the need for better visibility during ECE system operat
 
 The PowerShell script provides the core functionality:
 - Checks for required Docker services (Neo4j, Redis)
+- Detects and manages model servers on various ports
+- Starts all ECE agents with visible output in the terminal
+- Provides clear status messages and error handling
+
+## Communication and Logging Updates
+
+Recent updates have improved error reporting and logging for better troubleshooting:
+- Debug logging has been enhanced to better track communication between agents
+- Fixed communication issues between orchestrator and agent services
+- Improved error reporting and logging for better troubleshooting
+- Enhanced visibility into system operations for development and debugging
+- Debug logs are now properly directed to files in the logs/ directory:
+  - `logs/debug_log_ecosystem.txt` - for ecosystem-related logs
+  - `logs/debug_log_model_inference.txt` - for model inference logs
+  - `logs/debug_log_orchestrator.txt` - for orchestrator logs
+- The system uses a rotating file handler to manage log sizes and prevent disk space issues
+- Fixed communication issues between orchestrator and agent services after recent configuration changes
+- Verified that ModelManager automatically updates configuration when model is changed via forge-cli
+- Implemented fixes to ensure debug logs are properly directed to files in the logs/ directory as intended
+- Improved error reporting to provide clearer visibility into system issues
+- Verified proper communication between UTCP endpoints after recent architecture changes
+- Tested communication flow between all components to ensure issues are resolved
 - Updates configuration for on-demand model management
 - Starts ECE agents with visible output in the terminal
 - Provides clear status messages and error handling

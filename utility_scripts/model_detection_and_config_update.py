@@ -5,12 +5,16 @@ This script detects which model server is currently running and updates the ECE 
 """
 
 import requests
-import yaml
 import json
 import os
 import socket
 import sys
 from pathlib import Path
+
+# Import the centralized ConfigManager
+from ece.common.config_manager import ConfigManager
+from ece.common.project_root import get_project_root
+
 
 def is_port_open(host, port):
     """Check if a port is open on the given host"""
@@ -72,53 +76,42 @@ def detect_running_model():
     return None, None
 
 def update_config_yaml(port, model_name):
-    """Update the config.yaml file with the detected model information"""
-    # Determine the project root directory
-    script_dir = Path(__file__).parent
-    project_root = script_dir.parent.parent
-    config_path = project_root / "config.yaml"
-    
-    if not config_path.exists():
-        print(f"Error: config.yaml not found at {config_path}")
-        return False
-    
+    """Update the config.yaml file with the detected model information using ConfigManager"""
     try:
-        # Read the existing config
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+        # Initialize ConfigManager to handle the configuration
+        config_manager = ConfigManager()
         
-        # Update the LLM configuration
-        if 'llm' not in config:
-            config['llm'] = {}
+        # Cleanse model name to ensure proper format
+        if model_name and not model_name.endswith('.gguf'):
+            model_name_clean = model_name.replace('.gguf', '')  # Remove duplicate extension if present
+        else:
+            model_name_clean = model_name
         
-        config['llm']['active_provider'] = 'llama_cpp'
+        # Prepare the model path
+        model_path = f"./models/{model_name_clean}.gguf"
+        api_base = f"http://localhost:{port}/v1"
         
-        if 'providers' not in config['llm']:
-            config['llm']['providers'] = {}
+        # Use ConfigManager to update model configuration
+        config_manager.update_model_config(port, model_name_clean, model_path, api_base)
         
-        if 'llama_cpp' not in config['llm']['providers']:
-            config['llm']['providers']['llama_cpp'] = {}
-        
-        # Update the llama.cpp provider configuration
-        config['llm']['providers']['llama_cpp'].update({
-            'model_path': f"../../models/{model_name}.gguf",
-            'api_base': f"http://localhost:{port}/v1",
-            'model': f"../../models/{model_name}.gguf"
-        })
-        
-        # Update ThinkerAgent configuration if it exists
+        # Update ThinkerAgent configuration if it exists in the loaded config
+        config = config_manager.get_config()
         if 'ThinkerAgent' in config:
-            config['ThinkerAgent'].update({
-                'model': f"../../models/{model_name}.gguf",
-                'synthesis_model': f"../../models/{model_name}.gguf"
-            })
+            config_manager.set('ThinkerAgent.model', model_path)
+            config_manager.set('ThinkerAgent.synthesis_model', model_path)
         
-        # Write the updated config back to file
-        with open(config_path, 'w') as f:
-            yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-        
-        print(f"Updated config.yaml with model {model_name} on port {port}")
-        return True
+        # Validate the configuration before saving
+        if config_manager.validate():
+            # Save the updated configuration
+            if config_manager.save():
+                print(f"Updated config.yaml with model {model_name_clean} on port {port}")
+                return True
+            else:
+                print("Failed to save the updated configuration")
+                return False
+        else:
+            print("Configuration validation failed after updates")
+            return False
         
     except Exception as e:
         print(f"Error updating config.yaml: {e}")

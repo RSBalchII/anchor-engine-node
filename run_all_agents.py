@@ -6,13 +6,10 @@ import os
 import sys
 import logging
 
-# Add the utility_scripts directory to the Python path
-script_dir = os.path.dirname(os.path.abspath(__file__))
-utility_scripts_dir = os.path.join(script_dir, 'utility_scripts')
-sys.path.insert(0, utility_scripts_dir)
-
-from ece.common.windows_memory_limiter import apply_memory_limit
 from dotenv import load_dotenv
+
+# Import project root detection
+from ece.common.project_root import get_project_root
 
 # Import single instance hook to prevent multiple executions
 import single_instance_hook
@@ -56,20 +53,22 @@ def load_config():
         print(f"Error parsing {config_file}: {e}")
         sys.exit(1)
 
-def check_service_availability(host, port, service_name, timeout=10):
+def check_service_availability(host, port, service_name=None, timeout=10):
     """
     Check if a service is available at the specified host and port.
     
     Args:
         host (str): Host address
         port (int): Port number
-        service_name (str): Name of the service for logging
+        service_name (str): Name of the service for logging (optional)
         timeout (int): Timeout in seconds
         
     Returns:
         bool: True if service is available, False otherwise
     """
     import socket
+    service_name = service_name or f"{host}:{port}"
+    
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
@@ -79,11 +78,40 @@ def check_service_availability(host, port, service_name, timeout=10):
             logger.info(f"{service_name} is available at {host}:{port}")
             return True
         else:
-            logger.warning(f"{service_name} is not available at {host}:{port}")
+            logger.debug(f"{service_name} is not available at {host}:{port}")
             return False
     except Exception as e:
-        logger.error(f"Error checking {service_name} availability: {e}")
+        logger.debug(f"Error checking {service_name} availability: {e}")
         return False
+
+
+def wait_for_agent(host, port, agent_name, timeout=30, interval=2):
+    """
+    Wait for an agent to become available at the specified host and port.
+    
+    Args:
+        host (str): Host address
+        port (int): Port number
+        agent_name (str): Name of the agent for logging
+        timeout (int): Maximum time to wait in seconds
+        interval (int): Interval between checks in seconds
+        
+    Returns:
+        bool: True if agent becomes available within timeout, False otherwise
+    """
+    import time
+    
+    logger.info(f"Waiting for {agent_name} to start on {host}:{port}...")
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        if check_service_availability(host, port, f"{agent_name} health check"):
+            logger.info(f"{agent_name} is now available at {host}:{port}")
+            return True
+        time.sleep(interval)
+    
+    logger.warning(f"Timeout waiting for {agent_name} to start on {host}:{port}")
+    return False
 
 def run_agents(config):
     """
@@ -160,7 +188,13 @@ def run_agents(config):
             logger.info(f"Starting {agent['name']} on port {agent['port']}...")
             process = subprocess.Popen(command, env=env)
             processes.append(process)
-            time.sleep(5)  # Increased delay to 5 seconds to allow each agent to initialize properly and reduce peak memory usage
+            
+            # Wait for this agent to become available before starting the next one
+            if not wait_for_agent("0.0.0.0", agent["port"], agent["name"]):
+                logger.warning(f"Agent {agent['name']} on port {agent['port']} may not have started properly")
+            
+            # Small delay after agent reports ready to ensure complete initialization
+            time.sleep(1)
 
         print("\nAll agents are running.")
         logger.info("All agents are running.")

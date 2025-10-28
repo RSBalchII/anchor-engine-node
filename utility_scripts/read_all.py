@@ -1,6 +1,35 @@
 import json
 import os
 import chardet
+from pathlib import Path
+
+# Extraction paths configuration for JSON content extraction
+EXTRACTION_PATHS = [
+    'response_content',
+    'content',
+    'text',
+    'data.content'
+]
+
+def extract_content(data, paths):
+    """Extract content from nested structures based on provided paths"""
+    for path in paths:
+        current = data
+        for part in path.split('.'):
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            elif isinstance(current, list) and part.isdigit():
+                idx = int(part)
+                if idx < len(current):
+                    current = current[idx]
+                else:
+                    break
+            else:
+                break
+        else:
+            if current is not None:
+                return current
+    return None
 
 def create_full_corpus_recursive():
     """
@@ -8,9 +37,10 @@ def create_full_corpus_recursive():
     into a single text corpus, correctly preserving special characters and emojis
     by auto-detecting file encodings.
     """
-    # Run this script from the root of your project directory
-    root_dir = '.'
-    output_file = 'combined_text.txt'
+    # Use the project root detection module for consistent path handling
+    from ece.common.project_root import get_project_root
+    root_dir = str(get_project_root())
+    output_file = str(Path(root_dir) / 'combined_text.txt')
     
     # Define file extensions to process
     text_extensions = ('.json', '.md', '.poml', '.yaml', '.txt', '.py', '.js', '.html', '.css', '.sh', '.ps1')
@@ -55,20 +85,23 @@ def create_full_corpus_recursive():
 
                 outfile.write(f"--- START OF FILE: {file_path} ---\n\n")
                 
-                # If it's a JSON file, attempt to extract 'response_content'
+                # If it's a JSON file, attempt to extract content using configured paths
                 if file_path.endswith('.json'):
                     try:
                         data = json.loads(decoded_content)
-                        content_found = False
-                        if isinstance(data, list):
-                            for entry in data:
-                                if isinstance(entry, dict) and 'response_content' in entry:
-                                    content = entry.get('response_content', '')
-                                    if content:
-                                        outfile.write(content + '\n\n')
-                                        content_found = True
-                        if not content_found:
-                            # If no 'response_content' is found, write the whole file
+                        
+                        # Try to extract content using the configured paths
+                        extracted_content = extract_content(data, EXTRACTION_PATHS)
+                        
+                        if extracted_content is not None:
+                            if isinstance(extracted_content, (list, dict)):
+                                # If it's structured data, convert back to JSON string
+                                content_to_write = json.dumps(extracted_content, ensure_ascii=False, indent=2)
+                            else:
+                                content_to_write = str(extracted_content)
+                            outfile.write(content_to_write + '\n\n')
+                        else:
+                            # If no extractable content found, write the whole file
                             outfile.write(decoded_content + '\n\n')
                     except json.JSONDecodeError:
                         # If JSON is invalid, write the raw decoded content

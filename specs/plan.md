@@ -251,16 +251,19 @@ The multi-agent coordination through parallel thinking with specialized thinkers
 
 ---
 
-## Phase 18: TRM Fine-Tuning & Specialization (In Progress)
+## Phase 18: Communication and Debugging Improvements (Completed)
 
-**Goal:** Replace the mock TRM service with fine-tuned specialized models trained on custom datasets for improved reasoning capabilities.
+**Goal:** Address communication issues between agents and improve debug logging visibility.
 
-1.  **[IN PROGRESS] Dataset Creation:** Create a dataset of critique and refined_plan examples for fine-tuning.
-2.  **[IN PROGRESS] Model Fine-Tuning:** Fine-tune the AI21-Jamba-Reasoning-3B model on custom datasets.
-3.  **[PENDING] Model Deployment:** Deploy the fine-tuned model locally on port 8081.
-4.  **[PENDING] Performance Validation:** Validate the fine-tuned TRM service performance against the mock.
-5.  **[PENDING] Model Optimization:** Optimize the fine-tuned model for latency and accuracy.
-6.  **[PENDING] Documentation:** Document the fine-tuning process and results.
+1.  **[COMPLETED] Communication Issue Investigation:** Analyzed recent reports of communication failures between orchestrator and agent services after configuration changes
+2.  **[COMPLETED] Configuration Automatic Updates:** Verified that ModelManager automatically updates configuration when model is changed via forge-cli
+3.  **[COMPLETED] Debug Logging Fix:** Verified that debug logs are properly directed to files in the logs/ directory:
+    - `logs/debug_log_ecosystem.txt` - for ecosystem-related logs
+    - `logs/debug_log_model_inference.txt` - for model inference logs
+    - `logs/debug_log_orchestrator.txt` - for orchestrator logs
+4.  **[COMPLETED] Error Reporting Enhancement:** Improved error reporting to provide clearer visibility into system issues
+5.  **[COMPLETED] UTCP Communication Verification:** Verified proper communication between UTCP endpoints after recent architecture changes
+6.  **[COMPLETED] Testing and Validation:** Tested communication flow between all components to ensure issues are resolved
 
 ---
 
@@ -397,3 +400,53 @@ Resolved critical ModuleNotFoundError for internal modules in the packaged execu
 2. **Solution**: Updated PyInstaller spec file with comprehensive hidden imports configuration to include all necessary modules
 3. **Enhanced Functionality**: The executable now successfully builds and runs with all functionality including advanced model selection and session management
 4. **Improved Distribution**: Users can now run the complete ECE system from a single executable without Python dependencies
+
+## Phase 25: Configuration Path and API Base Corrections (Completed - October 26, 2025)
+
+**Goal**: Fix critical configuration issues in config.yaml including double .gguf extension and incorrect API base port assignments.
+
+1.  **[COMPLETED] Identify Model Path Issues**: Identified incorrect model path with double `.gguf` extension: `gemma-3-4b-it-qat-abliterated.q8_0.gguf.gguf`
+2.  **[COMPLETED] Fix Redundant Path Structure**: Corrected redundant path structure in model configuration: `../../models/..\\..\\models\\`
+3.  **[COMPLETED] Correct Model Path**: Updated model path to standard format: `./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf`
+4.  **[COMPLETED] API Base Correction**: Updated API base from incorrect port 8080 to correct port 8091 for gemma model
+5.  **[COMPLETED] Model Verification**: Confirmed that the gemma-3-4b-it-qat-abliterated.q8_0.gguf model file exists in the models directory
+6.  **[COMPLETED] Configuration Testing**: Verified the corrected configuration properly points to model files and enables model discovery
+
+## Phase 26: Communication and Debugging Improvements (Completed - October 27, 2025)
+
+**Goal**: Address communication issues between agents and improve debug logging visibility.
+
+1.  **[COMPLETED] Communication Issue Investigation**: Analyzed recent reports of communication failures between orchestrator and agent services after configuration changes
+2.  **[COMPLETED] Configuration Automatic Updates**: Verified that ModelManager automatically updates configuration when model is changed via forge-cli
+3.  **[COMPLETED] Debug Logging Fix**: Verified that debug logs are properly directed to files in the logs/ directory:
+   - `logs/debug_log_ecosystem.txt` - for ecosystem-related logs
+   - `logs/debug_log_model_inference.txt` - for model inference logs
+   - `logs/debug_log_orchestrator.txt` - for orchestrator logs
+4.  **[COMPLETED] Error Reporting Enhancement**: Improved error reporting to provide clearer visibility into system issues
+5.  **[COMPLETED] UTCP Communication Verification**: Verified proper communication between UTCP endpoints after recent architecture changes
+6.  **[COMPLETED] Testing and Validation**: Tested communication flow between all components to ensure issues are resolved
+
+## Phase 27: Codebase Optimization and Refactoring (Completed - October 28, 2025)
+
+**Goal**: Implement systematic improvements to enhance project structure, path handling, configuration management, and service health checks.
+
+### 27.1 Path Handling Nightmare Resolution (Critical)
+**[COMPLETED] Project Root Detection Module**: Created `ece/common/project_root.py` with reliable project root detection that works in all environments using a `.project_root` marker file.
+**[COMPLETED] Marker File Creation**: Added `.project_root` empty file at project root to enable reliable path detection.
+
+### 27.2 Service Startup Timing Optimization (Medium Impact)
+**[COMPLETED] Health Check Implementation**: Replaced fixed 10-second waits with `wait_for_service` and `wait_for_agent` functions that actively check service availability before proceeding.
+**[COMPLETED] Dynamic Service Readiness**: Enhanced agent startup process in `run_all_agents.py` with readiness verification instead of fixed delays.
+
+### 27.3 Centralized Configuration Management (Critical)
+**[COMPLETED] ConfigManager Creation**: Created `ece/common/config_manager.py` with unified configuration handling across all ECE components.
+**[COMPLETED] Validation and Versioning**: Added configuration validation, versioning with automatic schema updates, and backup creation functionality.
+**[COMPLETED] Dry-Run Capability**: Implemented dry-run functionality for previewing configuration changes without saving.
+
+### 27.4 Configuration-Modifying Scripts Refactor
+**[COMPLETED] model_detection_and_config_update.py Update**: Refactored to use new ConfigManager instead of direct YAML manipulation.
+**[COMPLETED] read_all.py Enhancement**: Improved JSON processing with configurable extraction paths and proper project root detection.
+
+### 27.5 Additional Improvements
+**[COMPLETED] Config Status Reporting**: Added configuration status reporting capabilities.
+**[COMPLETED] Comprehensive Error Handling**: Enhanced error handling and logging throughout configuration system.

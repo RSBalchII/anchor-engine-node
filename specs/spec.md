@@ -104,6 +104,26 @@ Our **Planner, Executor, Verifier, Generator (PEVG)** framework is powered by a 
 -   **TRM Service (The Markovian Thinker):** A small, hyper-specialized, and extremely fast model (e.g., a fine-tuned `AI21-Jamba-Reasoning-3B`) that powers the iterative, self-corrective reasoning loop. This is our Executor and Verifier.
 -   **EnhancedOrchestratorAgent**: The current implementation uses EnhancedOrchestratorAgent which implements context-aware prompt management and Markovian thinking with chunked processing. The parallel thinking approach mentioned below has been simplified in the current implementation to direct model calls and UTCP-based tool usage for better stability and performance. It includes a `process_prompt_with_context_management` method that handles prompt processing with context retrieval from the Archivist and intelligent routing between Markovian and direct processing based on prompt complexity.
 
+### 3.5. Architecture Enhancements and Optimization Components
+
+The ECE has been enhanced with several architectural improvements to improve maintainability, reliability, and performance:
+
+#### 3.5.1 Centralized Configuration Management
+-   **ConfigManager Class**: A unified configuration management system in `ece/common/config_manager.py` that provides consistent configuration handling across all ECE components.
+-   **Validation and Versioning**: Includes configuration validation, schema versioning with automatic updates, and backup creation functionality.
+-   **Dry-Run Capability**: Enables preview of configuration changes without committing them.
+-   **Service Configuration**: Provides centralized handling of model server configuration updates and service-specific settings.
+
+#### 3.5.2 Reliable Path Detection
+-   **Project Root Detection**: Centralized module in `ece/common/project_root.py` for reliable project root detection across different environments.
+-   **Marker File Approach**: Uses a `.project_root` file to enable consistent path resolution in development, executables, and containers.
+-   **Multi-Method Detection**: Implements multiple fallback approaches to ensure path detection works consistently.
+
+#### 3.5.3 Dynamic Service Health Monitoring
+-   **Active Service Checks**: Replaced fixed waiting periods with active service availability checks using `wait_for_service` and `wait_for_agent` functions.
+-   **Adaptive Startup**: Agents now wait for each other to be ready before proceeding, reducing startup time and improving reliability.
+-   **Health Status Reporting**: Enhanced service status reporting with detailed availability information.
+
 ### 3.5. Markovian Thinking Architecture
 
 To enable deep reasoning on local hardware, the ECE implements a sophisticated Markovian Thinking architecture based on the research paper "The Markovian Thinker":

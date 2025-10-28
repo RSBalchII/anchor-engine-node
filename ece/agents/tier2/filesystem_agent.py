@@ -240,6 +240,26 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
 
+@app.get("/list_directory")
+async def list_directory_get_endpoint(path: str = ".", include_hidden: bool = False):
+    """
+    GET endpoint to list directory contents.
+    
+    Args:
+        path: The directory path to list
+        include_hidden: Whether to include hidden files and directories
+        
+    Returns:
+        Directory listing result
+    """
+    try:
+        result = fs_agent.list_directory(path=path, include_hidden=include_hidden)
+        return result
+    except Exception as e:
+        logger.error(f"Error listing directory: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/list_directory")
 async def list_directory_endpoint(request: ListDirectoryRequest):
     """
@@ -257,6 +277,25 @@ async def list_directory_endpoint(request: ListDirectoryRequest):
     except Exception as e:
         logger.error(f"Error listing directory: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/read_file")
+async def read_file_get_endpoint(file_path: str):
+    """
+    GET endpoint to read file contents.
+    
+    Args:
+        file_path: The path to the file to read
+        
+    Returns:
+        File content result
+    """
+    try:
+        result = fs_agent.read_file(file_path=file_path)
+        return result
+    except Exception as e:
+        logger.error(f"Error reading file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/read_file")
 async def read_file_endpoint(request: ReadFileRequest):
@@ -276,6 +315,26 @@ async def read_file_endpoint(request: ReadFileRequest):
         logger.error(f"Error reading file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/write_file")
+async def write_file_get_endpoint(file_path: str, content: str):
+    """
+    GET endpoint to write content to a file.
+    
+    Args:
+        file_path: The path to the file to write
+        content: The content to write to the file
+        
+    Returns:
+        Write operation result
+    """
+    try:
+        result = fs_agent.write_file(file_path=file_path, content=content)
+        return result
+    except Exception as e:
+        logger.error(f"Error writing file: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/write_file")
 async def write_file_endpoint(request: WriteFileRequest):
     """
@@ -293,6 +352,25 @@ async def write_file_endpoint(request: WriteFileRequest):
     except Exception as e:
         logger.error(f"Error writing file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/execute_command")
+async def execute_command_get_endpoint(command: str):
+    """
+    GET endpoint to execute a shell command.
+    
+    Args:
+        command: The shell command to execute
+        
+    Returns:
+        Command execution result
+    """
+    try:
+        result = fs_agent.execute_command(command=command)
+        return result
+    except Exception as e:
+        logger.error(f"Error executing command: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/execute_command")
 async def execute_command_endpoint(request: ExecuteCommandRequest):
