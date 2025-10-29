@@ -47,7 +47,7 @@ All markdown files in the `specs/` directory are allowed, including:
 - `specs/spec.md` - Technical specifications
 - `specs/tasks.md` - Task tracking and progress
 - `specs/session_summaries.md` - Session event summaries and logs
-- Any other markdown files created in the specs directory for technical documentation
+- Any other markdown files created in the `specs/` directory for technical documentation
 
 ### Documentation Guidelines
 - No markdown files should be created outside of the allowed locations
@@ -110,26 +110,32 @@ The Markovian thinking is implemented in the `ece/agents/common/markovian_thinke
 - The system intelligently routes between Markovian and direct processing based on prompt complexity
 
 ### Externalized Memory & Context Management
-The ECE implements a multi-tiered context management system that preserves identity and memory external to any model:
-- **POML/JSON Persona Loading**: POML/JSON persona files (e.g., orchestrator.json) are loaded FIRST to establish foundational identity, protocols, values, and operational context
-- **Redis Context Caching**: Conversation history and contextual information are preserved in a persistent Redis cache
-- **Context Summarization**: The ENTIRE Redis cache with conversation context and new content is summarized into new entries
+The ECE implements a sophisticated multi-tiered context management system that preserves identity and memory external to any model:
+- **POML/JSON Persona Loading**: POML/JSON persona files (e.g., orchestrator.json) are loaded FIRST before ANY response processing begins, establishing foundational identity, protocols, values, and operational context
+- **Redis Context Loading & Archivist Processing**: Redis context is loaded and the Archivist receives the prompt to send keywords to the QLearning agent for relevant context retrieval
+- **QLearning & Archivist Context Enhancement**: QLearning returns potentially large amounts of context which the Archivist uses a system LLM to summarize and identify important contextual information, then appends it to the Redis cache
 - **Temporal Memory**: Continuous temporal scanning protocol with the Archivist Agent maintains chronological records in Neo4j knowledge graph
+- **Orchestrator Processing**: The Orchestrator reads the enhanced Redis cache (always including POML persona first) and processes the complete context
 - **Tool Integration**: Tool outputs (web search, file read/write, etc.) become part of the accessible context
 
 ### Implementation Details
 The context loading sequence is implemented through:
-- **PersonaLoader**: Loads persona from POML/JSON files first to establish identity
-- **ContextSequenceManager**: Manages the complete loading sequence: persona → Redis context → current prompt → tool outputs
-- **CacheManager**: Handles Redis-based caching with TTL and semantic search capabilities
-- **ArchivistAgent**: Continuously monitors Redis cache and updates Neo4j with temporal context
+- **PersonaLoader**: Loads persona from POML/JSON files first to establish identity before any processing
+- **Redis Context Loader**: Loads existing conversation history and contextual information
+- **ArchivistAgent**: Processes the prompt by sending keywords to QLearning agent for context retrieval
+- **QLearningAgent**: Performs knowledge graph searches to retrieve relevant contextual information
+- **Context Enhancer**: Summarizes and appends retrieved context to Redis cache
+- **Orchestrator**: Reads the complete enhanced context (including persona and retrieved information) to determine processing approach
 
 ### Context Loading Order
-The following sequence ensures consistent persona and memory across interactions:
-1. **POML/JSON Persona**: Loaded first to establish identity and protocols (orchestrator.json)
-2. **Redis Context**: Conversation history and contextual information
-3. **Current Prompt**: The immediate task or query
-4. **Tool Outputs**: Additional information from web search, file operations, etc.
+The following sequence ensures enhanced context and consistent persona across interactions:
+1. **POML/JSON Persona**: Loaded FIRST before ANY response processing to establish identity and protocols (orchestrator.json)
+2. **Redis Context Loading & Archivist Processing**: Redis context is loaded and Archivist receives prompt to send keywords to QLearning agent
+3. **QLearning & Archivist Context Enhancement**: QLearning returns context (potentially large amounts) which Archivist summarizes and appends to Redis cache
+4. **Orchestrator Processing**: Orchestrator reads the enhanced Redis cache (always including POML persona first)
+5. **Current Prompt**: The immediate task or query
+6. **Response Generation**: Either direct model response or Markovian thinking based on complexity analysis
+7. **Tool Outputs**: Additional information from web search, file operations, etc.
 
 ### Multi-Agent Coordination & Emergence
 Based on research findings from "Emergent Coordination in Multi-Agent Language Models", the ECE implements enhanced coordination between agents:
@@ -139,13 +145,13 @@ Based on research findings from "Emergent Coordination in Multi-Agent Language M
 - **Coordination Analysis**: The system includes metrics to measure synergy, diversity, and complementarity among thinker agents to ensure productive collective intelligence.
 - **Emergent Behavior Steering**: Prompt design and role assignments are used to steer the system from mere aggregates to higher-order collectives with coordinated behavior.
 
-### Actual Implementation Notes
-While the documentation mentions parallel thinking with specialized thinkers, the current implementation in the EnhancedOrchestratorAgent primarily uses:
+### Implementation Reality
+While these coordination principles are implemented in the configuration (see thinker personas in config.yaml), the current EnhancedOrchestratorAgent implementation has shifted from the original parallel thinking model to a more streamlined approach using:
 - Direct model calls for simpler prompts, managed by the ModelManager for on-demand execution
 - Markovian thinking for complex reasoning with chunked processing
 - UTCP-based tool usage for external operations
-- A simplified approach compared to the original parallel thinking model
-- Model lifecycle management through the ModelManager class for resource optimization
+
+The multi-agent coordination through parallel thinking with specialized thinkers was part of an earlier implementation and has been simplified for better stability and performance.
 
 ### Performance Optimization
 - **C++/Cython Integration**: Performance-critical components rewritten in C++
@@ -164,17 +170,19 @@ While the documentation mentions parallel thinking with specialized thinkers, th
 
 ### Core Capabilities
 - **Intelligent Memory Management**: Q-Learning powered context retrieval
-- **Context-Aware Prompt Management**: Dynamic adjustment of content based on model capabilities
-- **Token-Aware Summarization**: Processes large contexts up to 1M tokens
-- **Model-Agnostic Identity**: Persona and memory preserved across different models via external systems
-- **On-Demand Model Execution**: Models start when needed for inference and stop to save resources through the ModelManager class
-- **Model Selection and Management**: Dynamic switching between different models using the ModelManager
-- **Resource Optimization**: Automatic resource management through the ModelManager for efficient hardware utilization
-- **Local-First Architecture**: Runs entirely on local hardware without cloud dependencies
+- **Enhanced Context Retrieval**: Semantic search and path finding in knowledge graph
+- **Local-First Execution**: Runs entirely on local hardware without cloud dependencies
+- **Script-Based Management**: Simple scripts for launching and managing agents
+- **Memory Optimization**: Configurable memory limiter for Windows systems
+- **GPU Acceleration**: CUDA support for accelerated embedding generation
+- **On-Demand Model Execution**: ModelManager starts models only when needed
+- **Model Lifecycle Management**: Automatic start/stop of models to save resources
+- **UTCP Integration**: Universal Tool Calling Protocol for tool discovery and execution
+- **Markovian Thinking**: Chunked reasoning with textual carryover for deep local reasoning
 
 ## 🏗️ Architecture
 
-The ECE is a multi-agent system composed of smaller, specialized, and independently deployable components.
+The ECE implements a multi-tiered agent architecture:
 
 ```mermaid
 graph TD
@@ -226,7 +234,7 @@ Based on the actual implementation in the codebase, the ECE has evolved from its
 - It uses the EnhancedOrchestratorAgent which handles context-aware prompt management
 - UTCP integration is decentralized with direct connections to service endpoints rather than a central registry
 - Tool usage is integrated through intent analysis of user prompts
-- Model management is handled by the ModelManager class which provides on-demand model execution
+- Model management is handled by the ModelManager class for on-demand execution
 
 ### Model Management
 - The ModelManager class handles on-demand model execution including starting, stopping, and switching between different models
@@ -264,10 +272,19 @@ Based on the actual implementation in the codebase, the ECE has evolved from its
   - `logs/debug_log_model_inference.txt` - for model inference logs
   - `logs/debug_log_orchestrator.txt` - for orchestrator logs
 - The system uses a rotating file handler to manage log sizes and prevent disk space issues
+- Fixed communication issues between orchestrator and agent services after recent configuration changes
+- Verified that ModelManager automatically updates configuration when model is changed via forge-cli
+- Implemented fixes to ensure debug logs are properly directed to files in the logs/ directory as intended
+- Improved error reporting to provide clearer visibility into system issues
+- Verified proper communication between UTCP endpoints after recent architecture changes
+- Tested communication flow between all components to ensure issues are resolved
+- Updates configuration for on-demand model management
+- Starts ECE agents with visible output in the terminal
+- Provides clear status messages and error handling
 
 ## Debug Launcher
 
-The ECE includes a debug mode feature that provides enhanced visibility into the ECE agents' operations by displaying all output directly in the terminal, which is invaluable for troubleshooting and development.
+The ECE includes a debug mode feature that provides enhanced visibility into ECE agents' operations by displaying all output directly in the terminal, which is invaluable for troubleshooting and development.
 
 ### Purpose
 
@@ -398,22 +415,23 @@ Recent fixes that improve debug visibility:
 3. Configure LLM provider in `config.yaml`:
    ```yaml
    llm:
-     active_provider: llama_cpp  # Can be ollama, docker_desktop, or llama_cpp
+     active_provider: llama_cpp
      providers:
        llama_cpp:
          model_path: "./models/your-model.gguf"
-         api_base: "http://localhost:8080/v1"
+         api_base: "http://localhost:8091/v1"
    ```
 
 ### Running the System
 
-#### Simplified Launcher (Recommended)
-The ECE now includes a simplified launcher system that starts only the essential components needed for ECE to run:
+#### Consolidated Launcher (Recommended)
+The ECE now includes a consolidated launcher system that focuses only on what's needed to run the models and ECE services, removing all excess scripts while preserving essential functionality:
 
-1. **Utility Scripts Approach**:
-   All launcher scripts have been moved to the `utility_scripts/` directory, organized into focused categories:
-   - `utility_scripts/start/` - Scripts for starting the ECE ecosystem (agents + Redis + Neo4j)
-   - `utility_scripts/read_all.py` - Script to aggregate all text content into a single corpus
+1. **Package Structure**:
+   All launcher components have been moved to the `utility_scripts/start/` directory, organized into focused categories:
+   - `utility_scripts/start/` - Scripts for packaging and starting the ECE application
+   - `utility_scripts/install/` - Scripts for installing packages and modules
+   - `utility_scripts/testing/` - Scripts for testing and profiling different ECE components
 
 2. **Automatic Model Detection**:
    The start scripts now automatically detect which model server is running and update the ECE configuration accordingly:
@@ -433,65 +451,39 @@ The ECE now includes a simplified launcher system that starts only the essential
    python start_ecosystem.py
    ```
 
-#### Packaging (Previously Available)
-The ECE previously supported packaging into a single executable, but this approach has been deprecated in favor of simpler script-based deployment.
+#### Platform-Specific Wrapper Scripts
+The ECE provides platform-specific wrapper scripts that delegate to the consolidated Python entry point:
 
-#### Service Setup
+##### PowerShell Script (`utility_scripts\start\start_ecosystem.ps1`)
+The PowerShell script provides the core functionality:
+- Checks for required Docker services (Neo4j, Redis)
+- Detects and manages model servers on various ports
+- Starts all ECE agents with visible output in the terminal
+- Provides clear status messages and error handling
 
-The ECE requires several external services to operate correctly. The simplified launcher automatically handles service setup:
+##### Batch Wrapper (`utility_scripts\start\start_ecosystem.bat`)
+The batch file provides a convenient Windows entry point:
+- Sets up the correct execution environment
+- Calls the PowerShell script with appropriate parameters
+- Ensures PowerShell execution policy allows script execution
+- Provides user-friendly interface with clear instructions
 
-##### Automated Setup (Recommended)
-
-1. Run the simplified launcher:
-   ```bash
-   cd utility_scripts/start
-   python start_ecosystem.py
-   ```
-
-2. The launcher will automatically:
-   - Check for Docker installation
-   - Start required containers (Neo4j, Redis) if not running
-   - Detect running llama server instances
-   - Update configuration accordingly
-   - Start all ECE agents
-
-##### Manual Setup
-
-If you prefer manual setup, follow these steps:
-
-1. **Install Redis**:
-   - For Windows: `choco install redis-64 -y` (requires Chocolatey)
-   - Or download from https://github.com/tporadowski/redis/releases
-   - Start Redis server
-
-2. **Install Neo4j**:
-   - Download from https://neo4j.com/download-center/
-   - Install Neo4j Desktop or Server
-   - Set up a local DBMS with a password (default: 'password')
-   - Start the database
-
-3. **Install UTCP components**:
-   - Install the UTCP client with: `pip install utcp`
-   - Each ECE agent serves its own UTCP manual at the `/utcp` endpoint following the official UTCP 1.0+ specification
-   - No central registry is required - services are discovered via their individual endpoints
-
-4. **Verify all services** are running:
-   ```bash
-   python bootstrap.py
-   ```
+##### Shell Script (`utility_scripts\start\start_ecosystem.sh`)
+The shell script provides cross-platform compatibility:
+- Works on Linux and macOS systems
+- Sets up the correct execution environment
+- Calls the Python entry point with appropriate parameters
+- Provides user-friendly interface with clear instructions
 
 ### UTCP Implementation
 
 The ECE now fully implements the Universal Tool Calling Protocol (UTCP) 1.0+ specification using a decentralized architecture:
 
 - Each service serves its own UTCP Manual at the standard `/utcp` endpoint
-- No central registry service is required
-- Tools are discovered by fetching UTCP manuals directly from service endpoints
-- Each tool is identified with a namespaced identifier (e.g., `filesystem.read_file`)
-- The forge-cli can discover and use tools from all running ECE agents
-- The orchestrator now connects directly to individual service UTCP endpoints rather than a centralized registry
+- The orchestrator connects directly to individual service endpoints rather than a centralized registry
+- Services include: Distiller (port 8001), QLearning (port 8002), Archivist (port 8003), Injector (port 8004), FileSystem (port 8006), and WebSearch (port 8007)
 
-This decentralized approach provides better reliability, scalability, and aligns with the official UTCP specification.
+This decentralized approach provides better reliability, scalability, and eliminates single points of failure.
 
 ### Current UTCP Configuration
 In the EnhancedOrchestratorAgent, the UTCP configuration is set up with direct endpoints:
@@ -504,16 +496,21 @@ In the EnhancedOrchestratorAgent, the UTCP configuration is set up with direct e
 
 Tools are discovered dynamically when needed rather than cached statically.
 
-### Core Logic and Stability Enhancements
+## Core Logic and Stability Enhancements
+
 The ECE now includes robust prompt management to prevent context overflow issues:
 
-1. **Context-Aware Prompt Management**: The system includes a context-aware prompt manager that dynamically adjusts content based on model capabilities and context window limits.
+### Context-Aware Prompt Management
+The system includes a context-aware prompt manager that dynamically adjusts content based on model capabilities and context window limits.
 
-2. **Intelligent Truncation**: Uses token counting and content preservation techniques to maintain critical information when prompts are truncated.
+### Intelligent Truncation
+Uses token counting and content preservation techniques to maintain critical information when prompts are truncated.
 
-3. **Fallback Strategies**: Implements graceful fallback approaches (summarization, chunking) when context limits are reached.
+### Fallback Strategies
+Implements graceful fallback approaches (summarization, chunking) when context limits are reached.
 
-4. **Monitoring**: Comprehensive metrics and monitoring for prompt sizes and context usage across the system.
+### Monitoring
+Comprehensive metrics and monitoring for prompt sizes and context usage across the system.
 
 ### EnhancedOrchestratorAgent Implementation
 - Implements `process_prompt_with_context_management` method that handles context overflow prevention
@@ -526,7 +523,7 @@ The ECE now includes robust prompt management to prevent context overflow issues
 - **ModelManager Class**: Handles the lifecycle of model servers including starting, stopping, and health checking
 - **On-Demand Execution**: Ensures model servers are running when needed and saves resources when idle
 - **Model Selection**: Provides functionality to switch between different models dynamically
-- **Model Discovery**: Scans the 'models' directory to identify available GGUF models with their properties
+- **Model Discovery**: Scans the 'models' directory to identify available GGUF models with their properties (size, quantization, etc.)
 - **Resource Optimization**: Automatically manages ports and model resources to prevent conflicts
 
 To run the stability tests:
@@ -535,145 +532,31 @@ python -m pytest Tests/test_prompt_management.py
 python -m pytest Tests/test_prompt_management_integration.py
 ```
 
-(NOTE: Packaging functionality has been removed from the project to simplify the architecture and focus on core functionality.)
+## Core Capabilities
 
-### Advanced Model Selection
-The system now includes enhanced model selection capabilities:
+### Intelligent Memory Management
+The ECE implements a sophisticated memory management system that preserves identity and memory external to any model:
+- **POML/JSON Persona Loading**: POML/JSON persona files (e.g., orchestrator.json) are loaded FIRST to establish foundational identity, protocols, values, and operational context
+- **Redis Context Caching**: Conversation history and contextual information are preserved in a persistent Redis cache
+- **Context Summarization**: The ENTIRE Redis cache with conversation context and new content is summarized into new entries
+- **Temporal Memory**: Continuous temporal scanning protocol with the Archivist Agent maintains chronological records in Neo4j knowledge graph
+- **Tool Integration**: Tool outputs (web search, file read/write, etc.) become part of the accessible context
 
-- **Advanced Model Selection**: Interactive model selection with complete lifecycle management and session context preservation
-- **Session Context Preservation**: Preserves conversation context to Redis at session end and loads from Redis at session start
-- **Interactive TUI**: Rich terminal interface for model selection with detailed model information
-- **On-Demand Model Management**: Integrated with ModelManager for efficient resource utilization
+### Implementation Details
+The context loading sequence is implemented through:
+- **PersonaLoader**: Loads persona from POML/JSON files first to establish identity
+- **ContextSequenceManager**: Manages the complete loading sequence: persona → Redis context → current prompt → tool outputs
+- **CacheManager**: Handles Redis-based caching with TTL and semantic search capabilities
+- **ArchivistAgent**: Continuously monitors Redis cache and updates Neo4j with temporal context
 
-### Utility Scripts Organization
+### Context Loading Order
+The following sequence ensures consistent persona and memory across interactions:
+1. **POML/JSON Persona**: Loaded first to establish identity and protocols (orchestrator.json)
+2. **Redis Context**: Conversation history and contextual information
+3. **Current Prompt**: The immediate task or query
+4. **Tool Outputs**: Additional information from web search, file operations, etc.
 
-The ECE now includes a comprehensive utility scripts directory with scripts organized into functional subdirectories:
-
-#### Functional Subdirectories
-
-- `utility_scripts/start/` - Scripts for packaging and starting the ECE application
-- `utility_scripts/install/` - Scripts for installing packages and modules
-- `utility_scripts/testing/` - Scripts for testing and profiling different ECE components
-
-#### Script Types (within each functional directory)
-
-- `bat/` - Windows batch scripts
-- `ps1/` - PowerShell scripts
-- `sh/` - Shell scripts
-- `py/` - Python scripts
-
-#### System Launchers
-For ease of use, the ECE provides start scripts in the utility_scripts/start directory:
-- `utility_scripts/start/start_ecosystem.bat` - Windows batch script to start ECE services
-- `utility_scripts/start/start_ecosystem.ps1` - PowerShell script to start ECE services
-- `utility_scripts/start/start_ecosystem.sh` - Shell script to start ECE services
-- `utility_scripts/start/start_ecosystem.py` - Python script to start ECE services
-
-These start scripts provide easy access to start the complete ECE system with on-demand model management.
-
-The start scripts provide the following main functions:
-
-##### 1. Complete ECE Start
-Starts the entire ECE system with all modules including:
-- Required services (Neo4j, Redis)
-- All ECE agents (Orchestrator, Distiller, QLearning, Archivist, Injector, FileSystem, WebSearch)
-- Configuration for on-demand model management via ModelManager
-
-#### Complete ECE Start Scripts
-The `utility_scripts/start/` directory contains complete scripts to start the ECE with all its modules:
-- `start_ecosystem.py` - Complete start script for ECE with all modules (Python)
-- `start_ecosystem.ps1` - Complete start script for ECE with all modules (PowerShell)
-- `start_ecosystem.bat` - Complete start script for ECE with all modules (Windows)
-- `start_ecosystem.sh` - Complete start script for ECE with all modules (Linux/macOS)
-
-All start scripts are configured for on-demand model management via the ModelManager, eliminating the need for pre-launched model servers.
-
-#### Configuration Management
-- `model_detection_and_config_update.*` - Scripts to automatically update config for on-demand model management
-
-### Quick Start with Launchers
-
-1. Start the ECE ecosystem using one of the scripts in `utility_scripts/start/`
-2. The ModelManager will handle model loading on-demand when needed
-3. Use the Forge-CLI TUI to select and manage models interactively
-
-### On-Demand Model Management with ModelManager
-
-The ECE now uses the ModelManager for on-demand model execution, which:
-- Starts models automatically when needed for processing
-- Stops models when not in use to save resources
-- Manages model lifecycle efficiently
-- Provides interactive model selection via Forge-CLI TUI
-4. **Python**: Run `python utility_scripts/start/start_ecosystem.py --skip-model-config`
-
-These start scripts will show all agent output in the terminal, making it easier to troubleshoot issues.
-
-### Important Notes
-
-- Make sure Neo4j and Redis services are running before starting the ECE
-- Models need to be placed in the `models/` directory
-- The ModelManager handles model lifecycle management automatically, starting models on-demand and stopping them when not in use
-- Configuration is automatically managed by the ModelManager
-
-### Troubleshooting
-
-If you encounter issues:
-- Check that required services (Neo4j, Redis) are running
-- Verify your models are in the correct directory and files aren't corrupted
-- Look at the ECE logs for any error messages
-- Use the bootstrap check to verify service connectivity
-
-### Markovian Thinking Implementation
-The ECE now includes Markovian thinking capabilities for deep reasoning:
-
-1. **TRM Service Client**: The system includes a client for communicating with specialized Tokenized Reasoning Model (TRM) services for iterative refinement.
-
-2. **Markovian Reasoning Loop**: Implementation of the chunked reasoning process with textual carryover between iterations.
-
-3. **Intelligent Routing**: The Orchestrator automatically determines when to use Markovian thinking based on query complexity.
-
-4. **Dual-LLM PEVG Model**: The system leverages both a Primary LLM for final responses and a specialized TRM service for the iterative reasoning process.
-
-To run the Markovian thinking tests:
-```bash
-python -m pytest Tests/test_markovian_thinking.py
-```
-
-### Performance Profiling and Optimization
-To profile the ECE application for performance bottlenecks:
-```bash
-python utility_scripts/profile_ece.py
-python utility_scripts/profile_qlearning.py
-python utility_scripts/profile_distiller.py
-```
-
-To build the optimized C++ extensions with Cython:
-```bash
-cd utility_scripts/install/py && python setup.py build_ext --inplace
-```
-
-Or use the batch script:
-```
-utility_scripts/build_extensions.bat
-```
-
-### Usage
-```bash
-# Send a context-aware prompt
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "What did we discuss about memory management?"}'
-
-# Store new context
-curl -X POST http://localhost:8000/memory/store \
-  -H "Content-Type: application/json" \
-  -d '{"raw_text": "Memory management is crucial for AI systems with large context windows."}'
-
-# Query memory
-curl -X POST http://localhost:8000/memory/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "memory management", "max_tokens": 1000000}'
-```
+This architecture ensures that regardless of which model is selected via the dynamic model selection system, the persona defined in the POML files remains consistent and forms the foundational layer for all responses.
 
 ## 🧠 Core Agents
 
@@ -720,7 +603,7 @@ The ECE supports multiple LLM providers with a flexible configuration system. Th
 
 ```yaml
 llm:
-  active_provider: ollama  # Can be ollama, docker_desktop, or llama_cpp
+  active_provider: llama_cpp  # Can be ollama, docker_desktop, or llama_cpp
   providers:
     ollama:
       model: "granite3.1-moe:3b-instruct-q8_0"
@@ -729,8 +612,8 @@ llm:
       model: "ai/mistral:latest"
       api_base: "http://localhost:12434/v1"
     llama_cpp:
-      model_path: "/path/to/your/model.gguf"
-      api_base: "http://localhost:8080/v1"
+      model_path: "./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf"
+      api_base: "http://localhost:8091/v1"
 ```
 
 ### Supported Providers
@@ -760,6 +643,7 @@ To use the llama.cpp provider, build the llama.cpp project on Windows:
 3. **Running the Server**:
    - Start with: `server.exe -m path\to\model.gguf -c 4096 --n-gpu-layers -1 --timeout 1800`
    - For optimal performance with quantized models, use -1 for full GPU offloading
+   - The --timeout parameter allows longer processing times for complex queries
    - Update config.yaml to point to the correct model path and server endpoint
 
 4. **Model Selection Considerations**:
@@ -786,78 +670,28 @@ Inspired by the "Markovian Thinker" and "Delethink" research, the ECE's core rea
 
 This approach decouples thinking length from context size, enabling **linear compute time and constant memory usage**, which is essential for achieving deep reasoning on local hardware.
 
-### Context Management: Prompt Truncation and Overflow Prevention
-
-To address the critical `context overflow` issue, the ECE implements a robust prompt management system:
-
--   **Context-Aware Prompt Management**: The system includes a context-aware prompt manager that dynamically adjusts content based on model capabilities and context window limits.
--   **Intelligent Truncation**: Uses token counting and content preservation techniques to maintain critical information when prompts are truncated.
--   **Fallback Strategies**: Implements graceful fallback approaches (summarization, chunking) when context limits are reached.
--   **Monitoring**: Comprehensive metrics and monitoring for prompt sizes and context usage across the system.
-
 ### Agentic Framework: The Dual-LLM PEVG Model
 
 Our **Planner, Executor, Verifier, Generator (PEVG)** framework is powered by a dual-LLM strategy that leverages Markovian Thinking:
 
--   **Primary LLM (The Generator)**: A powerful, general-purpose model (e.g., Phi-3) responsible for generating the final, high-quality, user-facing responses. It operates on a standard, larger context window.
--   **TRM Service (The Markovian Thinker)**: A small, hyper-specialized, and extremely fast model (e.g., a fine-tuned `AI21-Jamba-Reasoning-3B`) that powers the iterative, self-corrective reasoning loop. This is our Executor and Verifier.
--   **EnhancedOrchestratorAgent**: The current implementation uses EnhancedOrchestratorAgent which implements context-aware prompt management, parallel thinking with specialized thinkers, and synthesis of responses. It includes a `process_prompt_with_context_management` method that handles prompt processing with context retrieval from the Archivist, parallel thinking with multiple specialized thinkers, and synthesis of responses.
+-   **Primary LLM (The Generator):** A powerful, general-purpose model (e.g., Phi-3) responsible for generating the final, high-quality, user-facing responses. It operates on a standard, larger context window.
+-   **TRM Service (The Markovian Thinker):** A small, hyper-specialized, and extremely fast model (e.g., a fine-tuned `AI21-Jamba-Reasoning-3B`) that powers the iterative, self-corrective reasoning loop. This is our Executor and Verifier.
+-   **EnhancedOrchestratorAgent**: The current implementation uses EnhancedOrchestratorAgent which implements context-aware prompt management and Markovian thinking with chunked processing. The parallel thinking approach mentioned below has been simplified in the current implementation to direct model calls and UTCP-based tool usage for better stability and performance. It includes a `process_prompt_with_context_management` method that handles prompt processing with context retrieval from the Archivist and intelligent routing between Markovian and direct processing based on prompt complexity.
 
-### Markovian Thinking Architecture
+### Performance Profiling and Optimization
+-   **C++/Cython Integration**: Performance-critical components rewritten in C++
+-   **Profiling-Driven Development**: Regular performance profiling with cProfile and snakeviz
+-   **GPU Acceleration**: CUDA support for accelerated embedding generation
+-   **On-Demand Model Execution**: ModelManager optimizes resource usage by starting models only when needed
 
-To enable deep reasoning on local hardware, the ECE implements a sophisticated Markovian Thinking architecture based on the research paper "The Markovian Thinker":
+### Current State
+- Performance-critical components in QLearningAgent and DistillerAgent have been optimized with C++/Cython
+- The Markovian Thinking implementation enables linear compute scaling with constant memory usage relative to thinking length
+- Asynchronous processing is used throughout to handle concurrent requests efficiently
+- Connection pooling and HTTP optimization reduce communication overhead
+- Memory management includes configurable limits to prevent crashes on Windows
+- The ModelManager provides on-demand model execution to optimize resource usage
+- Model lifecycle management automatically starts/stops models to save resources
 
--   **TRM Client Integration**: The system includes a TRM_Client class to communicate with specialized Tokenized Reasoning Model services.
--   **Iterative Refinement**: Implements a "propose -> critique -> refine" loop for improving thought processes.
--   **Chunked Reasoning**: Breaks complex problems into fixed-size chunks with textual carryover to maintain context, allowing extremely long reasoning while using bounded memory.
--   **Intelligent Routing**: Determines when to use Markovian thinking based on query complexity and length using the ReasoningAnalyzer.
--   **Carryover Management**: Maintains consistency between reasoning iterations through textual state carryover.
--   **Delethink Environment**: Implements the Delethink RL environment concept where reasoning proceeds in fixed-size chunks, and at each boundary the environment resets the context and reinitializes the prompt with a short carryover from the previous chunk.
--   **Linear Compute Scaling**: Enables linear compute with constant memory usage with respect to thinking length, decoupling "how long the model thinks" from "how much context it must process."
--   **Fallback Mechanisms**: Includes robust fallback to parallel thinking when Markovian reasoning encounters issues.
-
-### Coordination in Multi-Agent Systems
-
-Based on research findings from "Emergent Coordination in Multi-Agent Language Models", the ECE implements enhanced coordination between agents:
-
--   **Thinker Personas**: Each thinker agent is assigned a detailed persona with background, expertise, and personality traits to create stable identity-linked differentiation.
--   **Theory of Mind (ToM) Integration**: Thinker agents are instructed to consider what other agents might do and how their actions might affect the group outcome, enabling more effective collaboration.
--   **Role Complementarity**: Different thinkers are assigned complementary roles (Optimist, Pessimist, Analytical, Creative, Pragmatic, Strategic, Ethical) to ensure diverse perspectives contribute to the solution.
--   **Coordination Analysis**: The system includes metrics to measure synergy, diversity, and complementarity among thinker agents to ensure productive collective intelligence.
--   **Emergent Behavior Steering**: Prompt design and role assignments are used to steer the system from mere aggregates to higher-order collectives with coordinated behavior.
-
-### Performance Optimization: Python, Cython, and C++
-
-To achieve the required performance, the ECE will adopt a hybrid development model:
--   **Python**: Used for high-level orchestration and non-performance-critical logic.
--   **C++/Cython**: Performance-critical components, identified through profiling with tools like `cProfile` and `snakeviz`, will be rewritten in C++ and bridged to Python using Cython.
--   **Profiling-Driven Development**: Regular performance profiling will be integrated into the development process to continuously identify and address bottlenecks as the system evolves.
-
-## System Components & Deployment
-
--   **OrchestratorAgent**: The central Planner, delegating tasks via UTCP.
--   **Tool Agents**: `FileSystemAgent`, `WebSearchAgent`.
--   **Memory Cortex**: `Distiller`, `Archivist`, `QLearning`, and `Injector` agents.
--   **Local-First Deployment**: The system is built to run on local scripts, with a future goal of being packaged into a single executable using **PyInstaller**.
--   **Packaging Strategy**: The system will be packaged into a distributable executable with embedded configuration files and a bootstrapping mechanism to check for required services (Neo4j, Redis) before starting agents.
-
-## Validation, Refinement, and Evolution Strategy
-
-With the core architecture complete, the ECE transitions from implementation to validation, refinement, and continuous evolution:
-
-### System Validation & GUI Testing (Phase 6)
-The system undergoes rigorous end-to-end testing, focusing on real-world usage scenarios to ensure all components work together seamlessly.
-
-### TRM Specialization (Phase 7)
-The mock TRM service will be replaced with fine-tuned specialized models trained on custom datasets for improved reasoning capabilities.
-
-### Continuous Improvement (Phase 8)
-The system enters a continuous evolution phase with:
-- Active performance monitoring and optimization
-- Expansion of specialized TRM models for different tasks
-- Continuous curation and expansion of the knowledge graph
-- Enhanced self-modification capabilities
-
-## Co-Evolutionary Mandate
-
-The system must be capable of understanding and modifying its own codebase, a goal directly supported by the deep reasoning capabilities enabled by Markovian Thinking.
+### Core Capabilities
+- **Intelligent Memory Management**: Q-Learning powered context retrieval

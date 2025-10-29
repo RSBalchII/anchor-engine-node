@@ -130,6 +130,16 @@ class DistillerAgent:
 # Initialize the DistillerAgent
 distiller_agent = DistillerAgent()
 
+@app.get("/")
+async def root():
+    """Root endpoint for health check."""
+    return {"message": "ECE Distiller Agent is running"}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
 @app.get("/utcp")
 async def utcp_manual():
     """UTCP Manual endpoint for tool discovery."""

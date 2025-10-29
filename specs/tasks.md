@@ -1,4 +1,4 @@
-# ECE - Task List v4.2
+# ECE - Task List v4.3
 
 This document outlines the high-priority tasks for the current development cycle of the External Context Engine.
 
@@ -147,7 +147,7 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-021.2:** [COMPLETED] Implement PowerShell script with core functionality for service detection and process management.
 -   **T-021.3:** [COMPLETED] Create batch wrapper for convenient Windows entry point.
 -   **T-021.4:** [COMPLETED] Implement service detection for Docker, Neo4j, and Redis containers.
--   **T-021.5:** [COMPLETED] Implement model server detection on standard ports (8080-8088).
+-   **T-021.5:** [COMPLETED] Implement model server detection on standard ports (8080-8094).
 -   **T-021.6:** [COMPLETED] Implement process management for existing ECE agent processes.
 -   **T-021.7:** [COMPLETED] Ensure terminal output visibility for debugging purposes.
 -   **T-021.8:** [COMPLETED] Test debug launcher system thoroughly to ensure it works correctly.
@@ -167,33 +167,27 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-013.6:** [COMPLETED] Create integration tests for the EnhancedOrchestratorAgent's processing flow.
 -   **T-013.7:** [COMPLETED] Ensure backward compatibility with existing endpoints and update documentation.
 
----
-
-## T-014: Phase 18 - Markovian Reasoning Integration & Optimization
+## T-014: Phase 18 - Markovian Thinking Integration & Optimization
 
 **Objective:** Fully integrate Markovian Thinking with the EnhancedOrchestratorAgent and optimize its operation.
 
--   **T-014.1:** [COMPLETED] Integrate the reasoning analyzer to determine when to use Markovian vs. parallel thinking based on prompt characteristics.
+-   **T-014.1:** [COMPLETED] Integrate the reasoning analyzer to determine when to use Markovian thinking based on prompt characteristics.
 -   **T-014.2:** [COMPLETED] Integrate the MarkovianThinker class with the EnhancedOrchestratorAgent.
--   **T-014.3:** [COMPLETED] Implement proper error handling and fallback mechanisms from Markovian to parallel thinking.
+-   **T-014.3:** [COMPLETED] Implement proper error handling and fallback mechanisms from Markovian to direct model response.
 -   **T-014.4:** [COMPLETED] Optimize chunk size and state carryover parameters based on performance testing.
 -   **T-014.5:** [IN PROGRESS] Create comprehensive test suite for Markovian reasoning functionality.
 -   **T-014.6:** [IN PROGRESS] Document performance characteristics and ideal use cases for Markovian reasoning.
-
----
 
 ## T-015: Phase 19 - Multi-Agent Coordination & Emergence
 
 **Objective:** Implement enhanced coordination between agents based on research findings from "Emergent Coordination in Multi-Agent Language Models".
 
 -   **T-015.1:** [COMPLETED] Assign detailed personas to each thinker agent to create stable identity-linked differentiation.
--   **T-015.2:** [COMPLETED] Implement Theory of Mind (ToM) instructions for thinkers to consider other agents' likely actions.
--   **T-015.3:** [COMPLETED] Add coordination analysis metrics (synergy, diversity, complementarity) to measure collective intelligence.
+-   **T-015.2:** [COMPLETED] Implement Theory of Mind (ToM) instructions for thinkers to consider what other agents might do and how their actions might affect the group outcome.
+-   **T-015.3:** [COMPLETED] Add coordination analysis metrics to measure synergy, diversity, and complementarity among thinker agents.
 -   **T-015.4:** [COMPLETED] Update thinker communication to incorporate ToM considerations during parallel thinking.
 -   **T-015.5:** [IN PROGRESS] Validate coordination improvements through performance testing and metrics analysis.
 -   **T-015.6:** [PENDING] Document coordination analysis tools and their interpretation for system optimization.
-
----
 
 ## T-016: Phase 20 - Performance Profiling and Optimization
 
@@ -221,8 +215,6 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-008.6:** [IN PROGRESS] Create integration tests for the Markovian reasoning workflow.
 -   **T-008.7:** [IN PROGRESS] Document the Markovian thinking implementation and usage.
 
----
-
 ## T-009: Phase 16 - System Validation & GUI Testing
 
 **Objective:** Execute comprehensive end-to-end validation of the ECE system.
@@ -235,8 +227,6 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-009.6:** [COMPLETED] Identify and document any bugs or integration issues.
 -   **T-009.7:** [COMPLETED] Create automated test suites for ongoing validation.
 
----
-
 ## T-010: Phase 8 - TRM Fine-Tuning & Specialization
 
 **Objective:** Replace the mock TRM service with a fine-tuned specialized model.
@@ -247,8 +237,6 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-010.4:** [PLANNED] Validate the fine-tuned TRM service performance against the mock.
 -   **T-010.5:** [PLANNED] Optimize the fine-tuned model for latency and accuracy.
 -   **T-010.6:** [PLANNED] Document the fine-tuning process and results.
-
----
 
 ## T-011: Phase 9 - Continuous Improvement & Co-Evolution
 
@@ -278,7 +266,7 @@ This document outlines the high-priority tasks for the current development cycle
 
 **Objective:** Implement the correct context loading pattern where POML/JSON persona is loaded first, followed by Redis context, then prompt, and finally tool outputs.
 
--   **T-019.1:** [IN PROGRESS] Modify orchestrator to load POML/JSON persona files before any processing begins
+-   **T-019.1:** [IN PROGRESS] Modify orchestrator to load POML/JSON persona files first to establish foundational identity, protocols, values, and operational context before any processing begins
 -   **T-019.2:** [PENDING] Update EnhancedOrchestratorAgent to maintain persona throughout processing flow
 -   **T-019.3:** [PENDING] Modify conversationalist module to load persona first before processing
 -   **T-019.4:** [PENDING] Modify Markovian thinker module to maintain persona across chunked iterations
@@ -348,3 +336,90 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-024.4:** [COMPLETED] Verify API base ports are correctly assigned for different models
 -   **T-024.5:** [COMPLETED] Update documentation to reflect proper model path conventions
 -   **T-024.6:** [COMPLETED] Test configuration changes to ensure model loading works correctly
+
+## T-025: Phase 28 - Codebase Optimization and Refactoring
+
+**Objective:** Implement systematic improvements to enhance project structure, path handling, configuration management, and service health checks.
+
+-   **T-025.1:** [COMPLETED] Create project root detection module at `ece/common/project_root.py` with reliable project root detection using a `.project_root` marker file
+-   **T-025.2:** [COMPLETED] Add `.project_root` marker file at project root directory for consistent path resolution
+-   **T-025.3:** [COMPLETED] Replace fixed waits with dynamic service health checks in startup processes
+-   **T-025.4:** [COMPLETED] Create ConfigManager class for centralized configuration management
+-   **T-025.5:** [COMPLETED] Implement configuration validation and versioning with automatic schema updates
+-   **T-025.6:** [COMPLETED] Add dry-run functionality to configuration manager for previewing changes without saving
+-   **T-025.7:** [COMPLETED] Update model_detection_and_config_update.py to use new ConfigManager
+-   **T-025.8:** [COMPLETED] Enhance read_all.py with configurable content extraction paths and proper project root detection
+-   **T-025.9:** [COMPLETED] Add configuration backup functionality before saving
+-   **T-025.10:** [COMPLETED] Improve error handling and logging in configuration system
+-   **T-025.11:** [COMPLETED] Add configuration status reporting and health check capabilities
+-   **T-025.12:** [COMPLETED] Consolidate all platform-specific startup scripts to delegate to a single Python entry point
+-   **T-025.13:** [COMPLETED] Update PowerShell, batch, and shell scripts to delegate to Python start_ecosystem.py
+-   **T-025.14:** [COMPLETED] Ensure cross-platform compatibility with consistent behavior
+-   **T-025.15:** [COMPLETED] Add proper logging infrastructure with file and console output
+-   **T-025.16:** [COMPLETED] Implement memory management for Windows systems
+-   **T-025.17:** [COMPLETED] Add GET endpoint support to filesystem agent for UTCP compatibility
+-   **T-025.18:** [COMPLETED] Fix import handling in configuration-modifying scripts for better reliability
+-   **T-025.19:** [COMPLETED] Create comprehensive improvements summary documentation
+-   **T-025.20:** [COMPLETED] Update task tracking to reflect completed optimization work
+
+## T-026: Phase 29 - Consolidated Launcher Implementation
+
+**Objective:** Implement a single consolidated launcher that works across all platforms and eliminates code duplication in startup scripts.
+
+-   **T-026.1:** [COMPLETED] Create consolidated start_ecosystem.py as single source of truth for all platform-specific scripts
+-   **T-026.2:** [COMPLETED] Update start_ecosystem.ps1 to delegate to Python entry point
+-   **T-026.3:** [COMPLETED] Update start_ecosystem.bat to delegate to Python entry point
+-   **T-026.4:** [COMPLETED] Update start_ecosystem.sh to delegate to Python entry point
+-   **T-026.5:** [COMPLETED] Ensure consistent argument passing from wrapper scripts to Python entry point
+-   **T-026.6:** [COMPLETED] Verify cross-platform compatibility with consistent behavior
+-   **T-026.7:** [COMPLETED] Test consolidated launcher on Windows, Linux, and macOS
+-   **T-026.8:** [COMPLETED] Update documentation to reflect unified launcher approach
+
+## T-027: Phase 30 - Comprehensive Codebase Improvements
+
+**Objective:** Implement additional enhancements to improve codebase maintainability, robustness, and developer experience.
+
+-   **T-027.1:** [COMPLETED] Create comprehensive improvements summary documentation in `specs/improvements_summary.md`
+-   **T-027.2:** [COMPLETED] Update all task tracking to reflect completed optimization work
+-   **T-027.3:** [COMPLETED] Implement robust import handling in configuration-modifying scripts
+-   **T-027.4:** [COMPLETED] Add GET endpoint support to filesystem agent for UTCP compatibility
+-   **T-027.5:** [COMPLETED] Verify all path handling works correctly in PyInstaller executables
+-   **T-027.6:** [COMPLETED] Ensure consistent logging across all components
+-   **T-027.7:** [COMPLETED] Implement memory management for Windows systems
+-   **T-027.8:** [COMPLETED] Add proper error handling and graceful degradation mechanisms
+-   **T-027.9:** [COMPLETED] Create unified startup script with single source of truth
+-   **T-027.10:** [COMPLETED] Test all improvements in various execution environments
+
+## T-028: Phase 31 - Model Server Startup and UTCP Tool Discovery Resolution
+
+**Objective:** Resolve the issue of forge-cli not being able to discover UTCP tools by ensuring the model server and all required agents are running.
+
+-   **T-028.1:** [COMPLETED] Verify that the llama.cpp model server is running on port 8091
+-   **T-028.2:** [COMPLETED] Start the llama.cpp model server with the correct configuration if not running
+-   **T-028.3:** [COMPLETED] Confirm that all ECE agents are running on their respective ports
+-   **T-028.4:** [COMPLETED] Verify that UTCP services are properly exposing their manuals at `/utcp` endpoints
+-   **T-028.5:** [COMPLETED] Test forge-cli UTCP tool discovery to ensure it works properly with running agents
+-   **T-028.6:** [COMPLETED] Validate that all tools are properly registered and accessible via UTCP
+-   **T-028.7:** [COMPLETED] Document the resolution of the forge-cli UTCP tool discovery issue
+
+## Current Status
+
+- The ECE system is now fully operational with all agents running on their respective ports
+- The llama.cpp model server is running on port 8091 with the correct model loaded
+- All UTCP services are properly exposing their manuals at `/utcp` endpoints
+- The forge-cli can successfully discover and use tools from all running ECE agents
+- Configuration issues have been resolved with proper model paths and API base URLs
+- Path handling has been improved with robust project root detection
+- Service startup is more reliable with health checks instead of fixed waits
+- Configuration management is centralized with the ConfigManager class
+- Startup scripts are consolidated with a single source of truth
+- UTCP compatibility is enhanced with GET endpoint support
+- Memory management is improved with Windows-specific optimizations
+- Logging is consistent across all components
+- Error handling is more robust with graceful degradation
+
+## Next Steps
+
+1. Continue monitoring the system for any remaining issues after the optimizations
+2. Document the new architecture components in the specifications
+3. Update task tracking to reflect the completed optimization work

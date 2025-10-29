@@ -51,19 +51,31 @@ The EnhancedOrchestratorAgent implements an alternative reasoning flow that proc
 
 1.  **Initialize Orchestrator:**
 
-      * When a request comes in, the system creates a new instance of `EnhancedOrchestratorAgent` with a unique session ID.
-      * The orchestrator loads the POML/JSON persona file FIRST to establish the foundational identity, protocols, and operational context.
-      * The orchestrator then loads configuration and initializes necessary components including `PromptManager` for context overflow prevention, `ArchivistClient` for knowledge retrieval, specialized thinkers, TRM Client for Markovian reasoning, MarkovianThinker for chunked processing, and `ModelManager` for on-demand model execution.
+      * When a request comes in, the system loads the POML/JSON persona file FIRST to establish the foundational identity, protocols, and operational context before ANY processing begins.
+      * The system then creates a new instance of `EnhancedOrchestratorAgent` with a unique session ID.
+      * The orchestrator loads configuration and initializes necessary components including `PromptManager` for context overflow prevention, `ArchivistClient` for knowledge retrieval, specialized thinkers, TRM Client for Markovian reasoning, MarkovianThinker for chunked processing, and `ModelManager` for on-demand model execution.
 
-2.  **Reasoning Path Decision:**
+2.  **Context Enhancement (Primary Context Loading Sequence):**
 
-      * The `process_prompt_with_context_management` method is called with user prompt after persona has been established.
+      * Redis context is loaded containing conversation history
+      * Archivist receives the prompt and sends keywords to QLearning agent to search for relevant context
+      * QLearning agent returns context (potentially large amounts) which gets processed by Archivist
+      * Archivist uses system LLM to summarize and identify important contextual information relevant to the prompt
+      * Archivist assesses the context and appends relevant information to Redis cache
+      * Archivist continuously monitors Redis cache and updates Neo4j with temporal context
+
+3.  **Orchestrator Processing:**
+
+      * Orchestrator reads the enhanced Redis cache (always including POML persona loaded first) 
+      * The `process_prompt_with_context_management` method is called with the fully enhanced prompt context
       * The `ReasoningAnalyzer` determines if the prompt requires Markovian thinking based on complexity indicators (e.g., "analyze", "evaluate", "compare", "strategy", "methodology") or length.
+
+4.  **Reasoning Path Decision:**
+
       * If Markovian thinking is needed, the system follows the Markovian reasoning flow; otherwise, it follows the direct model response flow (replacing the original parallel thinking flow).
 
-3.  **Markovian Thinking Flow (for complex prompts):**
+5.  **Markovian Thinking Flow (for complex prompts):**
 
-      * The system retrieves relevant context from the knowledge graph using the `ArchivistClient`.
       * The `MarkovianThinker` processes the prompt using fixed-size chunks (default 8K tokens) with textual carryover (default 4K tokens).
       * Each chunk of reasoning maintains the persona established from the POML file as the foundational identity.
       * Within each chunk, reasoning proceeds normally while maintaining the established persona.
@@ -72,16 +84,15 @@ The EnhancedOrchestratorAgent implements an alternative reasoning flow that proc
       * This creates linear compute scaling with constant memory usage relative to thinking length while preserving the established persona.
       * Before processing, the `ModelManager` ensures an appropriate model server is running.
 
-4.  **Direct Model Response Flow (for simpler prompts):**
+6.  **Direct Model Response Flow (for simpler prompts):**
 
-      * The system retrieves relevant context from the knowledge graph using the `ArchivistClient`.
       * The `PromptManager` prepares the prompt safely, handling potential context overflow issues while maintaining persona context.
       * Context usage statistics are logged.
       * The system uses direct model response (not parallel thinking) to process the prompt, with the `ModelManager` ensuring an appropriate model is running.
       * The `ModelManager` handles starting/stopping of model servers as needed for resource optimization.
-      * The complete context is sent to the model for processing.
+      * The complete enhanced context is sent to the model for processing.
 
-5.  **Response Generation:**
+7.  **Response Generation:**
 
       * The final response is returned to the requesting endpoint while maintaining persona consistency.
       * If Markovian reasoning fails, the system falls back to direct model response while preserving the persona established from the POML file.
@@ -218,6 +229,25 @@ The ECE now includes both a minimal launcher system and a debug launcher system 
       * The launcher automatically detects and manages required services (Docker, Neo4j, Redis, Llama.cpp servers).
       * This reduces the burden on users to manually manage services.
 
+9.  **Script Consolidation:**
+
+      * All platform-specific startup scripts have been consolidated to delegate to a single Python entry point for better maintainability.
+      * PowerShell, batch, and shell scripts now delegate to `python start_ecosystem.py` with proper argument forwarding.
+      * This eliminates code duplication and ensures consistent behavior across platforms.
+
+10. **Dynamic Service Health Checks:**
+
+      * Service startup uses dynamic health checks instead of fixed time delays.
+      * Agents actively verify service availability before proceeding, improving startup reliability.
+      * This provides better error reporting and prevents premature agent startup.
+
+11. **Centralized Configuration Management:**
+
+      * Configuration handling is now centralized through the ConfigManager class.
+      * Provides unified configuration loading, updating, validating, and versioning.
+      * Implements automatic backup creation when saving configurations.
+      * Adds dry-run functionality for previewing changes without saving.
+
 # Debug Launcher & Emergence
 
 The ECE now includes a debug launcher system that provides enhanced visibility into ECE agents' operations by displaying all output directly in the terminal, which is invaluable for troubleshooting and development:
@@ -269,6 +299,25 @@ The ECE now includes a debug launcher system that provides enhanced visibility i
       * The debug launcher provides enhanced debugging capabilities by showing all agent output directly in the terminal.
       * This makes it easier to identify configuration or connectivity issues.
       * This provides educational value for new developers to understand ECE system behavior.
+
+10. **Script Consolidation:**
+
+      * All debug launcher scripts have been consolidated to delegate to a single Python entry point for better maintainability.
+      * PowerShell and batch wrappers now delegate to `python start_ecosystem.py` with proper argument forwarding.
+      * This eliminates code duplication and ensures consistent behavior across platforms.
+
+11. **Dynamic Service Health Monitoring:**
+
+      * Debug launcher uses dynamic service health checks instead of fixed time delays.
+      * Services are actively monitored for availability before proceeding with agent startup.
+      * This provides better error reporting and prevents premature agent startup.
+
+12. **Centralized Configuration Management:**
+
+      * Debug launcher uses the centralized ConfigManager for consistent configuration handling.
+      * Provides unified configuration loading, updating, validating, and versioning.
+      * Implements automatic backup creation when saving configurations.
+      * Adds dry-run functionality for previewing changes without saving.
 
 # Clarification on Markovian Reasoning Implementation
 

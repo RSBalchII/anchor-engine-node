@@ -38,9 +38,14 @@ def create_full_corpus_recursive():
     by auto-detecting file encodings.
     """
     # Use the project root detection module for consistent path handling
-    from ece.common.project_root import get_project_root
-    root_dir = str(get_project_root())
-    output_file = str(Path(root_dir) / 'combined_text.txt')
+    try:
+        from ece.common.project_root import get_project_root
+        root_dir = str(get_project_root())
+        output_file = str(Path(root_dir) / 'combined_text.txt')
+    except ImportError:
+        # Fallback for cases where ECE modules aren't available
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        output_file = os.path.join(root_dir, 'combined_text.txt')
     
     # Define file extensions to process
     text_extensions = ('.json', '.md', '.poml', '.yaml', '.txt', '.py', '.js', '.html', '.css', '.sh', '.ps1')

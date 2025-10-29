@@ -221,7 +221,7 @@ class EnhancedOrchestratorAgent:
                         tool_results.append({"type": "web_search", "error": str(e)})
                 
                 # Load complete context following the correct sequence using ContextSequenceManager
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=tool_results,
                     session_id=self.session_id
@@ -245,7 +245,7 @@ class EnhancedOrchestratorAgent:
                 self.logger.info("Using direct model response for simpler reasoning")
                 
                 # Load complete context following the correct sequence
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=None,
                     session_id=self.session_id
@@ -300,7 +300,7 @@ class EnhancedOrchestratorAgent:
                         tool_results.append({"type": "web_search", "error": str(e)})
                 
                 # Load complete context with tools following the correct sequence
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=tool_results,
                     session_id=self.session_id
@@ -325,7 +325,7 @@ class EnhancedOrchestratorAgent:
                 return json.dumps(final_output, indent=2)
             else:
                 # Standard Markovian thinking without tools but with complete context sequence
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=None,
                     session_id=self.session_id
@@ -366,14 +366,14 @@ class EnhancedOrchestratorAgent:
                         tool_results.append({"type": "web_search", "error": str(e)})
                 
                 # Load complete context with tools for fallback
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=tool_results,
                     session_id=self.session_id
                 )
             else:
                 # Load complete context without tools for fallback
-                complete_context = self.context_manager.load_complete_context(
+                complete_context = await self.context_manager.load_complete_context(
                     prompt=user_prompt,
                     tool_outputs=None,
                     session_id=self.session_id

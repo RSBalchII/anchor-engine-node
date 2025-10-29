@@ -210,10 +210,9 @@ class ContextSequenceManager:
     """
     Manages the complete context loading sequence:
     1. POML/JSON Persona (first)
-    2. Redis Context Loading & Archivist Processing
-    3. QLearning & Archivist Context Enhancement
-    4. Orchestrator Processing
-    5. Tool Outputs
+    2. Redis Context
+    3. Current Prompt
+    4. Tool Outputs
     """
     
     def __init__(self, redis_client=None, cache_manager=None, persona_loader: PersonaLoader = None):
@@ -231,12 +230,7 @@ class ContextSequenceManager:
         self.persona_loader = persona_loader or PersonaLoader()
         self.persona_context = ""
         
-        # Import here to avoid circular dependencies
-        from ece.agents.tier1.orchestrator.archivist_client import ArchivistClient
-        archivist_url = os.environ.get("ARCHIVIST_URL", "http://localhost:8003")
-        self.archivist_client = ArchivistClient(base_url=archivist_url)
-        
-    async def load_complete_context(self, 
+    def load_complete_context(self, 
                             prompt: str, 
                             tool_outputs: Optional[Dict[str, Any]] = None,
                             session_id: Optional[str] = None) -> str:
@@ -253,7 +247,7 @@ class ContextSequenceManager:
         """
         context_parts = []
 
-        # 1. Load persona first (before ANY processing begins)
+        # 1. Load persona first
         if not self.persona_context:
             self.persona_context = self.persona_loader.load_persona()
         context_parts.append(f"PERSONA FOUNDATION:\n{self.persona_context}")
@@ -263,92 +257,15 @@ class ContextSequenceManager:
         if redis_context:
             context_parts.append(f"CONVERSATION HISTORY:\n{redis_context}")
 
-        # 3. Enhance context with Archivist and QLearning agents
-        enhanced_context = await self._enhance_context_with_agents(prompt, session_id)
-        if enhanced_context:
-            context_parts.append(f"ENHANCED CONTEXT FROM KNOWLEDGE GRAPH:\n{enhanced_context}")
-
-        # 4. Add current prompt
+        # 3. Add current prompt
         context_parts.append(f"CURRENT PROMPT:\n{prompt}")
 
-        # 5. Add tool outputs
+        # 4. Add tool outputs
         if tool_outputs:
             tool_context = self._format_tool_outputs(tool_outputs)
             context_parts.append(f"TOOL OUTPUTS:\n{tool_context}")
 
         return "\n\n" + "="*50 + "\n\n".join(context_parts) + "\n\n" + "="*50 + "\n"
-    
-    async def _enhance_context_with_agents(self, prompt: str, session_id: Optional[str] = None) -> str:
-        """
-        Enhance context by coordinating with Archivist and QLearning agents.
-        
-        Args:
-            prompt: The user prompt to enhance context for
-            session_id: Optional session ID
-            
-        Returns:
-            Enhanced context string from knowledge graph
-        """
-        try:
-            # Extract keywords from the prompt to search for relevant context
-            import re
-            # Split text into words and filter out common stop words
-            stop_words = {
-                "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", 
-                "is", "was", "were", "are", "be", "been", "have", "has", "had", "do", "does", "did", 
-                "will", "would", "could", "should", "may", "might", "must", "can", "this", "that", 
-                "these", "those", "i", "you", "he", "she", "it", "we", "they", "what", "who", "when", 
-                "where", "why", "how"
-            }
-            words = re.findall(r'\b\w+\b', prompt.lower())
-            keywords = [word for word in words if word not in stop_words and len(word) > 2]
-            keywords = list(set(keywords))[:20]  # Return unique keywords, limit to 20
-            
-            if not keywords:
-                # If we couldn't extract keywords from the prompt, return empty context
-                return ""
-            
-            # Prepare request for enhanced context
-            context_request = {
-                "query": prompt,
-                "keywords": keywords,
-                "max_tokens": 1000000,  # Allow up to 1M tokens as requested in archivist agent
-                "session_id": session_id or "default",
-                "max_contexts": 10
-            }
-            
-            # Call the Archivist for enhanced context that coordinates with QLearning
-            enhanced_data = await self.archivist_client.get_enhanced_context(context_request)
-            
-            if enhanced_data:
-                # Extract the enhanced context from the response
-                enhanced_context = enhanced_data.get("enhanced_context", "")
-                
-                # Add related memories if available
-                related_memories = enhanced_data.get("related_memories", [])
-                if related_memories:
-                    memory_context = "\nRELATED MEMORIES FROM KNOWLEDGE GRAPH:\n"
-                    for i, memory in enumerate(related_memories[:5]):  # Limit to first 5 memories
-                        memory_content = memory.get("content", "")
-                        relevance_score = memory.get("relevance_score", 0)
-                        memory_context += f"[Memory {i+1} - Relevance: {relevance_score:.2f}]: {memory_content}\n"
-                    enhanced_context += memory_context
-                
-                return enhanced_context
-            else:
-                # If enhanced context retrieval failed, at least query memory for basic context
-                basic_context = await self.archivist_client.query_memory(prompt)
-                if basic_context and len(basic_context.strip()) > 0:
-                    return basic_context
-                else:
-                    return "No additional context found in knowledge graph."
-                    
-        except Exception as e:
-            import traceback
-            error_details = f"Error enhancing context with agents: {str(e)}\nTraceback:\n{traceback.format_exc()}"
-            print(error_details)
-            # Return a helpful message if context enhancement fails
-            return f"Context enhancement failed due to error: {str(e)}. Proceeding with available context."
     
     def _load_redis_context(self, session_id: Optional[str] = None) -> str:
         """
@@ -369,10 +286,9 @@ class ContextSequenceManager:
             context_parts = []
 
             if session_id:
-                # Try to get cached context for the current session
+                # Try to get cached entries related to the current session
                 try:
-                    # Try to get cached entries related to this session
-                    # The cache might have entries with the session ID in the key
+                    # Try to get cached entries with the session ID in the key
                     pattern = f"*{session_id}*"
                     keys = self.redis_client.keys(pattern.encode() if isinstance(pattern, str) else pattern)
                     
@@ -971,7 +887,6 @@ class ModelManager:
             else:
                 self.logger.error("Could not extract model name to start.")
                 return False
-                
         except Exception as e:
             self.logger.error(f"Error starting model server: {e}")
             return False
@@ -996,12 +911,12 @@ class ModelManager:
             if self.running_model_process:
                 self.stop_model()
 
+            # Start the requested model
             # Parse the current API base to extract the port
             import urllib.parse
             parsed = urllib.parse.urlparse(self.api_base)
             port = parsed.port if parsed.port else 8080  # Default to 8080 if no port is specified
             
-            # Start the requested model with the correct port
             success = self.start_model(model_name, port=port)
 
             if success:

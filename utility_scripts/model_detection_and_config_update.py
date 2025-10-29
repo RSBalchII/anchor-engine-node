@@ -11,9 +11,20 @@ import socket
 import sys
 from pathlib import Path
 
-# Import the centralized ConfigManager
-from ece.common.config_manager import ConfigManager
-from ece.common.project_root import get_project_root
+# Import the centralized ConfigManager with fallback handling
+try:
+    from ece.common.config_manager import ConfigManager
+    from ece.common.project_root import get_project_root
+except ImportError:
+    # Fallback for cases where ECE modules aren't available
+    import sys
+    import os
+    # Add project root to path
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, project_root)
+    
+    from ece.common.config_manager import ConfigManager
+    from ece.common.project_root import get_project_root
 
 
 def is_port_open(host, port):
@@ -87,8 +98,10 @@ def update_config_yaml(port, model_name):
         else:
             model_name_clean = model_name
         
-        # Prepare the model path
-        model_path = f"./models/{model_name_clean}.gguf"
+        # Prepare the model path using project root detection
+        from ece.common.project_root import get_models_dir
+        models_dir = get_models_dir()
+        model_path = str(models_dir / f"{model_name_clean}.gguf")
         api_base = f"http://localhost:{port}/v1"
         
         # Use ConfigManager to update model configuration
@@ -104,7 +117,8 @@ def update_config_yaml(port, model_name):
         if config_manager.validate():
             # Save the updated configuration
             if config_manager.save():
-                print(f"Updated config.yaml with model {model_name_clean} on port {port}")
+                config_path = config_manager.get_config_path()
+                print(f"Updated {config_path.name} with model {model_name_clean} on port {port}")
                 return True
             else:
                 print("Failed to save the updated configuration")

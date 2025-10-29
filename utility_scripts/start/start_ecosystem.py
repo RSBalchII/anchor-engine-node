@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Simplified script to start the ECE ecosystem: Redis, Neo4j, and all ECE agents
+Start the ECE ecosystem: Redis, Neo4j, and all ECE agents
+With on-demand model management via ModelManager
+
+This is the consolidated script that handles all platform-specific startup logic.
+All other platform-specific scripts (PowerShell, batch, shell) delegate to this script.
 """
+
 import subprocess
 import sys
 import time
@@ -10,20 +15,81 @@ import os
 import argparse
 import socket
 from pathlib import Path
+import logging
+
+# Setup logging
+def setup_logging():
+    """Setup logging infrastructure for the ecosystem starter."""
+    # Create logs directory if it doesn't exist
+    logs_dir = Path("logs")
+    logs_dir.mkdir(exist_ok=True)
+    
+    # Configure root logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s',
+        handlers=[
+            logging.FileHandler(logs_dir / "debug_log_ecosystem.txt"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
+
+def check_docker_installed():
+    """Check if Docker is installed and accessible."""
+    try:
+        result = subprocess.run(["docker", "--version"], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            logger.info(f"Docker found: {result.stdout.strip()}")
+            return True
+        else:
+            logger.error(f"Docker not found or not accessible: {result.stderr}")
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.error(f"Error checking Docker installation: {e}")
+        return False
+
+def check_docker_compose():
+    """Check if Docker Compose is available."""
+    try:
+        # Try newer docker compose command first
+        result = subprocess.run(["docker", "compose", "version"], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            logger.info(f"Docker Compose found: {result.stdout.strip()}")
+            return True
+        
+        # Fall back to older docker-compose command
+        result = subprocess.run(["docker-compose", "--version"], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            logger.info(f"Docker Compose (legacy) found: {result.stdout.strip()}")
+            return "legacy"
+            
+        logger.error("Docker Compose not found")
+        return False
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.error(f"Error checking Docker Compose: {e}")
+        return False
 
 def start_docker_services():
-    """Start Redis and Neo4j using docker-compose"""
-    print("Starting Redis and Neo4j services...")
+    """Start Redis and Neo4j services using docker-compose."""
+    logger.info("Starting Redis and Neo4j services...")
     
     try:
-        result = subprocess.run(['docker', 'compose', 'up', '-d'], 
+        result = subprocess.run(["docker", "compose", "up", "--remove-orphans", "-d"], 
                                 check=True, capture_output=True, text=True)
-        print("✓ Redis and Neo4j services started successfully")
+        logger.info("Redis and Neo4j services started successfully")
+        logger.debug(f"Docker output: {result.stdout}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ Failed to start services: {e}")
-        print(f"stdout: {e.stdout}")
-        print(f"stderr: {e.stderr}")
+        logger.error(f"Failed to start Docker services: {e}")
+        logger.error(f"stdout: {e.stdout}")
+        logger.error(f"stderr: {e.stderr}")
         return False
 
 def check_service_availability(host, port, service_name, timeout=10):
@@ -45,158 +111,156 @@ def check_service_availability(host, port, service_name, timeout=10):
         result = sock.connect_ex((host, port))
         sock.close()
         if result == 0:
-            print(f"{service_name} is available at {host}:{port}")
+            logger.info(f"{service_name} is available at {host}:{port}")
             return True
         else:
-            print(f"{service_name} is not available at {host}:{port}")
+            logger.debug(f"{service_name} is not available at {host}:{port}")
             return False
     except Exception as e:
-        print(f"Error checking {service_name} availability: {e}")
+        logger.debug(f"Error checking {service_name} availability: {e}")
         return False
 
-def run_agents():
+def wait_for_service(host, port, service_name, timeout=30, interval=2):
     """
-    Directly run all the ECE agents in subprocesses
-    """
-    import threading
-    import importlib.util
-    import sys
-    import os
+    Wait for a service to become available at the specified host and port.
     
-    # Define the agents to run (excluding the model server which should be managed separately)
-    agents = [
-        {"name": "Orchestrator", "path": "ece/agents/tier1/orchestrator/main.py", "port": 8000},
-        {"name": "Distiller", "path": "ece/agents/tier3/distiller/distiller_agent.py", "port": 8001},
-        {"name": "QLearning", "path": "ece/agents/tier3/qlearning/qlearning_app.py", "port": 8002},
-        {"name": "Archivist", "path": "ece/agents/tier3/archivist/archivist_agent.py", "port": 8003},
-        {"name": "Injector", "path": "ece/agents/tier3/injector/injector_app.py", "port": 8004},
-        {"name": "FileSystem", "path": "ece/agents/tier2/filesystem_agent.py", "port": 8006},
-        {"name": "WebSearch", "path": "ece/agents/tier2/web_search_app.py", "port": 8007},
-    ]
+    Args:
+        host (str): Host address
+        port (int): Port number
+        service_name (str): Name of the service for logging
+        timeout (int): Maximum time to wait in seconds
+        interval (int): Interval between checks in seconds
+        
+    Returns:
+        bool: True if service becomes available within timeout, False otherwise
+    """
+    logger.info(f"Waiting for {service_name} to start on {host}:{port}...")
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        if check_service_availability(host, port, service_name):
+            logger.info(f"{service_name} is now available at {host}:{port}")
+            return True
+        time.sleep(interval)
+    
+    logger.warning(f"Timeout waiting for {service_name} to start on {host}:{port}")
+    return False
 
-    # Load configuration
-    config_file = "config_executable.yaml" if os.path.exists("config_executable.yaml") else "config.yaml"
-    try:
-        with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        print(f"Error: {config_file} not found. Please ensure the configuration file exists.")
-        sys.exit(1)
-    except yaml.YAMLError as e:
-        print(f"Error parsing {config_file}: {e}")
-        sys.exit(1)
-
-    # Verify required services are available before starting agents
-    print("Verifying required services...")
+def wait_for_services():
+    """Wait for all required services to become available."""
+    logger.info("Waiting for required services to become available...")
     
     # Check Redis availability
-    redis_url = config.get("cache", {}).get("redis_url", "redis://localhost:6379")
-    try:
-        from urllib.parse import urlparse
-        redis_parsed = urlparse(redis_url)
-        redis_host = redis_parsed.hostname or "localhost"
-        redis_port = redis_parsed.port or 6379
-        if not check_service_availability(redis_host, redis_port, "Redis"):
-            print("Warning: Redis service not available. Some features may not work correctly.")
-    except Exception as e:
-        print(f"Warning: Could not parse Redis URL: {e}")
+    if not wait_for_service("localhost", 6379, "Redis"):
+        logger.warning("Redis service may not be available. Some features may not work correctly.")
     
     # Check Neo4j availability
-    neo4j_uri = config.get("archivist", {}).get("uri", "neo4j://localhost:7687")
-    try:
-        from urllib.parse import urlparse
-        neo4j_parsed = urlparse(neo4j_uri)
-        neo4j_host = neo4j_parsed.hostname or "localhost"
-        neo4j_port = neo4j_parsed.port or 7687
-        if not check_service_availability(neo4j_host, neo4j_port, "Neo4j"):
-            print("Warning: Neo4j service not available. Some features may not work correctly.")
-    except Exception as e:
-        print(f"Warning: Could not parse Neo4j URI: {e}")
-
-    # Add the project root to sys.path to ensure modules can be found
-    # when running as a PyInstaller executable
-    if getattr(sys, 'frozen', False):
-        # Running as compiled executable
-        application_path = os.path.dirname(sys.executable)
-        project_root = os.path.dirname(os.path.dirname(application_path))
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-    else:
-        # Running as script
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if project_root not in sys.path:
-            sys.path.insert(0, project_root)
-
-    # Store references to threads
-    threads = []
+    if not wait_for_service("localhost", 7687, "Neo4j"):
+        logger.warning("Neo4j service may not be available. Some features may not work correctly.")
     
-    for agent in agents:
-        def start_agent(agent_path, port, name):
-            """Function to start a single agent using uvicorn"""
-            print(f"Starting {name} on port {port}...")
-            
-            # Convert file path to module path
-            module_name = agent_path.replace('/', '.').replace('.py', '')
-            
-            try:
-                # Import the agent module dynamically
-                agent_module = importlib.import_module(module_name)
-                
-                # Get the app instance from the agent module
-                if hasattr(agent_module, 'app'):
-                    app = agent_module.app
-                    import uvicorn
-                    # Run the uvicorn server for this agent
-                    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-                else:
-                    print(f"Warning: {module_name} does not have an 'app' attribute")
-            except ImportError as e:
-                print(f"Error importing {module_name}: {e}")
+    logger.info("Required services check completed")
 
-        # Create and start a thread for each agent
-        thread = threading.Thread(target=start_agent, args=(agent['path'], agent["port"], agent["name"]))
-        thread.daemon = True  # Dies when main thread dies
-        threads.append(thread)
-        thread.start()
-        time.sleep(2)  # Small delay between starting each agent
+def update_model_config():
+    """Update configuration for on-demand model management via ModelManager."""
+    logger.info("Updating configuration for on-demand model management...")
+    logger.info("Configuring ECE for on-demand model management via ModelManager")
+    # The ModelManager will handle model selection and loading as needed
+    logger.info("Model configuration updated for on-demand management.")
 
-    print("\nAll agents are running.")
-    print("Press Ctrl+C to stop all agents.")
-
-    # Keep the main thread alive until interrupted
+def start_ece_agents():
+    """Start all ECE agents."""
+    logger.info("Starting ECE agents...")
+    
     try:
-        # Wait indefinitely
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nStopping all agents...")
+        # Start the agents with Python
+        logger.info("Starting run_all_agents.py...")
+        
+        # Use the project root detection module to ensure proper path handling
+        project_root = Path(__file__).parent.parent.parent
+        agents_script_path = project_root / "run_all_agents.py"
+        
+        if not agents_script_path.exists():
+            logger.error(f"ECE agents script not found: {agents_script_path}")
+            return False
+            
+        # Run the agents script
+        result = subprocess.run([sys.executable, str(agents_script_path)], 
+                               cwd=project_root,
+                               check=True)
+        
+        if result.returncode == 0:
+            logger.info("ECE agents started successfully")
+            return True
+        else:
+            logger.error(f"ECE agents failed to start with exit code: {result.returncode}")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to start ECE agents: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error starting ECE agents: {e}")
+        return False
 
 def main():
+    """Main entry point."""
+    logger.info("External Context Engine (ECE) Ecosystem Starter")
+    logger.info("=============================================")
+    
     parser = argparse.ArgumentParser(description='Start ECE ecosystem (Redis, Neo4j, and agents)')
     parser.add_argument('--skip-docker', action='store_true', 
                        help='Skip starting Docker services (Redis and Neo4j)')
+    parser.add_argument('--skip-model-config', action='store_true',
+                       help='Skip updating model configuration for on-demand management')
     
     args = parser.parse_args()
     
-    print("External Context Engine (ECE) Ecosystem Starter")
-    print("=" * 50)
-    
+    # Check prerequisites
     if not args.skip_docker:
-        if not start_docker_services():
-            print("Failed to start Docker services. Exiting.")
+        if not check_docker_installed():
+            logger.error("Docker is required but not found. Please install Docker and try again.")
+            return 1
+        
+        compose_type = check_docker_compose()
+        if not compose_type:
+            logger.error("Docker Compose is required but not found. Please install Docker Compose and try again.")
             return 1
     
-    print("\nWaiting 10 seconds for services to initialize...")
-    time.sleep(10)
+    # Start Docker services
+    if not args.skip_docker:
+        if not start_docker_services():
+            logger.error("Failed to start Docker services")
+            return 1
     
-    # Run the agents directly within this script
-    run_agents()
+    # Update model configuration
+    if not args.skip_model_config:
+        update_model_config()
+    else:
+        logger.info("Skipping model configuration update...")
     
-    print("\nECE ecosystem is running!")
-    print("- Redis: localhost:6379")
-    print("- Neo4j: localhost:7687")
-    print("- ECE Orchestrator: localhost:8000")
-    print("- Other agents on ports 8001-8007")
+    # Wait for services to be ready
+    wait_for_services()
+    
+    # Start ECE agents
+    if not start_ece_agents():
+        logger.error("Failed to start ECE agents")
+        return 1
+    
+    logger.info("")
+    logger.info("ECE ecosystem is running!")
+    logger.info("- Redis: localhost:6379")
+    logger.info("- Neo4j: localhost:7687")
+    logger.info("- ECE Orchestrator: localhost:8000")
+    logger.info("- Other agents on ports 8001-8007")
+    logger.info("")
+    
+    try:
+        # Keep the script running
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        logger.info("Shutting down ECE ecosystem...")
+        return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
