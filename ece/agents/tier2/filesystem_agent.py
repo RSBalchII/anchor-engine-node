@@ -9,7 +9,7 @@ import os
 import httpx
 from typing import Dict, Any, List
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import logging
 import subprocess
@@ -261,18 +261,34 @@ async def list_directory_get_endpoint(path: str = ".", include_hidden: bool = Fa
 
 
 @app.post("/list_directory")
-async def list_directory_endpoint(request: ListDirectoryRequest):
+async def list_directory_post_endpoint(request: Request):
     """
-    Endpoint to list directory contents.
+    POST endpoint to list directory contents that handles both JSON body and form data.
     
     Args:
-        request: ListDirectoryRequest containing the path and options
+        request: Request object that may contain JSON body or form data
         
     Returns:
         Directory listing result
     """
     try:
-        result = fs_agent.list_directory(path=request.path, include_hidden=request.include_hidden)
+        # Try to get parameters from JSON body first
+        try:
+            body = await request.json()
+            path = body.get("path", ".")
+            include_hidden = body.get("include_hidden", False)
+        except:
+            # If JSON parsing fails, try to get from form data
+            try:
+                form = await request.form()
+                path = form.get("path", ".")
+                include_hidden = form.get("include_hidden", "false").lower() == "true"
+            except:
+                # If both fail, use query parameters or defaults
+                path = request.query_params.get("path", ".")
+                include_hidden = request.query_params.get("include_hidden", "false").lower() == "true"
+        
+        result = fs_agent.list_directory(path=path, include_hidden=include_hidden)
         return result
     except Exception as e:
         logger.error(f"Error listing directory: {str(e)}")
@@ -298,19 +314,38 @@ async def read_file_get_endpoint(file_path: str):
 
 
 @app.post("/read_file")
-async def read_file_endpoint(request: ReadFileRequest):
+async def read_file_post_endpoint(request: Request):
     """
-    Endpoint to read file contents.
+    POST endpoint to read file contents that handles both JSON body and form data.
     
     Args:
-        request: ReadFileRequest containing the file path
+        request: Request object that may contain JSON body or form data
         
     Returns:
         File content result
     """
     try:
-        result = fs_agent.read_file(file_path=request.file_path)
+        # Try to get parameters from JSON body first
+        try:
+            body = await request.json()
+            file_path = body.get("file_path")
+        except:
+            # If JSON parsing fails, try to get from form data
+            try:
+                form = await request.form()
+                file_path = form.get("file_path")
+            except:
+                # If both fail, use query parameters
+                file_path = request.query_params.get("file_path")
+        
+        if not file_path:
+            raise HTTPException(status_code=400, detail="file_path is required")
+        
+        result = fs_agent.read_file(file_path=file_path)
         return result
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error reading file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -336,19 +371,43 @@ async def write_file_get_endpoint(file_path: str, content: str):
 
 
 @app.post("/write_file")
-async def write_file_endpoint(request: WriteFileRequest):
+async def write_file_post_endpoint(request: Request):
     """
-    Endpoint to write content to a file.
+    POST endpoint to write content to a file that handles both JSON body and form data.
     
     Args:
-        request: WriteFileRequest containing the file path and content
+        request: Request object that may contain JSON body or form data
         
     Returns:
         Write operation result
     """
     try:
-        result = fs_agent.write_file(file_path=request.file_path, content=request.content)
+        # Try to get parameters from JSON body first
+        try:
+            body = await request.json()
+            file_path = body.get("file_path")
+            content = body.get("content")
+        except:
+            # If JSON parsing fails, try to get from form data
+            try:
+                form = await request.form()
+                file_path = form.get("file_path")
+                content = form.get("content")
+            except:
+                # If both fail, use query parameters
+                file_path = request.query_params.get("file_path")
+                content = request.query_params.get("content")
+        
+        if not file_path:
+            raise HTTPException(status_code=400, detail="file_path is required")
+        if content is None:
+            raise HTTPException(status_code=400, detail="content is required")
+        
+        result = fs_agent.write_file(file_path=file_path, content=content)
         return result
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error writing file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -373,19 +432,38 @@ async def execute_command_get_endpoint(command: str):
 
 
 @app.post("/execute_command")
-async def execute_command_endpoint(request: ExecuteCommandRequest):
+async def execute_command_post_endpoint(request: Request):
     """
-    Endpoint to execute a shell command.
+    POST endpoint to execute a shell command that handles both JSON body and form data.
     
     Args:
-        request: ExecuteCommandRequest containing the command
+        request: Request object that may contain JSON body or form data
         
     Returns:
         Command execution result
     """
     try:
-        result = fs_agent.execute_command(command=request.command)
+        # Try to get parameters from JSON body first
+        try:
+            body = await request.json()
+            command = body.get("command")
+        except:
+            # If JSON parsing fails, try to get from form data
+            try:
+                form = await request.form()
+                command = form.get("command")
+            except:
+                # If both fail, use query parameters
+                command = request.query_params.get("command")
+        
+        if not command:
+            raise HTTPException(status_code=400, detail="command is required")
+        
+        result = fs_agent.execute_command(command=command)
         return result
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error executing command: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -52,113 +52,119 @@ class EnhancedOrchestratorAgent:
     """
 
     def __init__(self, session_id: str, config_path: str = "config.yaml"):
-        print(f"DEBUG: Initializing EnhancedOrchestratorAgent with session_id: {session_id}")
         try:
-            with open(config_path, "r") as f:
-                self.config = yaml.safe_load(f)
-            print("DEBUG: Loaded config successfully")
-
-            llm_config = self.config.get("llm", {})
-            provider_config = llm_config.get("providers", {}).get(
-                llm_config.get("active_provider", "ollama"), {}
-            )
-            print(f"DEBUG: Provider config: {provider_config}")
+            # Use the new configuration system that supports environment variables
+            from ece.common.config_loader import get_config
+            self.config_loader = get_config()
+            
+            # Load configuration using the new system (with environment variable support)
+            active_provider = self.config_loader.get_active_provider()
+            provider_config = self.config_loader.get_llm_config(active_provider)
+            
+            logger.debug(f"Active provider: {active_provider}")
+            logger.debug(f"Provider config: {provider_config}")
 
             self.max_tokens = 32768
-            # Safely check if provider_config is not None and contains "llama_cpp"
-            if provider_config and "llama_cpp" in provider_config:
+            # Check if the active provider is llama_cpp to use higher token limit
+            if active_provider == "llama_cpp":
                 self.max_tokens = 131072
             self.temperature = provider_config.get("temperature", 0.7) if provider_config else 0.7
-            print(f"DEBUG: Max tokens: {self.max_tokens}, Temperature: {self.temperature}")
+            logger.debug(f"Max tokens: {self.max_tokens}, Temperature: {self.temperature}")
 
             prompt_config = PromptConfig(
                 max_tokens=self.max_tokens, reserved_tokens=1000, strategy="intelligent"
             )
             self.prompt_manager = PromptManager(prompt_config)
-            print("DEBUG: Initialized prompt manager")
+            logger.debug("Initialized prompt manager")
 
             self.session_id = session_id
             self.llm_semaphore = asyncio.Semaphore(1)
-            print("DEBUG: Initialized session and semaphore")
+            logger.debug("Initialized session and semaphore")
+            
+            # Assign logger to instance variable
+            self.logger = logger
 
-            llm_config = self.config.get("llm", {})
-            active_provider = llm_config.get("active_provider", "ollama")
-            provider_config = llm_config.get("providers", {}).get(active_provider, {})
-            print(f"DEBUG: Active provider: {active_provider}")
-
+            # Use environment variable or config for model and API base
             llm_model = provider_config.get(
                 "model", provider_config.get("model_path", "default-model")
             )
             api_base = provider_config.get("api_base", "http://localhost:11434/v1")
-            print(f"DEBUG: LLM model: {llm_model}, API base: {api_base}")
+            logger.debug(f"LLM model: {llm_model}, API base: {api_base}")
 
-            synthesis_model = self.config.get("ThinkerAgent", {}).get(
-                "synthesis_model", llm_model
-            )
-            print(f"DEBUG: Synthesis model: {synthesis_model}")
+            # Get synthesis model from config or environment
+            synthesis_model = self.config_loader.get("ThinkerAgent.synthesis_model", llm_model)
+            logger.debug(f"Synthesis model: {synthesis_model}")
 
             # Create a single, shared aiohttp.ClientSession
             timeout = aiohttp.ClientTimeout(total=300)
             self.http_client = aiohttp.ClientSession(timeout=timeout)
-            print("DEBUG: Initialized HTTP client")
+            logger.debug("Initialized HTTP client")
 
             # Note: Parallel thinking infrastructure has been removed in favor of direct model calls and tool usage
             # The thinkers and synthesis_thinker are no longer needed in the main processing flow
-            print("DEBUG: Skipping parallel thinking initialization (deprecated in favor of direct model calls and tools)")
+            logger.debug("Skipping parallel thinking initialization (deprecated in favor of direct model calls and tools)")
 
-            archivist_url = self.config.get("archivist", {}).get(
-                "url", "http://localhost:8003"
-            )
+            # Get archivist URL from config or environment
+            archivist_url = self.config_loader.get("archivist.url", "http://localhost:8003")
             self.archivist_client = ArchivistClient(base_url=archivist_url)
-            print(f"DEBUG: Initialized archivist client with URL: {archivist_url}")
+            logger.debug(f"Initialized archivist client with URL: {archivist_url}")
 
             self.cache_manager = CacheManager()
-            print("DEBUG: Initialized cache manager")
+            logger.debug("Initialized cache manager")
 
             # Configure UTCP for decentralized approach - each service serves its own UTCP manual
+            # Make these configurable from environment variables if needed
+            orchestrator_port = os.getenv('ORCHESTRATOR_PORT', '8000')
+            distiller_port = os.getenv('DISTILLER_PORT', '8001')
+            qlearning_port = os.getenv('QLEARNING_PORT', '8002')
+            archivist_port = os.getenv('ARCHIVIST_PORT', '8003')
+            injector_port = os.getenv('INJECTOR_PORT', '8004')
+            filesystem_port = os.getenv('FILESYSTEM_PORT', '8006')
+            websearch_port = os.getenv('WEBSEARCH_PORT', '8007')
+            
             self.utcp_config = {
                 "manual_call_templates": [
                     {
                         "name": "distiller_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8001/utcp",
+                        "url": f"http://localhost:{distiller_port}/utcp",
                     },
                     {
                         "name": "qlearning_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8002/utcp",
+                        "url": f"http://localhost:{qlearning_port}/utcp",
                     },
                     {
                         "name": "archivist_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8003/utcp",
+                        "url": f"http://localhost:{archivist_port}/utcp",
                     },
                     {
                         "name": "injector_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8004/utcp",
+                        "url": f"http://localhost:{injector_port}/utcp",
                     },
                     {
                         "name": "filesystem_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8006/utcp",
+                        "url": f"http://localhost:{filesystem_port}/utcp",
                     },
                     {
                         "name": "websearch_utcp",
                         "call_template_type": "http",
-                        "url": "http://localhost:8007/utcp",
+                        "url": f"http://localhost:{websearch_port}/utcp",
                     }
                 ]
             }
             self.utcp_client = None
-            print("DEBUG: Initialized UTCP config with decentralized endpoints")
+            logger.debug("Initialized UTCP config with decentralized endpoints")
 
             trm_config = TRMConfig(
                 api_base=api_base,  # Use the same API base as the main LLM
                 model=llm_model,    # Use the same model as the main LLM
             )
             self.trm_client = TRMClient(trm_config)
-            print("DEBUG: Initialized TRM client")
+            logger.debug("Initialized TRM client")
 
             markovian_config = MarkovianConfig(
                 thinking_context_size=8192,
@@ -169,13 +175,13 @@ class EnhancedOrchestratorAgent:
                 model=llm_model,
             )
             self.markovian_thinker = MarkovianThinker(markovian_config)
-            print("DEBUG: Initialized Markovian thinker")
+            logger.debug("Initialized Markovian thinker")
 
             # Initialize model manager for on-demand model starting/stopping
-            api_base = provider_config.get("api_base", "http://localhost:8080/v1")
+            # Use API base from config which may have been updated by environment variables
             self.model_manager = ModelManager(api_base)
-            print("DEBUG: Initialized model manager for on-demand model handling")
-            print(f"DEBUG: Model manager configured with API base: {api_base}")
+            logger.debug("Initialized model manager for on-demand model handling")
+            logger.debug(f"Model manager configured with API base: {api_base}")
 
             # Initialize persona loader and context sequence manager for correct loading order
             self.persona_loader = PersonaLoader()
@@ -183,14 +189,13 @@ class EnhancedOrchestratorAgent:
                 redis_client=self.cache_manager.redis_client, 
                 persona_loader=self.persona_loader
             )
-            print("DEBUG: Initialized persona loader and context sequence manager")
+            logger.debug("Initialized persona loader and context sequence manager")
 
-            self.logger = logging.getLogger(__name__)
-            print("DEBUG: EnhancedOrchestratorAgent initialized successfully")
+            logger.info("EnhancedOrchestratorAgent initialized successfully")
         except Exception as e:
             import traceback
             error_details = f"Error initializing EnhancedOrchestratorAgent: {str(e)}\nTraceback:\n{traceback.format_exc()}"
-            print(error_details)
+            logger.error(error_details)
             raise
 
     async def process_prompt_with_context_management(self, user_prompt: str) -> str:
@@ -230,13 +235,9 @@ class EnhancedOrchestratorAgent:
                 # Get the final response based on complete context
                 result = await self.direct_model_response(complete_context)
                 
-                # Format the response
-                final_output = {
-                    "intermediate_steps": tool_results,
-                    "synthesis_prompt": complete_context,
-                    "final_response": result,
-                }
-                return json.dumps(final_output, indent=2)
+                # Return only the final response for clean output
+                # Debug information is available in logs when needed
+                return result
             
             elif ReasoningAnalyzer.should_use_markovian_thinking(user_prompt):
                 self.logger.info("Using Markovian thinking for complex reasoning")
@@ -260,13 +261,9 @@ class EnhancedOrchestratorAgent:
                 
                 # Use a direct model call instead of parallel thinking
                 result = await self.direct_model_response(complete_context)
-                # Format the response in the same structure as before for compatibility
-                final_output = {
-                    "intermediate_steps": [],
-                    "synthesis_prompt": complete_context,
-                    "final_response": result,
-                }
-                return json.dumps(final_output, indent=2)
+                # Return only the final response for clean output
+                # Debug information is available in logs when needed
+                return result
         except Exception as e:
             self.logger.error(f"Error in process_prompt_with_context_management: {e}")
             self.logger.error(traceback.format_exc())
@@ -316,13 +313,9 @@ class EnhancedOrchestratorAgent:
                     f"Markovian reasoning completed with tools, result length: {len(result)} characters"
                 )
                 
-                # Format the response to include tool results
-                final_output = {
-                    "intermediate_steps": tool_results,
-                    "synthesis_prompt": complete_context,
-                    "final_response": result,
-                }
-                return json.dumps(final_output, indent=2)
+                # Return only the final result for clean output
+                # Debug information is available in logs when needed
+                return result
             else:
                 # Standard Markovian thinking without tools but with complete context sequence
                 complete_context = await self.context_manager.load_complete_context(
@@ -380,13 +373,9 @@ class EnhancedOrchestratorAgent:
                 )
             
             result = await self.direct_model_response(complete_context)
-            # Format the response in the same structure as before for compatibility
-            final_output = {
-                "intermediate_steps": tool_intent["needs_tools"] and tool_results or [],
-                "synthesis_prompt": complete_context,
-                "final_response": result,
-            }
-            return json.dumps(final_output, indent=2)
+            # Return only the final result for clean output
+            # Debug information is available in logs when needed
+            return result
 
 
 
@@ -563,8 +552,13 @@ class EnhancedOrchestratorAgent:
             {"role": "user", "content": prompt},
         ]
 
+        # Use the updated configuration system to get the model
+        active_provider = self.config_loader.get_active_provider()
+        provider_config = self.config_loader.get_llm_config(active_provider)
+        model_to_use = provider_config.get("model", "default-model")
+        
         payload = {
-            "model": self.config.get("llm", {}).get("providers", {}).get("llama_cpp", {}).get("model", "default-model"),
+            "model": model_to_use,
             "messages": messages,
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,

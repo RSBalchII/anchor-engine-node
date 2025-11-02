@@ -26,6 +26,8 @@ The ECE implements a sophisticated multi-tiered context management system with t
 
 5. **Response Generation**: Either direct model response for simpler prompts or Markovian thinking for complex reasoning based on complexity analysis, with all processing maintaining the established persona context.
 
+**Note**: The previous issue with POML verbose output confusing model responses has been resolved. The system now returns clean responses without verbose debug information, ensuring models respond to actual user prompts rather than internal structural information.
+
 ---
 
 ## 3. LLM Configuration
@@ -129,6 +131,19 @@ ThinkerAgent:
 - **Llama.cpp**: High-performance local inference with GGUF models
 
 To switch providers, simply change the `active_provider` value in the configuration file.
+
+### Required Dependencies
+
+The ECE system requires several Python packages for full functionality, including:
+
+- **Web Scraping**: `beautifulsoup4`, `readability-lxml`, `lxml`, and `requests` for the WebSearchAgent's local web scraping capabilities
+- **Database**: `neo4j` for knowledge graph storage, `redis` for caching
+- **Web Framework**: `fastapi` for agent APIs, `uvicorn` for ASGI server
+- **HTTP Client**: `aiohttp`, `httpx` for async HTTP requests
+- **Configuration**: `pydantic` for settings management, `python-dotenv` for environment variables
+- **Utilities**: Various packages as listed in `requirements.txt`
+
+To install all required dependencies, run: `uv pip install -r requirements.txt`
 
 ### Setting up llama.cpp on Windows
 
@@ -291,6 +306,18 @@ The following sequence ensures consistent persona and memory across interactions
 3.  **Current Prompt:** The immediate task or query
 4.  **Tool Outputs:** Additional information from web search, file operations, etc.
 
+### 3.13. Current Issue: POML Verbose Output (RESOLVED)
+Previously, there was an issue where POML verbose output was confusing model responses. The system was outputting internal debug information with section headers (like "PERSONA FOUNDATION:", "CONVERSATION HISTORY:", etc.) that caused models to respond to structural information rather than user prompts.
+
+This issue has been resolved by:
+1. Removing verbose section headers from the actual prompt context sent to models
+2. Redirecting detailed context analysis to a dedicated debug log file (logs/debug_log_prompt_analysis.txt)
+3. Maintaining clean context loading sequence while preserving detailed analysis for debugging
+
+The system now properly separates:
+- Clean prompt context for model processing (without verbose headers)
+- Detailed context analysis for debugging (in separate log files)
+
 ### 3.13. Model Management System
 
 The ECE includes a sophisticated ModelManager system for on-demand model execution:
@@ -315,12 +342,273 @@ The ECE now fully implements the Universal Tool Calling Protocol (UTCP) 1.0+ spe
 -   **GET Endpoint Support:** Added GET endpoint support to filesystem agent for better UTCP client compatibility.
 -   **Improved Error Handling:** Better error reporting when UTCP endpoints are unavailable.
 
+### 3.16. FileSystem Agent Implementation
+
+The ECE now implements a completely local filesystem agent that provides filesystem operations as UTCP tools:
+
+#### 3.16.1 LocalFileSystem Class
+- **LocalFileSystem Class**: Handles all filesystem operations including directory listing, file reading/writing, and command execution
+- **Security Controls**: Implements proper security controls to prevent unauthorized access and directory traversal attacks
+- **Error Handling**: Gracefully handles file access errors, permission issues, and other filesystem problems
+- **Path Validation**: Validates file paths to prevent directory traversal attacks
+- **Resource Management**: Implements proper resource management to prevent leaks
+
+#### 3.16.2 FileSystemAgent Class
+- **FileSystemAgent Class**: Provides the main interface for filesystem operations as UTCP tools
+- **UTCP Compatibility**: Fully implements UTCP 1.0+ specification with GET and POST endpoint support
+- **Tool Discovery**: Properly registers tools with UTCP for discovery by forge-cli and other clients
+- **Enhanced Error Handling**: Improved error handling with graceful degradation
+- **Performance Optimization**: Optimized for better performance with local filesystem operations
+
+#### 3.16.3 API Endpoints
+- **GET Endpoint Support**: Added GET endpoint support for better UTCP client compatibility
+- **POST Endpoint Support**: Maintains POST endpoint support for backward compatibility
+- **Tool Discovery**: Properly registers tools with UTCP for discovery by forge-cli and other clients
+
+#### 3.16.4 Troubleshooting
+- **Port Conflict Resolution**: Fixed WinError 10013 by identifying and killing conflicting processes using port 8006
+- **Agent Timeout Fix**: Resolved timeout issues by ensuring proper startup sequence and port availability
+- **UTCP Compatibility**: Added GET endpoint support to resolve 422 "Unprocessable Content" errors with UTCP clients
+- **Dependency Management**: Fixed missing dependency issues by ensuring beautifulsoup4, readability-lxml, and lxml are properly installed
+- **Comprehensive Documentation**: Created detailed documentation in specs/filesystem_agent.md for troubleshooting and best practices
+
+See `specs/filesystem_agent.md` for detailed documentation on the FileSystemAgent implementation, troubleshooting, and best practices.
+- **Keyword-Based Fallbacks**: Uses keyword matching to provide relevant example URLs when DuckDuckGo search fails
+
+#### 3.15.3 WebSearchAgent Implementation
+- **Local Implementation**: Updated WebSearchAgent to use local scraping instead of Tavily API
+- **GET Endpoint Support**: Added GET endpoint support for UTCP compatibility
+- **Enhanced Error Handling**: Improved error handling with graceful degradation
+- **Content Processing**: Processes scraped content with the LLM to generate meaningful responses
+
+#### 3.15.4 Benefits of Local Implementation
+- **Privacy-First**: All searches and scraping happen locally without sending data to external services
+- **No API Keys Required**: Completely local implementation with no external dependencies
+- **No Rate Limits**: Unlimited searches without API quotas
+- **Cost-Effective**: No API subscription costs
+- **Resilient**: Not dependent on external service availability
+- **Compliant**: Follows ethical scraping practices with appropriate delays between requests
+
+#### 3.15.5 Technical Architecture
+The local web search implementation consists of:
+1. **LocalWebScraper**: Handles fetching and parsing web content from URLs
+2. **DuckDuckGoSearchEngine**: Performs DuckDuckGo searches and scrapes results
+3. **Enhanced Error Handling**: Gracefully handles network errors, parsing failures, and other issues
+4. **Content Limiting**: Limits content length to prevent overwhelming the LLM with too much information
+5. **Keyword-Based Fallbacks**: Matches query keywords to predefined URL mappings when search fails
+
+This implementation provides the same functionality as the previous Tavily API integration but without external dependencies, API keys, or rate limits.
+
 ### 3.15. Temporal Context Integration
 
 The ECE's temporal memory system enhances reasoning by providing chronological context:
 -   **Temporal Spine Construction:** The Archivist Agent continuously monitors the Redis cache and builds a chronological spine in the Neo4j knowledge graph.
 -   **Memory Linking:** Each processed memory is linked to the appropriate Day node via `[:OCCURRED_AT]` relationships.
 -   **Temporal Querying:** Context retrieval includes temporal information to improve relevance and coherence.
+
+### 3.17. Unified Model Proxy Implementation
+
+The ECE now includes a unified model proxy system that centralizes model management:
+
+- **Single Endpoint**: All model requests go through port 8080 for simplified client configuration
+- **Backend Switching**: Supports routing between ECE and llama.cpp backends
+- **On-Demand Execution**: Models are started/stopped as needed via the proxy
+- **Resource Optimization**: Only one model runs at a time to optimize system resources
+- **Centralized Monitoring**: Includes built-in health checks and availability monitoring
+- **API Compatibility**: Provides consistent OpenAI-compatible API interface across different models
+
+The proxy architecture provides:
+- Simplified client configuration with a single endpoint to manage
+- Resource optimization by running only one model at a time
+- Seamless model switching without client changes
+- Centralized logging and monitoring
+- Improved system stability by avoiding multiple model conflicts
+
+### 3.18. Simplified Model Server Implementation
+
+As an alternative approach for simpler deployments, the ECE includes a simplified model server:
+
+- **Direct Model Serving**: Runs llama.cpp server directly without proxy routing
+- **Single Port Operation**: Runs on port 8080 for standard OpenAI compatibility
+- **Easy Management**: Single Python script to start any model from the models/ directory
+- **Reduced Complexity**: Fewer moving parts for simpler debugging and maintenance
+- **Direct Connection**: Applications connect directly to the llama.cpp server
+
+This simplified approach is ideal for:
+- Single-model deployments
+- Development and testing environments
+- Users who prefer a more straightforward architecture
+- Cases where proxy functionality is not needed
+
+To use the simplified approach:
+```bash
+python simple_model_server.py --model ./models/your-model.gguf --port 8080
+```
+
+## 3.19. Simplified ECE Startup Implementation
+
+For users who want a simpler way to start the complete ECE system with both the llama.cpp model server and the full ECE ecosystem, we now offer a unified startup approach:
+
+- **Unified Startup**: Single script that starts both llama.cpp server and ECE ecosystem
+- **Proper Logging**: All logs are directed to the `logs/` directory
+- **Easy Management**: Simple scripts to start the complete system
+- **Reduced Complexity**: Fewer moving parts for simpler debugging and maintenance
+
+### Prerequisites
+
+1. Make sure you have the required dependencies installed:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Build llama.cpp (if not already built):
+   - On Windows: Use Visual Studio Developer Command Prompt and run `cmake` and `--build` commands
+   - On Linux/Mac: Use `make` command in the llama.cpp directory
+
+### Usage
+
+#### Start the Complete Simplified System
+
+To start both the llama.cpp model server and the ECE ecosystem:
+```bash
+python start_simplified_ecosystem.py --model ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf --port 8080
+```
+
+#### Alternative startup scripts
+
+Windows Batch:
+```bash
+start_simplified_ecosystem.bat ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf 8080
+```
+
+Windows PowerShell:
+```powershell
+./start_simplified_ecosystem.ps1 -ModelPath "./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf" -Port 8080
+```
+
+### Options
+
+- `--model PATH`: Specify the model file to use (default: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf)
+- `--port PORT`: Specify the port for the llama.cpp server (default: 8080)
+- `--skip-llama`: Skip starting the llama.cpp server
+- `--skip-ecosystem`: Skip starting the ECE ecosystem
+
+### Benefits of Simplified Architecture
+
+- **Reduced Complexity**: Fewer moving parts for simpler debugging and maintenance
+- **Proper Logging**: All logs directed to the `logs/` directory for easy monitoring
+- **Easy Management**: Single script to start the complete system
+- **Direct Model Serving**: Applications connect directly to the llama.cpp server
+- **Faster Startup Times**: Optimized startup with parallel processing
+- **Clearer Connection**: Direct relationship between application and model backend
+- **Consistent Behavior**: Same startup process across different platforms
+- **Graceful Shutdown**: Both components stop cleanly with proper signal handling
+
+### Running with uv
+
+For users who prefer to use the uv package manager, you can run the simplified ecosystem using a Python wrapper script:
+
+```bash
+uv run run_simplified_ecosystem.py --model ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf --port 8080
+```
+
+This avoids issues with uv trying to run PowerShell scripts directly, which previously caused the "WinError 193" error. The `run_simplified_ecosystem.py` wrapper script handles the proper execution of the underlying Python script.
+
+### Logging
+
+All logs are written to the `logs/` directory:
+- `logs/debug_log_simplified_startup.txt` - Main log file for the simplified startup process
+- Individual agent logs will be in the same directory as before
+
+### Verification
+
+After starting the system, you can verify that both components are running:
+
+1. Check if the llama.cpp server is running:
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+2. Check if the ECE orchestrator is running:
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+3. List available models:
+   ```bash
+   curl http://localhost:8080/v1/models
+   ```
+
+### Connecting to the System
+
+Once both components are running, you can connect to the system in two ways:
+
+1. **Direct connection to llama.cpp server** (OpenAI-compatible):
+   - Endpoint: `http://localhost:8080/v1`
+   - No API key required for local server
+
+2. **Through the ECE orchestrator**:
+   - Endpoint: `http://localhost:8000/v1`
+   - Uses the UTCP system for tool discovery and execution
+
+### Stopping the System
+
+Press Ctrl+C in the terminal where the script is running to stop both the llama.cpp server and the ECE ecosystem gracefully.
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **Model file not found**:
+   - Ensure the model file exists in the specified path
+   - Check that the models directory contains the GGUF model file
+
+2. **Port conflicts**:
+   - Make sure no other process is using port 8080 or 8000
+   - Use `netstat -ano | findstr :8080` to check for processes using the port
+
+3. **llama.cpp server fails to start**:
+   - Ensure llama.cpp is properly built
+   - Check that the model file is compatible with your llama.cpp build
+
+4. **ECE ecosystem fails to start**:
+   - Ensure Docker is running with Neo4j and Redis services
+   - Check the logs in the `logs/` directory for error messages
+
+5. **Unicode encoding errors**:
+   - If you see 'charmap' codec errors, these have been fixed in the latest version of the scripts
+   - The scripts now use proper UTF-8 encoding for log files
+
+#### Log Files
+
+Check the following log files for detailed error information:
+- `logs/debug_log_simplified_startup.txt` - Main simplified startup log
+- `logs/debug_log_ecosystem.txt` - ECE ecosystem logs
+- `logs/debug_log_model_inference.txt` - Model inference logs
+- `logs/debug_log_orchestrator.txt` - Orchestrator logs
+
+### 3.18. Agent Lightning Integration
+
+The ECE includes optional integration with Microsoft Agent Lightning for enhanced training and optimization of the QLearningAgent:
+
+- **Event Tracking**: The QLearningAgent emits events for key operations including pathfinding, Q-value updates, and decision making
+- **Performance Optimization**: Includes methods to collect performance metrics and optimize learning parameters based on performance data
+- **Parameter Adjustment**: Dynamically adjusts learning rate, discount factor, and epsilon based on performance
+- **Graceful Fallback**: Includes proper fallback handling when Agent Lightning is not installed
+- **Enhanced Monitoring**: Provides better tracking of the agent's decision-making process
+
+### 3.19. Local Web Search Implementation
+
+The ECE has replaced external API dependencies with a completely local web search implementation:
+
+- **LocalWebScraper Class**: Handles fetching and parsing web content from URLs with proper error handling and rate limiting
+- **DuckDuckGoSearchEngine Class**: Performs DuckDuckGo searches and scrapes results locally
+- **Privacy-Focused**: All searches and scraping happen locally without sending data to external services
+- **No Rate Limits**: Unlimited searches without API quotas
+- **Ethical Scraping**: Follows ethical practices with appropriate delays between requests
+- **Comprehensive Error Handling**: Gracefully handles network errors, parsing failures, and other issues
+- **Content Limiting**: Limits content length to prevent overwhelming the LLM with too much information
+- **Keyword-Based Fallbacks**: Uses keyword matching to provide relevant example URLs when search fails
 
 ---
 
@@ -341,6 +629,7 @@ The ECE's temporal memory system enhances reasoning by providing chronological c
 -   **Service Health Monitoring:** Replaced fixed time delays with dynamic service health checks that actively verify service availability before proceeding, improving startup reliability.
 -   **Centralized Configuration Management:** Created a unified ConfigManager class that provides consistent configuration handling across all ECE components with validation, versioning, and backup functionality.
 -   **UTCP Compatibility Enhancements:** Added GET endpoint support to filesystem agent for better compatibility with UTCP clients that use query parameters instead of JSON bodies.
+-   **Filesystem Agent Fixes:** Resolved WinError 10013 "An attempt was made to access a socket in a way forbidden by its access permissions" by identifying and killing conflicting processes using port 8006. Added proper GET endpoint support to resolve 422 "Unprocessable Content" errors when UTCP clients call filesystem tools with query parameters.
 -   **Memory Management:** Enhanced memory management capabilities for Windows systems with configurable limits to prevent crashes.
 -   **Error Handling:** Improved error handling and graceful degradation mechanisms throughout the system.
 -   **Logging Infrastructure:** Implemented comprehensive logging infrastructure with file and console output for better debugging and monitoring.

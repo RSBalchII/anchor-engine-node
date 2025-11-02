@@ -103,6 +103,24 @@ This document outlines the high-priority tasks for the current development cycle
 
 **Objective:** Create a complete single-executable launcher solution with Docker orchestration and comprehensive build system.
 
+## T-026: POML Verbose Output Issue (RESOLVED)
+
+**Objective:** Address the POML verbose output issue that was confusing model responses.
+
+- **T-026.1:** [COMPLETED] Analyzed the orchestrator response formatting to identify where verbose debug information was being included
+- **T-026.2:** [COMPLETED] Modified the orchestrator to return only clean responses without verbose debug output
+- **T-026.3:** [COMPLETED] Updated the context presentation to models to ensure only relevant information is passed
+- **T-026.4:** [COMPLETED] Tested conversational flow to verify models respond to actual prompts rather than debug output
+- **T-026.5:** [COMPLETED] Verified multi-turn conversation context preservation after changes
+- **T-026.6:** [COMPLETED] Ensured persona is still preserved without verbose presentation
+
+**Resolution Summary:**
+The issue has been successfully resolved by:
+1. Removing verbose section headers from the actual prompt context sent to models
+2. Implementing dedicated debug logging for context analysis in separate files
+3. Maintaining clean context loading while preserving detailed analysis for debugging
+4. Ensuring models now respond appropriately to actual user prompts
+
 -   **T-025.1:** [COMPLETED] Implement Docker container management in launcher for Neo4j and Redis services.
 -   **T-025.2:** [COMPLETED] Create ECE agent orchestration in launcher with proper process management.
 -   **T-025.3:** [COMPLETED] Implement comprehensive logging infrastructure with separate log files for each component.
@@ -390,6 +408,18 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-027.9:** [COMPLETED] Create unified startup script with single source of truth
 -   **T-027.10:** [COMPLETED] Test all improvements in various execution environments
 
+## T-028: Phase 31 - Simplified Model Server Implementation
+
+**Objective:** Implement a simplified model server that directly runs llama.cpp for easier deployments.
+
+-   **T-028.1:** [COMPLETED] Create simple_model_server.py script that directly starts llama.cpp server
+-   **T-028.2:** [COMPLETED] Implement model building functionality if llama.cpp is not already built
+-   **T-028.3:** [COMPLETED] Add model discovery to list all available models in the models directory
+-   **T-028.4:** [COMPLETED] Create Windows batch and PowerShell startup scripts for simplified server
+-   **T-028.5:** [COMPLETED] Update documentation to include simplified approach as an alternative
+-   **T-028.6:** [COMPLETED] Ensure the simplified approach runs on port 8080 for compatibility with existing applications
+-   **T-028.7:** [COMPLETED] Document benefits and use cases for simplified vs. complex approach
+
 ## T-028: Phase 31 - Model Server Startup and UTCP Tool Discovery Resolution
 
 **Objective:** Resolve the issue of forge-cli not being able to discover UTCP tools by ensuring the model server and all required agents are running.
@@ -401,6 +431,20 @@ This document outlines the high-priority tasks for the current development cycle
 -   **T-028.5:** [COMPLETED] Test forge-cli UTCP tool discovery to ensure it works properly with running agents
 -   **T-028.6:** [COMPLETED] Validate that all tools are properly registered and accessible via UTCP
 -   **T-028.7:** [COMPLETED] Document the resolution of the forge-cli UTCP tool discovery issue
+
+## T-029: Phase 32 - Local Web Search Implementation
+
+**Objective:** Replace the Tavily API dependency with a local web search implementation using DuckDuckGo and local scraping.
+
+-   **T-029.1:** [COMPLETED] Create LocalWebScraper class for fetching and parsing web content from URLs
+-   **T-029.2:** [COMPLETED] Implement DuckDuckGoSearchEngine class for performing DuckDuckGo searches and scraping results
+-   **T-029.3:** [COMPLETED] Update WebSearchAgent to use local scraping instead of Tavily API
+-   **T-029.4:** [COMPLETED] Add GET endpoint support to web search agent for UTCP compatibility
+-   **T-029.5:** [COMPLETED] Implement keyword-based fallbacks for search queries when DuckDuckGo search fails
+-   **T-029.6:** [COMPLETED] Add content limiting to prevent overwhelming the LLM with too much information
+-   **T-029.7:** [COMPLETED] Implement proper error handling and graceful degradation mechanisms
+-   **T-029.8:** [COMPLETED] Update documentation to reflect the local web search implementation
+-   **T-029.9:** [COMPLETED] Test the local web search functionality with various queries
 
 ## Current Status
 
@@ -417,9 +461,131 @@ This document outlines the high-priority tasks for the current development cycle
 - Memory management is improved with Windows-specific optimizations
 - Logging is consistent across all components
 - Error handling is more robust with graceful degradation
+- Web search functionality is implemented locally with DuckDuckGo search and scraping, no external API required
+- Filesystem agent issues have been resolved with proper port conflict resolution and UTCP compatibility enhancements
+- Agent startup times have been optimized with staggered timing to prevent resource contention
 
 ## Next Steps
 
 1. Continue monitoring the system for any remaining issues after the optimizations
 2. Document the new architecture components in the specifications
 3. Update task tracking to reflect the completed optimization work
+4. Test the local web search functionality with various queries to ensure reliability
+5. Implement comprehensive documentation for filesystem agent troubleshooting
+6. Continue testing advanced forge-cli functionality with complex prompts
+
+## T-026: Phase 29 - Filesystem Agent Fixes and Optimization
+
+**Objective:** Fix critical issues with the filesystem agent that are preventing proper tool usage and optimize its startup process.
+
+-   **T-026.1:** [COMPLETED] Identify and resolve WinError 10013 "An attempt was made to access a socket in a way forbidden by its access permissions" by detecting and killing conflicting processes using port 8006
+-   **T-026.2:** [COMPLETED] Add GET endpoint support to filesystem agent for better UTCP client compatibility and to resolve 422 "Unprocessable Content" errors
+-   **T-026.3:** [COMPLETED] Implement proper error handling in filesystem agent to gracefully handle port conflicts and startup failures
+-   **T-026.4:** [COMPLETED] Optimize filesystem agent startup time by implementing parallel startup with staggered timing
+-   **T-026.5:** [COMPLETED] Add comprehensive logging to filesystem agent for better debugging and monitoring
+-   **T-026.6:** [COMPLETED] Implement health check mechanisms to verify filesystem agent is properly started and responsive
+-   **T-026.7:** [COMPLETED] Add timeout handling to prevent indefinite waiting during filesystem agent startup
+
+## T-027: Phase 30 - Parallel Agent Startup Optimization
+
+**Objective:** Optimize the ECE ecosystem startup process by implementing parallel agent startup with staggered timing to reduce overall startup time.
+
+-   **T-027.1:** [COMPLETED] Analyze current sequential startup process to identify bottlenecks and delays
+-   **T-027.2:** [COMPLETED] Implement parallel startup mechanism for all ECE agents using asyncio or threading
+-   **T-027.3:** [COMPLETED] Add staggered timing (1-2 seconds between each agent) to prevent resource contention during startup
+-   **T-027.4:** [COMPLETED] Implement proper health checks that can run concurrently for all agents
+-   **T-027.5:** [COMPLETED] Add timeout handling for each agent independently to prevent blocking
+-   **T-027.6:** [COMPLETED] Provide real-time feedback on which agents are starting successfully
+-   **T-027.7:** [COMPLETED] Test parallel startup to ensure all agents start correctly and communicate properly
+-   **T-027.8:** [COMPLETED] Document the parallel startup optimization in the specifications
+
+## T-030: Phase 33 - Simplified Model Server Implementation
+
+**Objective:** Implement a simplified approach for starting the ECE system with both the llama.cpp model server and the full ECE ecosystem using a single script, removing the complex unified proxy and ecosystem startup scripts while preserving essential functionality.
+
+-   **T-030.1:** [COMPLETED] Create simple_model_server.py script that directly starts llama.cpp server with any model from the models/ directory
+-   **T-030.2:** [COMPLETED] Implement model building functionality if llama.cpp is not already built
+-   **T-030.3:** [COMPLETED] Add model discovery to list all available models in the models directory
+-   **T-030.4:** [COMPLETED] Create Windows batch and PowerShell startup scripts for simplified server
+-   **T-030.5:** [COMPLETED] Update documentation to include simplified approach as an alternative
+-   **T-030.6:** [COMPLETED] Ensure the simplified approach runs on port 8080 for compatibility with existing applications
+-   **T-030.7:** [COMPLETED] Document benefits and use cases for simplified vs. complex approach
+-   **T-030.8:** [COMPLETED] Create start_simplified_ecosystem.py script that starts both llama.cpp server and ECE ecosystem
+-   **T-030.9:** [COMPLETED] Implement proper logging to the logs/ directory for simplified startup
+-   **T-030.10:** [COMPLETED] Add command line options for model selection and port configuration
+-   **T-030.11:** [COMPLETED] Create verification script to check if simplified setup is working correctly
+-   **T-030.12:** [COMPLETED] Update main README to reference simplified approach
+-   **T-030.13:** [COMPLETED] Create comprehensive documentation for simplified startup in docs/simplified_startup_guide.md
+-   **T-030.14:** [COMPLETED] Implement cleanup utility to identify old vs. new files
+-   **T-030.15:** [COMPLETED] Ensure backward compatibility with existing ECE components
+
+## Summary
+
+The simplified model server implementation provides a more straightforward way to run the ECE with direct model serving through llama.cpp. This approach:
+
+- Reduces complexity with fewer moving parts
+- Provides more straightforward debugging
+- Offers direct model serving without routing layers
+- Is easier to deploy and maintain
+- Has faster startup times
+- Provides a clearer connection between application and model backend
+
+The implementation includes:
+1. A simple Python script (`simple_model_server.py`) that directly starts llama.cpp server
+2. Platform-specific wrapper scripts (Windows Batch and PowerShell)
+3. Comprehensive documentation in `README_Simplified.md` and `docs/simplified_approach.md`
+4. Verification and testing utilities
+5. Backward compatibility with the existing ECE ecosystem
+
+This simplified approach is ideal for users who prefer a more straightforward architecture without the complex unified proxy and ecosystem startup scripts, while still maintaining all essential functionality for model serving and inference.
+
+## T-031: Phase 34 - Unified ECE Startup Implementation
+
+**Objective:** Implement a truly unified startup approach that starts both the llama.cpp model server and the full ECE ecosystem with a single script, removing all complex orchestrators while preserving essential functionality.
+
+-   **T-031.1:** [COMPLETED] Create start.py script that starts both llama.cpp server and ECE ecosystem with proper logging to logs/ directory
+-   **T-031.2:** [COMPLETED] Implement model building functionality if llama.cpp is not already built
+-   **T-031.3:** [COMPLETED] Add model discovery to list all available models in the models directory
+-   **T-031.4:** [COMPLETED] Create Windows batch and PowerShell startup scripts for unified server
+-   **T-031.5:** [COMPLETED] Update documentation to include unified approach as an alternative
+-   **T-031.6:** [COMPLETED] Ensure the unified approach runs on port 8080 for compatibility with existing applications
+-   **T-031.7:** [COMPLETED] Document benefits and use cases for unified vs. complex approach
+-   **T-031.8:** [COMPLETED] Create start_unified_ecosystem.py script that starts both llama.cpp server and ECE ecosystem
+-   **T-031.9:** [COMPLETED] Implement proper logging to the logs/ directory for unified startup
+-   **T-031.10:** [COMPLETED] Add command line options for model selection and port configuration
+-   **T-031.11:** [COMPLETED] Create verification script to check if unified setup is working correctly
+-   **T-031.12:** [COMPLETED] Update main README to reference unified approach
+-   **T-031.13:** [COMPLETED] Create comprehensive documentation for unified startup in docs/unified_startup_guide.md
+-   **T-031.14:** [COMPLETED] Implement cleanup utility to identify old vs. new files
+-   **T-031.15:** [COMPLETED] Ensure backward compatibility with existing ECE components
+-   **T-031.16:** [COMPLETED] Add interactive terminal interface for model management while system is running
+-   **T-031.17:** [COMPLETED] Implement graceful shutdown of all services with Ctrl+C or 'quit' command
+-   **T-031.18:** [COMPLETED] Add support for dynamic model switching without restarting the entire system
+-   **T-031.19:** [COMPLETED] Implement proper error handling and recovery mechanisms for all services
+-   **T-031.20:** [COMPLETED] Create test scripts to verify unified startup functionality
+-   **T-031.21:** [COMPLETED] Create start_simplified_ecosystem.py script that starts both llama.cpp server and ECE ecosystem with simplified approach
+-   **T-031.22:** [COMPLETED] Implement proper logging to the logs/ directory for simplified startup
+-   **T-031.23:** [COMPLETED] Add command line options for model selection and port configuration in simplified approach
+-   **T-031.24:** [COMPLETED] Create verification script to check if simplified setup is working correctly
+-   **T-031.25:** [COMPLETED] Update main README to reference simplified approach
+-   **T-031.26:** [COMPLETED] Create comprehensive documentation for simplified startup in docs/simplified_startup_guide.md
+-   **T-031.27:** [COMPLETED] Implement cleanup utility to identify old vs. new files in simplified approach
+-   **T-031.28:** [COMPLETED] Ensure backward compatibility with existing ECE components in simplified approach
+
+## Unified ECE Startup Summary
+
+The unified ECE startup implementation provides a truly unified approach to starting the complete ECE system with a single script:
+
+- **Complete System Startup**: Single script that starts Docker services, llama.cpp server, and ECE ecosystem
+- **Proper Logging**: All logs are directed to the `logs/` directory
+- **Easy Management**: Simple scripts to start the complete system with one command
+- **Interactive Terminal**: Terminal interface for model management while system is running
+
+The implementation includes:
+1. A unified Python script (`start.py`) that starts the complete ECE system
+2. Platform-specific wrapper scripts (Windows Batch and PowerShell)
+3. Comprehensive documentation in `README.md` and `docs/unified_approach.md`
+4. Verification and testing utilities
+5. Backward compatibility with the existing ECE ecosystem
+
+This unified approach is ideal for users who need the full ECE functionality but want a simpler way to start the entire system with one command. It eliminates the complexity of managing multiple startup scripts while preserving all essential functionality for model serving and inference.

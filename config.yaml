@@ -3,8 +3,10 @@ llm:
   providers:
     llama_cpp:
       model_path: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
-      api_base: http://localhost:8091/v1
+      api_base: http://localhost:8080/v1
       model: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
+debug:
+  verbose_output: false
 cache:
   redis_url: redis://localhost:6379
 system:

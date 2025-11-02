@@ -1,2 +1,0 @@
-2025-10-27 14:46:02 [INFO] ecosystem:1 - External Context Engine (ECE) Ecosystem Starter
-2025-10-27 14:46:02 [INFO] ecosystem:1 - =============================================

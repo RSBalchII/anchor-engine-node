@@ -4,6 +4,8 @@
 
 The External Context Engine (ECE) is a sophisticated cognitive architecture designed to provide persistent memory and context management for AI systems. It's an advanced agentic system that enables AI applications to maintain long-term relationships, recall past conversations, and build coherent narratives from fragmented knowledge. The system is designed to operate entirely on local hardware without cloud dependencies.
 
+For users who prefer a simpler approach, we now offer a **simplified model serving solution** that directly runs llama.cpp for model serving without the complex ecosystem. This approach reduces complexity while maintaining core functionality. See the "Simplified ECE Startup" section below for details.
+
 ## Documentation Policy
 
 The ECE project follows a strict documentation policy to maintain organization and clarity:
@@ -13,7 +15,7 @@ The ECE project follows a strict documentation policy to maintain organization a
 Only the following markdown files are permitted to be created or modified in this project:
 
 1. **Root Directory Files**:
-   - `@README.md` - Project overview and main documentation
+   - `@README.md` - Project overview and main documentation (this file)
    - `@QWEN.md` - System documentation and specifications
 
 2. **Specs Directory Files** (`@specs//**`):
@@ -32,6 +34,71 @@ Only the following markdown files are permitted to be created or modified in thi
 
 The External Context Engine (ECE) is a sophisticated cognitive architecture designed to provide persistent memory and context management for AI systems. This repository contains the implementation of the ECE, which focuses on creating an intelligent memory management system with Q-Learning powered context retrieval.
 
+## 🛠️ Environment Configuration
+
+The ECE now supports configuration through environment variables with the option to use a `.env` file. This allows for easier management of configuration across different environments.
+
+### Setting up Environment Variables
+
+1. Create a `.env` file in the project root directory by copying the example:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Update the values in the `.env` file to match your environment and preferences.
+
+### Supported Environment Variables
+
+The following environment variables can be used to configure the ECE:
+
+- `LLM_ACTIVE_PROVIDER`: The active LLM provider (default: llama_cpp)
+- `LLM_LLAMA_CPP_MODEL_PATH`: Path to the llama.cpp model file
+- `LLM_LLAMA_CPP_API_BASE`: API base URL for llama.cpp (default: http://localhost:8080/v1)
+- `NEO4J_URI`: URI for Neo4j database (default: bolt://localhost:7687)
+- `NEO4J_USER`: Neo4j username (default: neo4j)
+- `NEO4J_PASSWORD`: Neo4j password (default: ECE_secure_password_2025)
+- `REDIS_URL`: Redis URL (default: redis://localhost:6379)
+- `LLAMA_CPP_PORT`: Port for llama.cpp server (default: 8080)
+- `ORCHESTRATOR_PORT`: Port for orchestrator agent (default: 8000)
+- `DISTILLER_PORT`: Port for distiller agent (default: 8001)
+- `QLEARNING_PORT`: Port for QLearning agent (default: 8002)
+- `ARCHIVIST_PORT`: Port for archivist agent (default: 8003)
+- `INJECTOR_PORT`: Port for injector agent (default: 8004)
+- `FILESYSTEM_PORT`: Port for filesystem agent (default: 8006)
+- `WEBSEARCH_PORT`: Port for websearch agent (default: 8007)
+- `MEMORY_LIMIT_MB`: Memory limit in MB (default: 2048)
+- `THINKER_MODEL`: Model to use for thinker agents
+- `THINKER_SYNTHESIS_MODEL`: Model for synthesis tasks
+- `THINKER_SYNTHESIS_MAX_TOKENS`: Max tokens for synthesis (default: 8192)
+- `THINKER_TIMEOUT`: Timeout value (default: 180)
+- `LLAMA_CPP_SERVER_PATH`: Path to the llama.cpp server executable
+- `LLAMA_CPP_CONTEXT_SIZE`: Context size for llama.cpp (default: 4096)
+- `LLAMA_CPP_N_GPU_LAYERS`: Number of GPU layers for llama.cpp (default: -1)
+- `LLAMA_CPP_TIMEOUT`: Timeout for llama.cpp server (default: 1800)
+- `DEBUG_VERBOSE_OUTPUT`: Enable verbose output (default: false)
+- `DOCKER_COMPOSE_FILE`: Path to docker compose file (default: docker-compose.yml)
+- `LOG_DIR`: Log directory (default: logs)
+- `LOG_FILE_SIMPLIFIED_STARTUP`: Log file for simplified startup (default: debug_log_simplified_startup.txt)
+- `UTCP_REGISTRY_URL`: UTCP registry URL (default: http://localhost:9999)
+
+When both environment variables and config.yaml values are present, environment variables take precedence.
+
+The system will first check for environment variables, then fall back to values in the config.yaml file.
+
+## 🛠️ Dependencies and Setup
+
+The ECE requires several Python packages for full functionality. Install all required dependencies using:
+
+```bash
+uv pip install -r requirements.txt
+```
+
+Key dependencies include:
+- **Web Scraping**: `beautifulsoup4`, `readability-lxml`, `lxml`, and `requests` for the WebSearchAgent's local web scraping capabilities
+- **Database**: `neo4j` for knowledge graph storage, `redis` for caching
+- **Web Framework**: `fastapi` for agent APIs, `uvicorn` for ASGI server
+- **LLM Integration**: Various packages for different LLM providers (Ollama, llama.cpp, etc.)
+
 ## 📝 Documentation Policy
 
 The ECE project follows a strict documentation policy to maintain organization and clarity. Only the following markdown files are permitted to be created or modified in this project:
@@ -46,7 +113,6 @@ All markdown files in the `specs/` directory are allowed, including:
 - `specs/reasoning_flow.md` - Detailed reasoning flow documentation
 - `specs/spec.md` - Technical specifications
 - `specs/tasks.md` - Task tracking and progress
-- `specs/session_summaries.md` - Session event summaries and logs
 - Any other markdown files created in the `specs/` directory for technical documentation
 
 ### Documentation Guidelines
@@ -68,12 +134,18 @@ All markdown files in the `specs/` directory are allowed, including:
 - **Semantic Search**: Vector similarity search using Sentence Transformers
 - **Path Finding**: Q-Learning optimized traversal of knowledge graph
 - **Context Summarization**: Token-aware summarization within LLM limits
+- **Local Web Search**: DuckDuckGo-based search with local scraping, no external API required
 
 ### Local-First and Performant
 - **Local Execution**: Runs entirely on local hardware without cloud dependencies.
 - **Script-based**: Uses simple scripts for launching and managing agents.
 - **Memory Management**: Includes a configurable memory limiter for Windows to prevent crashes.
 - **GPU Acceleration**: Supports CUDA for accelerated embedding generation.
+
+### Extended Tool Support
+- **Git Operations**: Full Git repository management capabilities
+- **File System Operations**: Comprehensive file and directory operations
+- **Web Search**: Local DuckDuckGo-based search without external APIs
 
 ## Architecture Overview
 The ECE implements a multi-tier agent architecture:
@@ -117,6 +189,7 @@ The ECE implements a sophisticated multi-tiered context management system that p
 - **Temporal Memory**: Continuous temporal scanning protocol with the Archivist Agent maintains chronological records in Neo4j knowledge graph
 - **Orchestrator Processing**: The Orchestrator reads the enhanced Redis cache (always including POML persona first) and processes the complete context
 - **Tool Integration**: Tool outputs (web search, file read/write, etc.) become part of the accessible context
+- **Resolved Issue**: POML verbose output issue has been fixed - the system now returns clean responses without verbose debug information, ensuring models respond to actual user prompts rather than internal structural information
 
 ### Implementation Details
 The context loading sequence is implemented through:
@@ -247,9 +320,10 @@ Based on the actual implementation in the codebase, the ECE has evolved from its
 - Correctly handles model paths and API base configuration in config.yaml
 - Fixed double `.gguf` extension issue in model paths
 - Fixed redundant path structure in model configuration
-- Properly manages API base URLs with appropriate port assignments for different models (e.g., port 8091 for gemma model)
+- Properly manages API base URLs with appropriate port assignments for different models
 - Recently updated to ensure correct communication flow between all components
 - Automatically updates configuration when model is changed via forge-cli
+- **New Unified Model Proxy**: Implements a unified proxy system that routes all model requests through a single endpoint at port 8080, allowing multiple models to be managed and accessed through a consistent interface, with only one model running at a time to optimize resources
 
 ### Tool Agent Implementation
 - FileSystemAgent and WebSearchAgent are available via UTCP endpoints
@@ -562,11 +636,12 @@ This architecture ensures that regardless of which model is selected via the dyn
 
 - **Orchestrator**: The central nervous system. Classifies intent and delegates tasks to other agents.
 - **DistillerAgent**: Analyzes raw text to extract entities and relationships.
-- **ArchivistAgent**: Persists structured data to the Neo4j knowledge graph.
+- **ArchivistAgent**: Perserts structured data to the Neo4j knowledge graph.
 - **QLearningAgent**: Intelligently traverses the knowledge graph to find optimal context paths.
 - **InjectorAgent**: Optimizes the knowledge graph through reinforcement learning.
 - **FileSystemAgent**: Provides tools for reading, writing, and listing files.
-- **WebSearchAgent**: Provides tools for internet-based searches.
+- **WebSearchAgent**: Provides tools for internet-based searches using local DuckDuckGo scraping.
+- **GitAgent**: Provides Git operations for repository management.
 
 ## Development
 
@@ -695,3 +770,199 @@ Our **Planner, Executor, Verifier, Generator (PEVG)** framework is powered by a 
 
 ### Core Capabilities
 - **Intelligent Memory Management**: Q-Learning powered context retrieval
+- **Enhanced Context Retrieval**: Semantic search and path finding in knowledge graph
+- **Local-First Execution**: Runs entirely on local hardware without cloud dependencies
+- **Script-Based Management**: Simple scripts for launching and managing agents
+- **Memory Optimization**: Configurable memory limiter for Windows systems
+- **GPU Acceleration**: CUDA support for accelerated embedding generation
+- **On-Demand Model Execution**: ModelManager starts models only when needed
+- **Model Lifecycle Management**: Automatic start/stop of models to save resources
+- **UTCP Integration**: Universal Tool Calling Protocol for tool discovery and execution
+- **Markovian Thinking**: Chunked reasoning with textual carryover for deep local reasoning
+
+### Troubleshooting Filesystem Agent Issues
+
+Common issues with the filesystem agent and their solutions:
+
+1. **Port Conflict (WinError 10013)**: 
+   - **Issue**: "An attempt was made to access a socket in a way forbidden by its access permissions"
+   - **Cause**: Another process is already using port 8006
+   - **Solution**: Kill the conflicting process using `taskkill /PID <process_id> /F` or restart the system
+   - **Diagnosis**: Use `netstat -ano | findstr :8006` to identify the process using the port
+   - **Prevention**: Always check for conflicting processes before starting the ECE ecosystem and use proper shutdown procedures
+   
+2. **Agent Timeout**: 
+   - **Issue**: "Timeout waiting for FileSystem to start on 0.0.0.0:8006"
+   - **Cause**: Agent failed to start within expected time (usually due to port conflicts or startup errors)
+   - **Solution**: Check logs for specific errors, free up port 8006, and restart the agent
+   - **Additional Fix**: Ensure no orphaned Python processes are blocking the port
+   - **Enhanced Solution**: Implement dynamic service health checks instead of fixed waits
+   
+3. **Slow Agent Startup**:
+   - **Issue**: Sequential startup of all agents causes long wait times
+   - **Cause**: Agents start one after another instead of in parallel
+   - **Solution**: Future optimization planned to start agents in parallel with staggered startup
+   - **Immediate Fix**: Add staggered timing (1-2 seconds between each agent) to prevent resource contention during startup
+   
+4. **422 Unprocessable Content Errors**:
+   - **Issue**: "422 Unprocessable Content" when calling filesystem tools through UTCP clients
+   - **Cause**: The filesystem agent only supported POST requests with JSON body, but UTCP clients were attempting to call filesystem tools with GET requests and query parameters
+   - **Solution**: Updated filesystem agent to support both GET and POST endpoints for UTCP compatibility:
+     - `/list_directory` endpoint now supports both GET and POST methods
+     - `/read_file` endpoint now supports both GET and POST methods
+     - `/write_file` endpoint now supports both GET and POST methods
+     - `/execute_command` endpoint now supports both GET and POST methods
+   - **Impact**: Resolved 422 "Unprocessable Content" errors with UTCP clients
+   - **Compatibility**: Maintained backward compatibility with existing POST-based clients
+   
+5. **Dependency Issues**:
+   - **Issue**: Missing libraries like beautifulsoup4, readability-lxml, or lxml
+   - **Cause**: Required dependencies not installed in the virtual environment
+   - **Solution**: Install missing dependencies using `uv pip install beautifulsoup4 readability-lxml lxml`
+   - **Verification**: Check that all dependencies are properly installed in the virtual environment
+   
+6. **Diagnostic Commands**:
+   - **Check Port Usage**: `netstat -ano | findstr :8006`
+   - **Kill Process Using Port**: `taskkill /PID <process_id> /F`
+   - **Check Agent Logs**: `type logs\debug_log_ecosystem.txt | findstr "FileSystem"`
+   - **Start Agent Manually**: `python -m ece.agents.tier2.filesystem_agent`
+   - **Test Agent Health Check**: `curl -X GET http://localhost:8006/health`
+   - **Test List Directory Endpoint**: `curl -X GET "http://localhost:8006/list_directory?path=."`
+
+### Detailed Troubleshooting Guides
+
+For more detailed troubleshooting information, see:
+- `specs/filesystem_agent_troubleshooting_guide.md` - Comprehensive guide for FileSystemAgent issues
+- `specs/web_search_agent.md` - Documentation for WebSearchAgent with troubleshooting section
+- `specs/local_web_search_implementation_summary.md` - Summary of local web search implementation with troubleshooting information
+- `specs/filesystem_agent_fixes_summary.md` - Detailed summary of filesystem agent fixes and optimizations
+
+## Unified ECE Startup
+
+For users who want a single script to start the complete ECE ecosystem including Docker containers, llama.cpp server, and all ECE agents, we now offer a truly unified startup approach:
+
+- **Complete System Startup**: Single script that starts Docker services, llama.cpp server, and ECE ecosystem
+- **Proper Logging**: All logs are directed to the `logs/` directory
+- **Easy Management**: Simple scripts to start the complete system with one command
+- **Interactive Terminal**: Terminal interface for model management while system is running
+
+### Prerequisites
+
+1. Make sure you have the required dependencies installed:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Install Docker Desktop (required for Neo4j and Redis services)
+
+3. Build llama.cpp (if not already built):
+   - On Windows: Use Visual Studio Developer Command Prompt and run `cmake` and `--build` commands
+   - On Linux/Mac: Use `make` command in the llama.cpp directory
+
+### Usage
+
+#### Start the Complete Unified System
+
+To start the complete ECE system with all services:
+```bash
+python start.py --model ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf --port 8080
+```
+
+#### Alternative startup scripts
+
+Windows Batch:
+```bash
+start.bat ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf 8080
+```
+
+Windows PowerShell:
+```powershell
+./start.ps1 -ModelPath "./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf" -Port 8080
+```
+
+### Options
+
+- `--model PATH`: Specify the model file to use (default: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf)
+- `--port PORT`: Specify the port for the llama.cpp server (default: 8080)
+- `--list-models`: List all available models and exit
+
+### Interactive Terminal Commands
+
+Once the system is running, you can use these commands in the terminal:
+- `list models` - List all available models
+- `change model <model_name>` - Change the current model
+- `quit` - Stop all services and exit
+
+### What the Unified Startup Does
+
+1. **Starts Docker Services**: Automatically starts Neo4j and Redis containers if not already running
+2. **Starts llama.cpp Server**: Launches the llama.cpp server with the specified model on the specified port
+3. **Starts ECE Ecosystem**: Launches all ECE agents (Orchestrator, Distiller, QLearning, Archivist, Injector, FileSystem, WebSearch)
+4. **Provides Interactive Terminal**: Allows model management while the system is running
+5. **Handles Graceful Shutdown**: Stops all services cleanly with Ctrl+C or 'quit' command
+
+### Benefits of Unified Architecture
+
+- Single command to start the complete system
+- Automatic service management (Docker, llama.cpp, ECE agents)
+- Proper logging to `logs/` directory for easy monitoring
+- Graceful shutdown of all services
+- Cross-platform compatibility (Windows, Linux, Mac)
+- Faster startup times with optimized service initialization
+- Clearer connection between application and model backend
+- Interactive model management while system is running
+
+### Documentation
+
+Complete documentation for the unified approach is available in:
+- `docs/unified_approach.md` - Comprehensive overview of the unified approach
+- `docs/unified_startup_guide.md` - Step-by-step guide for using the unified approach
+- `README_Simplified.md` - Complete documentation for the simplified approach
+- `docs/simplified_approach.md` - Comprehensive documentation of the simplified approach
+- `docs/simplified_startup_guide.md` - Step-by-step guide for using the simplified approach
+
+#### Start the Complete Simplified System
+
+To start both the llama.cpp model server and the ECE ecosystem:
+```bash
+python start_simplified_ecosystem.py --model ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf --port 8080
+```
+
+#### Alternative startup scripts
+
+Windows Batch:
+```bash
+start_simplified_ecosystem.bat ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf 8080
+```
+
+Windows PowerShell:
+```powershell
+./start_simplified_ecosystem.ps1 -ModelPath "./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf" -Port 8080
+```
+
+### Options
+
+- `--model PATH`: Specify the model file to use (default: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf)
+- `--port PORT`: Specify the port for the llama.cpp server (default: 8080)
+- `--skip-llama`: Skip starting the llama.cpp server
+- `--skip-ecosystem`: Skip starting the ECE ecosystem
+
+### Benefits of Simplified Architecture
+
+- Reduced complexity with fewer moving parts
+- More straightforward debugging
+- Direct model serving without routing layers
+- Easier to deploy and maintain
+- Faster startup times
+- Clearer connection between application and model backend
+- All logs properly directed to the `logs/` directory for easy monitoring
+
+### Running with uv
+
+For users who prefer to use the uv package manager, you can run the simplified ecosystem using a Python wrapper script:
+
+```bash
+uv run run_simplified_ecosystem.py --model ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf --port 8080
+```
+
+This avoids issues with uv trying to run PowerShell scripts directly, which caused the "WinError 193" error.

@@ -14,6 +14,21 @@ from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
+# Import Agent Lightning for event tracking
+try:
+    import agentlightning as agl
+    AGENT_LIGHTNING_AVAILABLE = True
+except ImportError:
+    print("Agent Lightning not available. Install with 'pip install agentlightning'")
+    AGENT_LIGHTNING_AVAILABLE = False
+    class agl:
+        @staticmethod
+        def emit_event(event_type: str, data: Dict[str, Any] = None):
+            pass
+        @staticmethod
+        def emit_span(span_name: str, data: Dict[str, Any] = None):
+            pass
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -93,8 +108,21 @@ class QLearningGraphAgent:
         logger.info(f"Finding optimal paths for keywords: {keywords}")
         logger.info(f"Max tokens: {max_tokens}")
         
+        # Emit event for starting the pathfinding operation
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_find_optimal_path_start", {
+                "keywords": keywords,
+                "max_tokens": max_tokens
+            })
+        
         if not self.graph_manager:
             logger.warning("No graph manager available")
+            # Emit event for failure due to missing graph manager
+            if AGENT_LIGHTNING_AVAILABLE:
+                agl.emit_event("qlearning_find_optimal_path_failure", {
+                    "reason": "No graph manager available",
+                    "keywords": keywords
+                })
             return []
 
         # Find nodes related to the keywords
@@ -102,6 +130,12 @@ class QLearningGraphAgent:
         
         if not nodes:
             logger.info("No nodes found for the given keywords.")
+            # Emit event for no nodes found
+            if AGENT_LIGHTNING_AVAILABLE:
+                agl.emit_event("qlearning_find_optimal_path_no_nodes", {
+                    "keywords": keywords,
+                    "nodes_found": 0
+                })
             return []
 
         # For simplicity, find paths between all pairs of found nodes
@@ -148,6 +182,16 @@ class QLearningGraphAgent:
                         break
                         
         logger.info(f"Returning {len(paths)} paths with approximately {total_tokens} tokens")
+        
+        # Emit event for completion of pathfinding
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_find_optimal_path_complete", {
+                "keywords": keywords,
+                "paths_found": len(paths),
+                "total_tokens": total_tokens,
+                "max_tokens": max_tokens
+            })
+        
         return paths
         
     async def update_q_values(self, path: MemoryPath, reward: float) -> None:
@@ -160,10 +204,27 @@ class QLearningGraphAgent:
         """
         logger.info(f"Updating Q-values for path with reward {reward}")
         
+        # Emit event for starting Q-value updates
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_update_q_values_start", {
+                "path_length": len(path.nodes),
+                "reward": reward
+            })
+        
         if len(path.nodes) < 2:
             logger.warning("Path too short to update Q-values")
+            # Emit event for failure due to short path
+            if AGENT_LIGHTNING_AVAILABLE:
+                agl.emit_event("qlearning_update_q_values_failure", {
+                    "reason": "Path too short",
+                    "path_length": len(path.nodes),
+                    "reward": reward
+                })
             return
             
+        # Track how many Q-values were updated
+        update_count = 0
+        
         # Update Q-values for each state-action pair in the path
         for i in range(len(path.nodes) - 1):
             state = path.nodes[i]
@@ -190,6 +251,27 @@ class QLearningGraphAgent:
                 self._set_q_value(state, action, new_q)
                 
                 logger.debug(f"Updated Q-value for {state}->{action}: {current_q} -> {new_q}")
+                update_count += 1
+                
+                # Emit event for individual Q-value update
+                if AGENT_LIGHTNING_AVAILABLE:
+                    agl.emit_event("qlearning_q_value_updated", {
+                        "state": state,
+                        "action": action,
+                        "old_value": current_q,
+                        "new_value": new_q,
+                        "reward": reward
+                    })
+        
+        logger.info(f"Updated {update_count} Q-values")
+        
+        # Emit event for completion of Q-value updates
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_update_q_values_complete", {
+                "path_length": len(path.nodes),
+                "updates_count": update_count,
+                "reward": reward
+            })
                 
     async def train(self, training_data: List[Tuple[str, str, float]]) -> None:
         """
@@ -428,14 +510,36 @@ class QLearningGraphAgent:
         Returns:
             MemoryPath representing the found path
         """
+        # Emit event for starting pathfinding
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_pathfinding_start", {
+                "start_node": start_node,
+                "end_node": end_node,
+                "max_steps": max_steps
+            })
+        
         current_node = start_node
         path = MemoryPath(nodes=[start_node])
         visited = {start_node}
+        
+        # Track decision-making during pathfinding
+        decisions = []
         
         for step in range(max_steps):
             # Check if we've reached the target
             if current_node == end_node:
                 path.score = 1.0  # Perfect score for reaching target
+                logger.info(f"Reached target node {end_node} in {step} steps")
+                
+                # Emit event for reaching target
+                if AGENT_LIGHTNING_AVAILABLE:
+                    agl.emit_event("qlearning_pathfinding_success", {
+                        "start_node": start_node,
+                        "end_node": end_node,
+                        "steps": step,
+                        "path_length": path.length
+                    })
+                
                 return path
                 
             # Get possible actions from current node
@@ -443,6 +547,13 @@ class QLearningGraphAgent:
             
             if not actions:
                 logger.debug(f"No actions available from node {current_node}")
+                # Emit event for dead end
+                if AGENT_LIGHTNING_AVAILABLE:
+                    agl.emit_event("qlearning_pathfinding_dead_end", {
+                        "current_node": current_node,
+                        "step": step,
+                        "path_length": path.length
+                    })
                 break
                 
             # Choose action using epsilon-greedy policy
@@ -450,6 +561,15 @@ class QLearningGraphAgent:
                 # Explore: choose random action
                 action = random.choice(actions)
                 logger.debug(f"Exploring: randomly chose action {action.to_node}")
+                
+                # Record exploration decision
+                decisions.append({
+                    "step": step,
+                    "current_node": current_node,
+                    "action": "explore",
+                    "selected_node": action.to_node,
+                    "strategy": "random"
+                })
             else:
                 # Exploit: choose best action based on Q-values
                 best_action = None
@@ -466,6 +586,16 @@ class QLearningGraphAgent:
                 action = best_action
                 logger.debug(f"Exploiting: chose best action {action.to_node} with Q-value {best_q_value}")
                 
+                # Record exploitation decision
+                decisions.append({
+                    "step": step,
+                    "current_node": current_node,
+                    "action": "exploit",
+                    "selected_node": action.to_node,
+                    "q_value": best_q_value,
+                    "strategy": "best_q_value"
+                })
+                
             # Add action to path
             path.nodes.append(action.to_node)
             path.relationships.append({
@@ -481,11 +611,31 @@ class QLearningGraphAgent:
             # Check for cycles
             if current_node in visited:
                 logger.debug(f"Detected cycle at node {current_node}")
+                # Emit event for cycle detection
+                if AGENT_LIGHTNING_AVAILABLE:
+                    agl.emit_event("qlearning_pathfinding_cycle", {
+                        "current_node": current_node,
+                        "step": step,
+                        "path_length": path.length
+                    })
                 break
             visited.add(current_node)
             
         # If we didn't reach the target, calculate partial score
         path.score = self._calculate_path_score(path, end_node)
+        
+        # Emit event for pathfinding completion
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_pathfinding_complete", {
+                "start_node": start_node,
+                "end_node": end_node,
+                "final_node": current_node,
+                "reached_target": current_node == end_node,
+                "path_length": path.length,
+                "score": path.score,
+                "decisions": decisions
+            })
+        
         return path
         
     def _get_q_value(self, state: str, action: str) -> float:
@@ -687,7 +837,7 @@ class QLearningGraphAgent:
                 break
                 
             # Extract information from the path
-            path_info = f"n--- Context Path {i+1} ---\n"
+            path_info = f"\n--- Context Path {i+1} ---\n"
             
             if hasattr(path, 'nodes') and path.nodes:
                 # Limit nodes for brevity (first 5 nodes)
@@ -730,7 +880,7 @@ class QLearningGraphAgent:
                 break
                 
         # Combine all context parts
-        enhanced_context = "n".join(context_parts)
+        enhanced_context = "\n".join(context_parts)
         
         # Add a summary at the beginning
         summary = f"Enhanced Context Summary (Generated from {len(context_parts)} knowledge paths):\n"
@@ -738,7 +888,7 @@ class QLearningGraphAgent:
         summary += "This context was retrieved and summarized by the QLearning Agent based on your query.\n"
         summary += "--- BEGIN CONTEXT ---\n"
         
-        enhanced_context = summary + enhanced_context + "n--- END CONTEXT ---"
+        enhanced_context = summary + enhanced_context + "\n--- END CONTEXT ---"
         
         # Get related memories (placeholder implementation)
         related_memories = []
@@ -760,3 +910,114 @@ class QLearningGraphAgent:
             "related_memories": related_memories,
             "token_count": token_count
         }
+
+    async def optimize_learning_parameters(self, performance_data: List[Dict[str, Any]]) -> Dict[str, float]:
+        """
+        Use Agent Lightning to optimize learning parameters based on performance data.
+        
+        Args:
+            performance_data: List of performance metrics from previous learning iterations
+            
+        Returns:
+            Dictionary with optimized parameters
+        """
+        logger.info(f"Optimizing learning parameters based on {len(performance_data)} data points")
+        
+        # Emit event for starting parameter optimization
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_optimize_parameters_start", {
+                "data_points_count": len(performance_data)
+            })
+        
+        # Calculate optimal parameters based on performance data
+        # This is a simplified implementation - in a real scenario, you would use
+        # more sophisticated optimization algorithms from Agent Lightning
+        if not performance_data:
+            optimized_params = {
+                "learning_rate": 0.1,
+                "discount_factor": 0.9,
+                "epsilon": 0.1
+            }
+        else:
+            # Calculate averages and adjust parameters based on performance
+            avg_rewards = [data.get("avg_reward", 0) for data in performance_data]
+            avg_path_lengths = [data.get("avg_path_length", 0) for data in performance_data]
+            avg_convergence_steps = [data.get("avg_convergence_steps", 0) for data in performance_data]
+            
+            # Simple optimization: increase learning rate if rewards are low, decrease if paths are too long
+            avg_reward = sum(avg_rewards) / len(avg_rewards) if avg_rewards else 0
+            avg_path_length = sum(avg_path_lengths) / len(avg_path_lengths) if avg_path_lengths else 0
+            
+            # Adjust learning rate based on performance
+            base_lr = 0.1
+            if avg_reward < 0.3:
+                learning_rate = min(0.5, base_lr * 1.5)  # Increase if rewards are low
+            elif avg_reward > 0.7:
+                learning_rate = max(0.01, base_lr * 0.7)  # Decrease if rewards are high
+            else:
+                learning_rate = base_lr
+            
+            # Adjust discount factor based on path lengths
+            base_df = 0.9
+            if avg_path_length > 10:
+                discount_factor = max(0.7, base_df * 0.95)  # Lower discount for longer paths
+            else:
+                discount_factor = base_df
+            
+            # Adjust epsilon based on convergence
+            base_epsilon = 0.1
+            avg_convergence = sum(avg_convergence_steps) / len(avg_convergence_steps) if avg_convergence_steps else 100
+            if avg_convergence > 100:  # Slow convergence
+                epsilon = min(0.3, base_epsilon * 1.5)  # More exploration
+            else:
+                epsilon = base_epsilon * 0.8  # Less exploration if converging well
+            
+            optimized_params = {
+                "learning_rate": learning_rate,
+                "discount_factor": discount_factor,
+                "epsilon": epsilon
+            }
+        
+        # Update the agent's config with optimized parameters
+        self.learning_rate = optimized_params["learning_rate"]
+        self.discount_factor = optimized_params["discount_factor"]
+        self.epsilon = optimized_params["epsilon"]
+        
+        logger.info(f"Optimized parameters: {optimized_params}")
+        
+        # Emit event for parameter optimization completion
+        if AGENT_LIGHTNING_AVAILABLE:
+            agl.emit_event("qlearning_optimize_parameters_complete", {
+                "optimized_parameters": optimized_params,
+                "data_points_count": len(performance_data)
+            })
+        
+        return optimized_params
+
+    async def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get performance metrics that can be used for optimization.
+        
+        Returns:
+            Dictionary with performance metrics
+        """
+        logger.debug("Collecting performance metrics")
+        
+        # Get metrics from the agent's current state
+        q_metrics = self.get_convergence_metrics()
+        
+        # Additional metrics specific to Q-learning performance
+        total_exploration_steps = sum([len(state_actions) for state_actions in self.q_table.values()])
+        
+        performance_data = {
+            "q_metrics": q_metrics,
+            "total_exploration_steps": total_exploration_steps,
+            "q_table_size": q_metrics["q_table_size"],
+            "avg_q_value": q_metrics["average_q_value"],
+            "epsilon": self.epsilon,
+            "learning_rate": self.learning_rate,
+            "discount_factor": self.discount_factor
+        }
+        
+        logger.debug(f"Performance metrics: {performance_data}")
+        return performance_data

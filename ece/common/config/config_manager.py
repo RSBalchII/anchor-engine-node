@@ -129,6 +129,7 @@ class ConfigManager:
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get a configuration value using dot notation.
+        First checks environment variables, then falls back to config file.
         
         Args:
             key: Configuration key (e.g., "llm.active_provider")
@@ -137,6 +138,29 @@ class ConfigManager:
         Returns:
             The configuration value or default
         """
+        # First, try to get from environment variable
+        # Convert dot notation to a valid environment variable name
+        env_var_name = key.upper().replace('.', '_')
+        env_value = os.getenv(env_var_name)
+        
+        if env_value is not None:
+            # Try to convert to appropriate type based on the default
+            if isinstance(default, bool):
+                return env_value.lower() in ['true', '1', 'yes', 'on']
+            elif isinstance(default, int):
+                try:
+                    return int(env_value)
+                except ValueError:
+                    return default
+            elif isinstance(default, float):
+                try:
+                    return float(env_value)
+                except ValueError:
+                    return default
+            else:
+                return env_value
+        
+        # If not in environment, fall back to config file
         keys = key.split('.')
         current = self._config
         

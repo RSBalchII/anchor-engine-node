@@ -7,16 +7,16 @@ asynchronous model to align with the ECE architecture and enable non-blocking I/
 
 import os
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
 load_dotenv()
 
-# Import the WebSearchAgent
+# Import the WebSearchAgent (now using local implementation)
 from ece.agents.tier2.web_search_agent import WebSearchAgent
 
 # Import UTCP data models for manual creation
@@ -37,17 +37,12 @@ except ImportError:
 # Initialize FastAPI app
 app = FastAPI(
     title="ECE Web Search Agent",
-    description="The WebSearchAgent provides web search capabilities for the ECE.",
+    description="The WebSearchAgent provides local web search capabilities for the ECE.",
     version="1.0.0"
 )
 
-# Get Tavily API key from environment variables
-tavily_api_key = os.getenv("TAVILY_API_KEY")
-if not tavily_api_key:
-    logger.warning("TAVILY_API_KEY not found in environment variables. Web search functionality will be limited.")
-
-# Create an instance of the WebSearchAgent
-web_search_agent = WebSearchAgent(model="nuextract:3.8b-q4_K_M", tavily_api_key=tavily_api_key, api_base="http://localhost:8085/v1")
+# Create an instance of the WebSearchAgent (now using local implementation)
+web_search_agent = WebSearchAgent(model="nuextract:3.8b-q4_K_M", api_base="http://localhost:8085/v1")
 
 class SearchRequest(BaseModel):
     """Model for search requests."""
@@ -64,28 +59,78 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/search")
-async def search(request: SearchRequest):
+async def search_post(request: Request):
     """
-    Endpoint to perform a web search.
+    POST endpoint to perform a web search using the local implementation.
+    Handles both JSON body and form data.
     
     Args:
-        request: SearchRequest containing the query
+        request: Request object that may contain JSON body or form data
         
     Returns:
         Search results
     """
     try:
-        logger.info(f"Received search request: {request.query}")
+        # Try to get parameters from JSON body first
+        try:
+            body = await request.json()
+            query = body.get("query")
+        except:
+            # If JSON parsing fails, try to get from form data
+            try:
+                form = await request.form()
+                query = form.get("query")
+            except:
+                # If both fail, use query parameters
+                query = request.query_params.get("query")
         
-        # Call the WebSearchAgent to perform the search
-        result = await web_search_agent.search(query=request.query)
+        if not query:
+            raise HTTPException(status_code=400, detail="query is required")
+        
+        logger.info(f"Received POST search request: {query}")
+        
+        # Call the WebSearchAgent to perform the search (now using local implementation)
+        result = await web_search_agent.search(query=query)
         
         # Extract websites from search results
         websites_searched = result.get("websites_searched", [])
         
         return {
             "success": True, 
-            "query": request.query, 
+            "query": query, 
+            "result": result.get("answer", ""),
+            "websites_searched": websites_searched
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error performing search: {e}")
+        raise HTTPException(status_code=500, detail=f"Error performing search: {str(e)}")
+
+@app.get("/search")
+async def search_get(query: str):
+    """
+    GET endpoint to perform a web search using the local implementation.
+    
+    Args:
+        query: The search query to perform
+        
+    Returns:
+        Search results
+    """
+    try:
+        logger.info(f"Received GET search request: {query}")
+        
+        # Call the WebSearchAgent to perform the search (now using local implementation)
+        result = await web_search_agent.search(query=query)
+        
+        # Extract websites from search results
+        websites_searched = result.get("websites_searched", [])
+        
+        return {
+            "success": True, 
+            "query": query, 
             "result": result.get("answer", ""),
             "websites_searched": websites_searched
         }
@@ -103,8 +148,8 @@ async def utcp_manual():
         tools=[
             Tool(
                 name="search",
-                description="Perform a web search using the Tavily API",
-                tags=["web", "search"],
+                description="Perform a local web search using DuckDuckGo and content scraping",
+                tags=["web", "search", "local"],
                 inputs={
                     "type": "object",
                     "properties": {

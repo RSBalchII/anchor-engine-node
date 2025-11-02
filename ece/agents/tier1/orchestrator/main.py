@@ -82,19 +82,19 @@ async def process_prompt_endpoint(request: Request):
     """
     The primary endpoint for processing user prompts.
     """
-    print("DEBUG: Entering process_prompt_endpoint")
+    logger.debug("Entering process_prompt_endpoint")
     try:
-        print("DEBUG: Inside try block of process_prompt_endpoint")
+        logger.debug("Inside try block of process_prompt_endpoint")
         # --- FIX: Instantiate EnhancedOrchestratorAgent per request with a unique session ID ---
         session_id = str(uuid.uuid4())
-        print(f"DEBUG: Generated session_id: {session_id}")
+        logger.debug(f"Generated session_id: {session_id}")
         orchestrator = EnhancedOrchestratorAgent(session_id=session_id)
-        print("DEBUG: EnhancedOrchestratorAgent instantiated successfully")
+        logger.debug("EnhancedOrchestratorAgent instantiated successfully")
 
         body = await request.body()
-        print(f"DEBUG: Request body received: {body}")
+        logger.debug(f"Request body received: {body}")
         poml_string = body.decode("utf-8")
-        print(f"DEBUG: Decoded body: {poml_string}")
+        logger.debug(f"Decoded body: {poml_string}")
 
         try:
             root = ET.fromstring(poml_string)
@@ -111,21 +111,20 @@ async def process_prompt_endpoint(request: Request):
             except json.JSONDecodeError:
                 raise ValueError("Invalid POML or JSON payload")
 
-        print(f"DEBUG: Parsed user prompt: {user_prompt}")
+        logger.debug(f"Parsed user prompt: {user_prompt}")
         final_response = await orchestrator.process_prompt_with_context_management(
             user_prompt
         )
-        print(f"DEBUG: Final response: {final_response}")
+        logger.debug(f"Final response: {final_response}")
 
         return PlainTextResponse(content=final_response)
 
     except ValueError as e:
-        print(f"DEBUG: ValueError caught: {str(e)}")
+        logger.error(f"ValueError caught: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Bad Request: {str(e)}")
     except Exception as e:
         import traceback
         error_details = f"An unexpected error occurred: {str(e)}\nTraceback:\n{traceback.format_exc()}"
-        print(error_details)
         logger.error(error_details)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
@@ -135,18 +134,11 @@ async def get_ollama_models():
     """
     Returns a list of models available from the configured LLM provider.
     """
-    import yaml
-
-    # Load active provider from config file to determine if we should expect Ollama to be available
-    active_provider = "llama_cpp"  # default
-    try:
-        with open("config.yaml", "r") as f:
-            config = yaml.safe_load(f)
-            active_provider = config.get("llm", {}).get("active_provider", "llama_cpp")
-    except FileNotFoundError:
-        logger.warning("config.yaml not found, using default provider (llama_cpp)")
-    except yaml.YAMLError:
-        logger.warning("Error parsing config.yaml, using default provider (llama_cpp)")
+    from ece.common.config_loader import get_config
+    
+    # Load active provider from config loader to determine if we should expect Ollama to be available
+    config = get_config()
+    active_provider = config.get_active_provider()
 
     ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     try:

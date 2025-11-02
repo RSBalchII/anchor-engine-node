@@ -13,6 +13,7 @@ def setup_logging():
     - debug_log_ecosystem.txt
     - debug_log_model_inference.txt
     - debug_log_orchestrator.txt
+    - debug_log_prompt_analysis.txt
     """
     
     # Create logs directory if it doesn't exist
@@ -61,6 +62,18 @@ def setup_logging():
     orchestrator_handler.setFormatter(detailed_formatter)
     orchestrator_logger.addHandler(orchestrator_handler)
     
+    # Setup debug prompt analysis logger
+    prompt_analysis_logger = logging.getLogger('prompt_analysis')
+    prompt_analysis_logger.setLevel(logging.DEBUG)
+    
+    prompt_analysis_handler = RotatingFileHandler(
+        logs_dir / 'debug_log_prompt_analysis.txt',
+        maxBytes=10*1024*1024,  # 10MB
+        backupCount=5
+    )
+    prompt_analysis_handler.setFormatter(detailed_formatter)
+    prompt_analysis_logger.addHandler(prompt_analysis_handler)
+    
     # Setup root logger to also log to console
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(detailed_formatter)
@@ -70,7 +83,8 @@ def setup_logging():
     return {
         'ecosystem': ecosystem_logger,
         'model_inference': model_logger,
-        'orchestrator': orchestrator_logger
+        'orchestrator': orchestrator_logger,
+        'prompt_analysis': prompt_analysis_logger
     }
 
 

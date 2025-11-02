@@ -1,12 +1,14 @@
 # ece/agents/tier1/orchestrator/archivist_client.py
+import os
 import httpx
 import logging
 from typing import List, Dict, Any
 
 
 class ArchivistClient:
-    def __init__(self, base_url: str):
-        self.base_url = base_url
+    def __init__(self, base_url: str = None):
+        # Use environment variable if available, otherwise use provided parameter
+        self.base_url = os.getenv("ARCHIVIST_URL", base_url or "http://localhost:8003")
         self.client = httpx.AsyncClient()
         self.logger = logging.getLogger(__name__)
 

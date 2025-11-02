@@ -253,30 +253,62 @@ class ContextSequenceManager:
         """
         context_parts = []
 
+        # Log the complete context breakdown to the prompt analysis log before constructing
+        try:
+            from ece.common.logging_config import get_logger
+            prompt_analysis_logger = get_logger('prompt_analysis')
+            
+            # Log the breakdown of the context for analysis
+            prompt_analysis_logger.info("=== CONTEXT BREAKDOWN FOR ANALYSIS ===")
+            if not self.persona_context:
+                self.persona_context = self.persona_loader.load_persona()
+            prompt_analysis_logger.info(f"Persona Foundation Loaded: {bool(self.persona_context)}")
+            
+            redis_context = self._load_redis_context(session_id)
+            if redis_context:
+                prompt_analysis_logger.info(f"Redis Context Available: True")
+                prompt_analysis_logger.info(f"Redis Context Length: {len(redis_context)} characters")
+                prompt_analysis_logger.info(f"Redis Context Preview: {redis_context[:200] if len(redis_context) > 200 else redis_context}")
+            else:
+                prompt_analysis_logger.info(f"Redis Context Available: False")
+            
+            enhanced_context = await self._enhance_context_with_agents(prompt, session_id)
+            if enhanced_context:
+                prompt_analysis_logger.info(f"Enhanced Context Available: True")
+                prompt_analysis_logger.info(f"Enhanced Context Length: {len(enhanced_context)} characters")
+                prompt_analysis_logger.info(f"Enhanced Context Preview: {enhanced_context[:200] if len(enhanced_context) > 200 else enhanced_context}")
+            else:
+                prompt_analysis_logger.info(f"Enhanced Context Available: False")
+            
+            prompt_analysis_logger.info(f"Current Prompt: {prompt}")
+            prompt_analysis_logger.info(f"Tool Outputs Present: {bool(tool_outputs)}")
+            prompt_analysis_logger.info(f"Session ID: {session_id}")
+            prompt_analysis_logger.info("===================================")
+        except Exception as e:
+            print(f"Error logging prompt analysis: {e}")  # This should be minimal if logging fails
+
         # 1. Load persona first (before ANY processing begins)
         if not self.persona_context:
             self.persona_context = self.persona_loader.load_persona()
-        context_parts.append(f"PERSONA FOUNDATION:\n{self.persona_context}")
+        context_parts.append(f"{self.persona_context}")
 
         # 2. Load Redis context
-        redis_context = self._load_redis_context(session_id)
-        if redis_context:
-            context_parts.append(f"CONVERSATION HISTORY:\n{redis_context}")
+        if redis_context and "No previous conversation history found" not in redis_context and redis_context.strip():
+            context_parts.append(f"{redis_context}")
 
         # 3. Enhance context with Archivist and QLearning agents
-        enhanced_context = await self._enhance_context_with_agents(prompt, session_id)
-        if enhanced_context:
-            context_parts.append(f"ENHANCED CONTEXT FROM KNOWLEDGE GRAPH:\n{enhanced_context}")
+        if enhanced_context and "No additional context found in knowledge graph" not in enhanced_context and enhanced_context.strip():
+            context_parts.append(f"{enhanced_context}")
 
         # 4. Add current prompt
-        context_parts.append(f"CURRENT PROMPT:\n{prompt}")
+        context_parts.append(f"{prompt}")
 
         # 5. Add tool outputs
         if tool_outputs:
             tool_context = self._format_tool_outputs(tool_outputs)
-            context_parts.append(f"TOOL OUTPUTS:\n{tool_context}")
-
-        return "\n\n" + "="*50 + "\n\n".join(context_parts) + "\n\n" + "="*50 + "\n"
+            context_parts.append(f"{tool_context}")
+        
+        return "\n\n".join(context_parts) + "\n\n"
     
     async def _enhance_context_with_agents(self, prompt: str, session_id: Optional[str] = None) -> str:
         """
@@ -544,10 +576,13 @@ class ModelManager:
             self.logger = logging.getLogger(__name__)
             self.logger.warning("Could not import ECE logging system, using default logging")
         
+        # Use environment variable for API base if available, otherwise use provided parameter
+        env_api_base = os.getenv("LLM_LLAMA_CPP_API_BASE", api_base)
+        
         # Set the API base to the provided value if it's different from current
-        if ModelManager._api_base != api_base:
-            ModelManager._api_base = api_base
-            self.logger.info(f"API base updated to: {api_base}")
+        if ModelManager._api_base != env_api_base:
+            ModelManager._api_base = env_api_base
+            self.logger.info(f"API base updated to: {env_api_base}")
         
         # Load default model from config if no model is currently set
         if ModelManager._current_model is None:
@@ -556,105 +591,90 @@ class ModelManager:
         self.__initialized = True
     
     def _load_default_model_from_config(self):
-        """Load the default model from config.yaml if available."""
+        """Load the default model from the new configuration system (with environment variable support)."""
         try:
-            import yaml
-            config_file = "config.yaml"
+            # Use the new config loader system that supports environment variables
+            from ece.common.config_loader import get_config
+            config_loader = get_config()
             
-            if os.path.exists(config_file):
-                with open(config_file, "r") as f:
-                    config = yaml.safe_load(f)
-                
-                llm_config = config.get("llm", {})
-                active_provider = llm_config.get("active_provider", "llama_cpp")
-                providers = llm_config.get("providers", {})
-                
-                if active_provider in providers:
-                    provider_config = providers[active_provider]
+            # Get values using the new system, with environment variable precedence
+            active_provider = config_loader.get("llm.active_provider", "llama_cpp")
+            provider_config = config_loader.get_llm_config(active_provider)
+            
+            # Get model path from the new configuration system (which includes environment variables)
+            model_path = provider_config.get("model_path") or provider_config.get("model")
+            
+            if model_path:
+                # Normalize the model path to resolve any issues with duplicate paths or extensions
+                model_path = str(Path(model_path).as_posix())  # Normalize path separators
+                # Remove any duplicate path segments like '../../models/..\\..\\models\\'
+                if '../' in model_path or '..\\' in model_path:
+                    # If the path has malformed segments, try to extract just the filename
+                    original_path = Path(model_path)
+                    model_filename = original_path.name
                     
-                    # Get model path from config - try multiple possible keys
-                    model_path = provider_config.get("model_path") or provider_config.get("model")
+                    # Check if it ends with a double extension and fix it
+                    if model_filename.endswith('.gguf.gguf'):
+                        corrected_filename = model_filename.replace('.gguf.gguf', '.gguf')
+                        model_path = str(original_path.parent / corrected_filename)
+                        self.logger.info(f"Corrected double .gguf extension: {model_path}")
+                
+                # Extract model name from the normalized path
+                model_name = Path(model_path).stem
+                if model_name and model_name != "":
+                    # Set the model properties but do not start the model yet
+                    # The model will be started on demand when needed
+                    model_file_path = Path("models") / f"{model_name}.gguf"
                     
-                    if model_path:
-                        # Normalize the model path to resolve any issues with duplicate paths or extensions
-                        model_path = str(Path(model_path).as_posix())  # Normalize path separators
-                        # Remove any duplicate path segments like '../../models/..\\..\\models\\'
-                        if '../' in model_path or '..\\' in model_path:
-                            # If the path has malformed segments, try to extract just the filename
-                            original_path = Path(model_path)
-                            model_filename = original_path.name
-                            
-                            # Check if it ends with a double extension and fix it
-                            if model_filename.endswith('.gguf.gguf'):
-                                corrected_filename = model_filename.replace('.gguf.gguf', '.gguf')
-                                model_path = str(original_path.parent / corrected_filename)
-                                self.logger.info(f"Corrected double .gguf extension: {model_path}")
+                    # First check if the configured model file exists directly
+                    if model_file_path.exists():
+                        ModelManager._current_model = str(model_file_path)
+                        self.logger.info(f"Default model configured from config: {model_name}")
                         
-                        # Extract model name from the normalized path
-                        model_name = Path(model_path).stem
-                        if model_name and model_name != "":
-                            # Set the model properties but do not start the model yet
-                            # The model will be started on demand when needed
-                            model_file_path = Path("models") / f"{model_name}.gguf"
-                            
-                            # First check if the configured model file exists directly
-                            if model_file_path.exists():
-                                ModelManager._current_model = str(model_file_path)
-                                self.logger.info(f"Default model configured from config: {model_name}")
-                                
-                                # Update API base if specified in config
-                                config_api_base = provider_config.get("api_base")
-                                if config_api_base:
-                                    ModelManager._api_base = config_api_base
-                                    self.logger.info(f"API base updated from config: {config_api_base}")
-                                
-                                # Extract port from API base if available
-                                if config_api_base:
-                                    try:
-                                        import urllib.parse
-                                        parsed = urllib.parse.urlparse(config_api_base)
-                                        if parsed.port:
-                                            ModelManager._model_server_port = parsed.port
-                                    except Exception as e:
-                                        self.logger.warning(f"Could not parse port from API base: {e}")
-                            else:
-                                # If the model file doesn't exist in the models directory, check if it's an absolute path
-                                config_model_path = Path(model_path)
-                                if config_model_path.exists():
-                                    ModelManager._current_model = str(config_model_path)
-                                    self.logger.info(f"Default model configured from absolute path: {model_path}")
-                                    
-                                    # Update API base if specified in config
-                                    config_api_base = provider_config.get("api_base")
-                                    if config_api_base:
-                                        ModelManager._api_base = config_api_base
-                                        self.logger.info(f"API base updated from config: {config_api_base}")
-                                    
-                                    # Extract port from API base if available
-                                    if config_api_base:
-                                        try:
-                                            import urllib.parse
-                                            parsed = urllib.parse.urlparse(config_api_base)
-                                            if parsed.port:
-                                                ModelManager._model_server_port = parsed.port
-                                        except Exception as e:
-                                            self.logger.warning(f"Could not parse port from API base: {e}")
-                                else:
-                                    self.logger.warning(f"Configured model file does not exist: {model_file_path}")
-                                    # Try to find a fallback model from available models
-                                    self._find_fallback_model(model_name)
-                        else:
-                            self.logger.warning("Model name could not be extracted from model_path in config")
+                        # Use API base from the new configuration system
+                        # This will use environment variables if available, otherwise config file value
+                        api_base = config_loader.get("llm.providers.llama_cpp.api_base", "http://localhost:8080/v1")
+                        ModelManager._api_base = api_base
+                        self.logger.info(f"API base updated from config: {api_base}")
+                        
+                        # Extract port from API base if available
+                        try:
+                            import urllib.parse
+                            parsed = urllib.parse.urlparse(api_base)
+                            if parsed.port:
+                                ModelManager._model_server_port = parsed.port
+                        except Exception as e:
+                            self.logger.warning(f"Could not parse port from API base: {e}")
                     else:
-                        self.logger.warning(f"No model path specified in config for provider: {active_provider}")
-                        # Try to find any available model as fallback
-                        self._find_fallback_model()
+                        # If the model file doesn't exist in the models directory, check if it's an absolute path
+                        config_model_path = Path(model_path)
+                        if config_model_path.exists():
+                            ModelManager._current_model = str(config_model_path)
+                            self.logger.info(f"Default model configured from absolute path: {model_path}")
+                            
+                            # Use API base from the new configuration system
+                            api_base = config_loader.get("llm.providers.llama_cpp.api_base", "http://localhost:8080/v1")
+                            ModelManager._api_base = api_base
+                            self.logger.info(f"API base updated from config: {api_base}")
+                            
+                            # Extract port from API base if available
+                            try:
+                                import urllib.parse
+                                parsed = urllib.parse.urlparse(api_base)
+                                if parsed.port:
+                                    ModelManager._model_server_port = parsed.port
+                            except Exception as e:
+                                self.logger.warning(f"Could not parse port from API base: {e}")
+                        else:
+                            self.logger.warning(f"Configured model file does not exist: {model_file_path}")
+                            # Try to find a fallback model from available models
+                            self._find_fallback_model(model_name)
                 else:
-                    self.logger.warning(f"Active provider '{active_provider}' not found in config providers")
-                    # Try to find any available model as fallback
-                    self._find_fallback_model()
+                    self.logger.warning("Model name could not be extracted from model_path in config")
             else:
-                self.logger.warning("config.yaml not found, using defaults")
+                self.logger.warning(f"No model path specified in config for provider: {active_provider}")
+                # Try to find any available model as fallback
+                self._find_fallback_model()
         except Exception as e:
             self.logger.error(f"Error loading default model from config: {e}")
     
@@ -843,18 +863,21 @@ class ModelManager:
     
     async def ensure_model_running(self) -> bool:
         """
-        Ensure the model server is running, start it if necessary.
+        Ensure the model server is running via the unified proxy.
         
         Returns:
-            bool: True if model is running or started successfully, False otherwise
+            bool: True if model is accessible via proxy, False otherwise
         """
+        # With unified proxy, we only need to check health at the proxy endpoint
+        # The proxy handles starting/stopping models as needed
         if await self.check_model_health():
-            self.logger.info("Model server is already running and healthy.")
+            self.logger.info("Model server is accessible via unified proxy and healthy.")
             return True
         else:
-            self.logger.info("Model server is not running. Attempting to start...")
-            # Try to start the model server
-            return await self.start_model_server()
+            self.logger.warning("Model server may not be accessible via unified proxy.")
+            # For unified proxy setup, we don't start the server directly
+            # The proxy manages that for us
+            return False
     
     async def check_model_health(self) -> bool:
         """
@@ -926,273 +949,94 @@ class ModelManager:
     
     async def start_model_server(self) -> bool:
         """
-        Start the model server by actually launching the llama.cpp server process.
+        With the unified proxy, the model server is already running.
+        This method checks if the unified proxy is accessible.
         """
         try:
-            # If we already have a running process, check if it's still alive
-            if self.running_model_process and self.running_model_process.poll() is None:
-                # Process is still running, check health
-                if await self.check_model_health():
-                    self.logger.info("Model server is already running and healthy.")
-                    return True
-                else:
-                    # Process is running but not responding, restart it
-                    self.logger.info("Model server process is running but not responding. Restarting...")
-                    self.stop_model()
-
-            # If we don't have a current model but have a model name, try to start it
-            if not self.current_model:
-                self.logger.warning("No current model selected. Attempting to load from configuration...")
-                # Attempt to load the default model from config again in case it wasn't loaded during init
-                self._load_default_model_from_config()
-                
-                if not self.current_model:
-                    self.logger.error("No model configured. Cannot start model server without a model.")
-                    return False
-            
-            # Parse the current API base to extract the port
-            import urllib.parse
-            parsed = urllib.parse.urlparse(self.api_base)
-            port = parsed.port if parsed.port else 8080  # Default to 8080 if no port is specified
-            
-            # Start the actual model server process with the correct port
-            model_name = Path(self.current_model).stem if self.current_model else None
-            if model_name:
-                success = self.start_model(model_name, port=port)  # Pass the port from API base
-                
-                if success:
-                    self.logger.info("Model server started successfully.")
-                    # Wait a moment for the server to initialize
-                    await asyncio.sleep(2)
-                    return True
-                else:
-                    self.logger.error("Failed to start model server process.")
-                    return False
+            # If using unified proxy, just check if it's accessible
+            if await self.check_model_health():
+                self.logger.info("Unified model proxy is already running and healthy.")
+                return True
             else:
-                self.logger.error("Could not extract model name to start.")
+                self.logger.warning("Unified model proxy is not accessible.")
                 return False
-                
         except Exception as e:
-            self.logger.error(f"Error starting model server: {e}")
+            self.logger.error(f"Error checking unified proxy health: {e}")
             return False
     
     def select_model(self, model_name: str) -> bool:
         """
-        Select a model by name and start it if not already running.
+        Select a model by name via the unified proxy.
         
         Args:
             model_name: Name of the model to select
             
         Returns:
-            bool: True if model selected and started successfully, False otherwise
+            bool: True if model selection initiated successfully, False otherwise
         """
         try:
-            # Check if the requested model is already running
-            if self.current_model and model_name in self.current_model:
-                self.logger.info(f"Model {model_name} is already running.")
-                return True
-            
-            # Stop any currently running model
-            if self.running_model_process:
-                self.stop_model()
-
-            # Parse the current API base to extract the port
-            import urllib.parse
-            parsed = urllib.parse.urlparse(self.api_base)
-            port = parsed.port if parsed.port else 8080  # Default to 8080 if no port is specified
-            
-            # Start the requested model with the correct port
-            success = self.start_model(model_name, port=port)
-
-            if success:
-                self.logger.info(f"Model {model_name} selected and started successfully.")
-                return True
-            else:
-                self.logger.error(f"Failed to start model: {model_name}")
-                return False
+            # For unified proxy setup, we just need to make sure the proxy is healthy
+            # The proxy handles model switching internally
+            self.current_model = model_name
+            self.logger.info(f"Model {model_name} selected (proxy will handle actual loading).")
+            return True
         except Exception as e:
             self.logger.error(f"Error selecting model {model_name}: {e}")
             return False
     
     def start_model(self, model_name: str, port: int = None) -> bool:
         """
-        Start a specific model server on demand.
+        With the unified proxy, model starting is handled by the proxy.
+        This method exists for compatibility but just sets the current model.
         
         Args:
             model_name: Name of the model to start
-            port: Port number to run the model on (will be assigned if not provided)
+            port: Port number (ignored in unified proxy setup)
             
         Returns:
-            bool: True if model started successfully, False otherwise
+            bool: True (model starting is managed by proxy)
         """
-        if port is None:
-            port = self._find_available_port()
-
-        models_dir = Path("models")
-        model_path = models_dir / f"{model_name}.gguf"
-
-        if not model_path.exists():
-            # Try without .gguf extension
-            model_path = models_dir / model_name
-            if not model_path.exists() and not model_name.endswith('.gguf'):
-                model_path = models_dir / f"{model_name}"
-                if not model_path.exists():
-                    raise HTTPException(status_code=404, detail=f"Model file not found: {model_name}")
-
-        # Check if another model server is already running and stop it
-        if self.running_model_process and self.running_model_process.poll() is None:
-            self.stop_model()
-
-        # Find the llama.cpp server executable
-        # First try the newer llama-server.exe name, then fall back to server.exe
-        llama_server_paths = [
-            Path("llama.cpp") / "build" / "bin" / "Release" / "llama-server.exe",
-            Path("..") / "llama.cpp" / "build" / "bin" / "Release" / "llama-server.exe",
-            Path("llama.cpp") / "build" / "bin" / "Release" / "server.exe",
-            Path("..") / "llama.cpp" / "build" / "bin" / "Release" / "server.exe"
-        ]
-
-        llama_server_path = None
-        for path in llama_server_paths:
-            if path.exists():
-                llama_server_path = path
-                break
-
-        # If not found in standard locations, try platform-specific names
-        if llama_server_path is None:
-            import platform
-            if platform.system() == "Linux":
-                llama_server_paths = [
-                    Path("llama.cpp") / "server" / "llama-server",
-                    Path("..") / "llama.cpp" / "server" / "llama-server"
-                ]
-                for path in llama_server_paths:
-                    if path.exists():
-                        llama_server_path = path
-                        break
-            elif platform.system() == "Darwin":  # macOS
-                llama_server_paths = [
-                    Path("llama.cpp") / "server" / "llama-server",
-                    Path("..") / "llama.cpp" / "server" / "llama-server"
-                ]
-                for path in llama_server_paths:
-                    if path.exists():
-                        llama_server_path = path
-                        break
-
-        if llama_server_path is None:
-            raise HTTPException(status_code=500, detail="llama.cpp server executable not found")
-
-        try:
-            # Start the model server in a subprocess
-            cmd = [
-                str(llama_server_path),
-                "-m", str(model_path),
-                "-c", "4096",
-                "--port", str(port),
-                "--host", "127.0.0.1",
-                "-t", "8",  # threads
-                "--n-gpu-layers", "-1"  # Use GPU if available
-            ]
-            
-            # Start the model server subprocess with proper logging configuration
-            import threading
-            import queue
-            
-            # Create the process with stdout and stderr redirected
-            self.running_model_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,  # Line buffered
-                universal_newlines=True
-            )
-            
-            # Create a thread to capture stdout
-            def capture_output(pipe, level="INFO"):
-                for line in iter(pipe.readline, ''):
-                    if line.strip():  # Only log non-empty lines
-                        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                        log_entry = f"{timestamp} [{level}] model_inference:1 - {line.strip()}"
-                        with open('logs/debug_log_model_inference.txt', 'a', encoding='utf-8') as f:
-                            f.write(log_entry + '\n')
-                pipe.close()
-            
-            # Start threads to capture both stdout and stderr
-            stdout_thread = threading.Thread(target=capture_output, args=(self.running_model_process.stdout, "INFO"))
-            stderr_thread = threading.Thread(target=capture_output, args=(self.running_model_process.stderr, "ERROR"))
-            
-            # Make threads daemon so they don't prevent script exit
-            stdout_thread.daemon = True
-            stderr_thread.daemon = True
-            
-            # Start the threads
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Store the model and port information
-            self.current_model = str(model_path)
-            self.model_server_port = port
-
-            # Update the API base with the new port
-            self.api_base = f"http://localhost:{port}/v1"
-
-            # Wait for the server to start with health check
-            if not self._wait_for_model_server(port, timeout=30):
-                raise HTTPException(status_code=500, detail="Model server failed to start within timeout period")
-
-            # Check if the process is still running
-            if self.running_model_process.poll() is not None:
-                # Process has already terminated, get the error output
-                _, stderr = self.running_model_process.communicate()
-                raise HTTPException(status_code=500, detail=f"Model server failed to start: {stderr.decode()}")
-            
-            return True
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to start model server: {str(e)}")
+        self.current_model = model_name
+        self.logger.info(f"Model {model_name} registration updated (actual starting managed by unified proxy).")
+        return True
     
     def stop_model(self) -> bool:
         """
-        Stop the currently running model server.
+        With the unified proxy, model stopping is handled by the proxy.
+        This method exists for compatibility but just resets the model reference.
         
         Returns:
-            bool: True if model stopped successfully, False otherwise
+            bool: True (model stopping is managed by proxy)
         """
         if self.running_model_process:
             try:
-                # Terminate the process gracefully
-                self.running_model_process.terminate()
-
-                # Wait for the process to terminate
-                try:
-                    self.running_model_process.wait(timeout=10)  # Wait up to 10 seconds
-                except subprocess.TimeoutExpired:
-                    # Force kill if it doesn't terminate gracefully
-                    self.running_model_process.kill()
-                    self.running_model_process.wait()  # Wait for force kill to complete
-
+                # For unified proxy setup, we don't manage the process directly
+                # Instead, just reset our model reference
                 self.running_model_process = None
                 self.current_model = None
-                self.api_base = "http://localhost:8080/v1"  # Reset to default
+                self.api_base = "http://localhost:8080/v1"  # Reset to default proxy
+                self.logger.info("Model reference reset (stopping managed by unified proxy)")
                 return True
             except Exception as e:
-                print(f"Error stopping model: {e}")
+                self.logger.error(f"Error resetting model reference: {e}")
                 return False
         return True  # If no process was running, consider it stopped
     
     def restart_model(self, model_name: str) -> bool:
         """
-        Restart the model server with a potentially different model.
+        With the unified proxy, model restart is handled by the proxy.
+        This method just updates the model reference.
         
         Args:
             model_name: Name of the model to restart with
             
         Returns:
-            bool: True if restart was successful
+            bool: True if model reference updated successfully
         """
-        self.stop_model()
-        return self.start_model(model_name)
+        # With unified proxy, we just update the reference and let the proxy handle the actual restart
+        self.current_model = model_name
+        self.logger.info(f"Model reference updated to {model_name} (restart managed by unified proxy)")
+        return True
     
     def refresh_configuration(self):
         """

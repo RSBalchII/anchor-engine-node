@@ -1,17 +1,14 @@
-# ChromaDB data
-chroma_db_data/
-
-# Blackboard file
-archivist_blackboard.md
-
 # Python cache
-__pycache__/
+__pycache__/*
+/__pycache__
 
 # Docker
 docker-compose.override.yml
 
+# Environment Settings
 .venv/*
 .venv
+.env
 
 llama.cpp/
 llama.cpp/*

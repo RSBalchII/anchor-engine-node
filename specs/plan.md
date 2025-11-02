@@ -398,6 +398,18 @@ This document outlines the updated phased development plan for the External Cont
 9.  **T-027.9:** [COMPLETED] Create unified startup script with single source of truth
 10. **T-027.10:** [COMPLETED] Test all improvements in various execution environments
 
+## T-028: Phase 28 - Simplified Model Server Implementation (Completed)
+
+**Goal:** Implement a simplified model server that directly runs llama.cpp for easier deployments.
+
+1.  **T-028.1:** [COMPLETED] Create simple_model_server.py script that directly starts llama.cpp server
+2.  **T-028.2:** [COMPLETED] Implement model building functionality if llama.cpp is not already built
+3.  **T-028.3:** [COMPLETED] Add model discovery to list all available models in the models directory
+4.  **T-028.4:** [COMPLETED] Create Windows batch and PowerShell startup scripts for simplified server
+5.  **T-028.5:** [COMPLETED] Update documentation to include simplified approach as an alternative
+6.  **T-028.6:** [COMPLETED] Ensure the simplified approach runs on port 8080 for compatibility with existing applications
+7.  **T-028.7:** [COMPLETED] Document benefits and use cases for simplified vs. complex approach
+
 ## T-028: Phase 28 - Model Server Startup and UTCP Tool Discovery Resolution (Completed)
 
 **Goal:** Resolve the issue of forge-cli not being able to discover UTCP tools by ensuring the model server and all required agents are running.
@@ -410,6 +422,32 @@ This document outlines the updated phased development plan for the External Cont
 6.  **T-028.6:** [COMPLETED] Validate that all tools are properly registered and accessible via UTCP
 7.  **T-028.7:** [COMPLETED] Document the resolution of the forge-cli UTCP tool discovery issue
 
+## T-029: Phase 29 - Local Web Search Implementation (Completed)
+
+**Goal:** Replace the Tavily API dependency with a local web search implementation using DuckDuckGo and local scraping.
+
+1.  **T-029.1:** [COMPLETED] Create LocalWebScraper class for fetching and parsing web content from URLs
+2.  **T-029.2:** [COMPLETED] Implement DuckDuckGoSearchEngine class for performing DuckDuckGo searches and scraping results
+3.  **T-029.3:** [COMPLETED] Update WebSearchAgent to use local scraping instead of Tavily API
+4.  **T-029.4:** [COMPLETED] Add GET endpoint support to web search agent for UTCP compatibility
+5.  **T-029.5:** [COMPLETED] Implement keyword-based fallbacks for search queries when DuckDuckGo search fails
+6.  **T-029.6:** [COMPLETED] Add content limiting to prevent overwhelming the LLM with too much information
+7.  **T-029.7:** [COMPLETED] Implement proper error handling and graceful degradation mechanisms
+8.  **T-029.8:** [COMPLETED] Update documentation to reflect the local web search implementation
+9.  **T-029.9:** [COMPLETED] Test the local web search functionality with various queries
+
+## T-030: Phase 30 - Filesystem Agent Fixes and Optimization (Completed)
+
+**Goal:** Fix critical issues with the filesystem agent that are preventing proper tool usage and optimize its startup process.
+
+1.  **T-030.1:** [COMPLETED] Identify and resolve WinError 10013 "An attempt was made to access a socket in a way forbidden by its access permissions" by detecting and killing conflicting processes using port 8006
+2.  **T-030.2:** [COMPLETED] Add GET endpoint support to filesystem agent for better UTCP client compatibility and to resolve 422 "Unprocessable Content" errors
+3.  **T-030.3:** [COMPLETED] Implement proper error handling in filesystem agent to gracefully handle port conflicts and startup failures
+4.  **T-030.4:** [COMPLETED] Optimize filesystem agent startup time by implementing parallel startup with staggered timing
+5.  **T-030.5:** [COMPLETED] Add comprehensive logging to filesystem agent for better debugging and monitoring
+6.  **T-030.6:** [COMPLETED] Implement health check mechanisms to verify filesystem agent is properly started and responsive
+7.  **T-030.7:** [COMPLETED] Add timeout handling to prevent indefinite waiting during filesystem agent startup
+
 ## Current Status
 
 - **Model Server**: Running successfully on port 8091 with the gemma-3-4b-it-qat-abliterated.q8_0.gguf model
@@ -417,6 +455,8 @@ This document outlines the updated phased development plan for the External Cont
 - **UTCP Services**: All agents are properly registering their tools with UTCP
 - **Forge-CLI**: Working correctly with full functionality including tool discovery and prompt processing
 - **Configuration**: Correctly pointing to all required services and model files
+- **Local Web Search**: Implemented with DuckDuckGo search and local scraping, no external API required
+- **Filesystem Agent**: Fixed port conflict issues and optimized for better performance and reliability
 
 ## Resolved Issues
 
@@ -425,6 +465,10 @@ This document outlines the updated phased development plan for the External Cont
 ✅ **Incomplete Agent Registration**: Confirmed all agents are properly registering tools
 ✅ **Configuration Mismatch**: Verified all configurations are correct
 ✅ **Forge-CLI Connectivity**: Resolved all connection issues and verified functionality
+✅ **Tavily API Dependency**: Replaced with local DuckDuckGo search and scraping implementation
+✅ **Filesystem Agent Port Conflicts**: Resolved WinError 10013 by freeing up port 8006
+✅ **Filesystem Agent Timeout Issues**: Fixed startup reliability with proper health checks
+✅ **UTCP Compatibility Issues**: Added GET endpoint support to resolve 422 errors
 
 ## Next Steps
 
@@ -432,4 +476,6 @@ This document outlines the updated phased development plan for the External Cont
 2. Document the resolution in the specifications
 3. Update task tracking to reflect the completed work
 4. Continue testing advanced forge-cli functionality with complex prompts
+5. Implement parallel agent startup optimization to reduce overall ecosystem startup time
 5. Verify that all UTCP tools work correctly with complex operations
+6. Test the local web search functionality with various queries to ensure reliability
