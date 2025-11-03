@@ -409,7 +409,7 @@ async def get_model_status():
 
 
 @app.get("/health")
-def health_check():
+async def health_check():
     """
     Health check endpoint to verify orchestrator is running and healthy.
     """
@@ -423,9 +423,9 @@ def health_check():
                 "message": "Orchestrator is still starting up"
             })
         
-        # Check model health
-        model_healthy = model_manager.check_model_health()
-        model_status = model_manager.get_model_status()
+        # Check model health - await the async method
+        model_healthy = await model_manager.check_model_health() if model_manager else False
+        model_status = model_manager.get_model_status() if model_manager else {}
         
         return JSONResponse(content={
             "status": "ok",

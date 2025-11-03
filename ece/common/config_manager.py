@@ -79,7 +79,13 @@ class ConfigManager:
         if not self._config.get('version'):
             self._config['version'] = '2.0.0'
             self._config['version_updated'] = datetime.datetime.now().isoformat()
-            self.logger.info(f"Initialized configuration version to {self._config['version']}")
+            # Use safe logging in case logger is not initialized yet
+            try:
+                self.logger.info(f"Initialized configuration version to {self._config['version']}")
+            except AttributeError:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"Initialized configuration version to {self._config['version']}")
         
         # Add any schema migrations here as needed
         # Example migration for future versions:
