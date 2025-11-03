@@ -1,6 +1,8 @@
 # Python cache
 __pycache__/*
 /__pycache__
+/__pycache__/*
+*.pyc
 
 # Docker
 docker-compose.override.yml
@@ -10,6 +12,7 @@ docker-compose.override.yml
 .venv
 .env
 
+# llama.cpp
 llama.cpp/
 llama.cpp/*
 models/
