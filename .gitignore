@@ -10,15 +10,110 @@ docker-compose.override.yml
 # Environment Settings
 .venv/*
 .venv
+env/
 .env
 
-# llama.cpp
+# llama.cpp - ignore build artifacts but keep source
 llama.cpp/
-llama.cpp/*
-models/
+llama.cpp/* 
+!llama.cpp/README.md
+!llama.cpp/*.h
+!llama.cpp/*.hpp
+!llama.cpp/*.c
+!llama.cpp/*.cpp
+!llama.cpp/*.py
+!llama.cpp/*.txt
+!llama.cpp/*.md
+!llama.cpp/CMakeLists.txt
+!llama.cpp/Makefile
+!llama.cpp/LICENSE
+!llama.cpp/requirements.txt
+llama.cpp/build/
+llama.cpp/bin/
+llama.cpp/llama-server*
+llama.cpp/llama-cli*
+
+# Models - large binary files
 models/*
+!models/README.md  # Keep documentation but not model files
+*.gguf
+*.bin
+*.chkpt
+*.pth
+*.pt
+*.onnx
+*.pb
+*.tflite
+*.safetensors
+*.bin.index
+*.index.json
+
+# Logs - can grow very large over time
+logs/*
+*.log
+debug_log
+
+# Virtual environments and cache
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
 # Docs and Agent context
 QWEN.md
-logs/*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.whl
+*.tar.gz
+*.zip
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Large data files and temporary files
+*.csv  # Only if these are large files
+*.json  # Only if these are large files (like model configs are okay)
 combined_text.txt
+
+# Checkpoint and model files
+*.ckpt
+*.safetensors
+*.pth
+*.pt
+*.bin
+*.pb
+*.onnx
+*.tflite
+
+# Any compiled extensions
+*.so
+*.dll
+*.dylib
+
+# Local config files (that might contain sensitive info)
+*.local
+config.local
+.local
+
+# Temporary files
+*.tmp
+*.temp
+*~
