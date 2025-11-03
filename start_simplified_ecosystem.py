@@ -520,10 +520,11 @@ class SimplifiedECEStartup:
                 logger.info("- Check that the ECE directory structure matches the expected layout")
                 return False
                 
-            cmd = [sys.executable, str(orchestrator_path)]
+            # Use uvicorn to run the orchestrator as a proper ASGI server
+            cmd = [sys.executable, "-m", "uvicorn", "ece.agents.tier1.orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000"]
             logger.info(f"Running ECE orchestrator: {' '.join(cmd)}")
             
-            process = subprocess.Popen(cmd, cwd=ece_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self.processes.append(("ECE orchestrator", process))
             logger.info(f"[SUCCESS] ECE orchestrator started with PID {process.pid}")
             
