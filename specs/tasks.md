@@ -589,3 +589,87 @@ The implementation includes:
 5. Backward compatibility with the existing ECE ecosystem
 
 This unified approach is ideal for users who need the full ECE functionality but want a simpler way to start the entire system with one command. It eliminates the complexity of managing multiple startup scripts while preserving all essential functionality for model serving and inference.
+
+---
+
+## T-040: PEVG Architectural Integration (Aspirational Goal)
+
+**Objective:** Refactor the current `EnhancedOrchestratorAgent` into the formal **Planner, Executor, Verifier, Generator (PEVG)** agentic workflow to enhance reliability, debuggability, and align with the v4.x 'Goal' architecture.
+
+-   **T-040.1:** [PENDING] Refactor `EnhancedOrchestratorAgent` into a dedicated `PlannerAgent` responsible for multi-step plan creation and querying the ReasoningBank.
+-   **T-040.2:** [PENDING] Create the new `VerifierAgent` class/service. This agent is responsible for quality control and enforcing core `values` (Honesty, Rigor) on Executor outputs before they proceed.
+-   **T-040.3:** [PENDING] Create the new `GeneratorAgent` class/service. This agent's sole responsibility is to synthesize verified outputs into a final, coherent natural language response.
+-   **T-040.4:** [PENDING] Formally define existing tool agents (`FileSystemAgent`, `WebSearchAgent`, `ArchivistAgent`, etc.) as `ExecutorAgents` within the PEVG framework.
+-   **T-040.5:** [PENDING] Update the main application logic to route all incoming requests through this new PEVG processing loop (Plan -> Execute -> Verify -> Generate).
+
+---
+
+## T-050: TRM Cognitive Model Implementation (Aspirational Goal)
+
+**Objective:** Implement the **Tiny Recursive Model (TRM)** iterative self-correction loop to enable deep, state-of-the-art reasoning using small, efficient local models.
+
+-   **T-050.1:** [PENDING] Develop a generic `TRM_Solver` class or standalone service that implements the 'Reason -> Answer -> Self-Critique -> Refine' loop.
+-   **T-050.2:** [PENDING] The `TRM_Solver` must be able to wrap a local LLM call (via the `ModelManager`) and be configurable for recursion depth.
+-   **T-050.3:** [PENDING] Integrate the `TRM_Solver` into the `PlannerAgent` (from T-040) as its primary reasoning engine for plan creation and refinement.
+
+---
+
+## T-060: ReasoningBank Implementation (Aspirational Goal)
+
+**Objective:** Implement the 'ReasoningBank' methodology for inter-task learning, enabling the ECE to learn from its own successes and failures and evolve its capabilities over time.
+
+-   **T-060.1:** [PENDING] Update the Neo4j graph schema to support nodes for storing generalizable reasoning (e.g., `Principle`, `LessonLearned`, `Strategy`).
+-   **T-060.2:** [PENDING] Add a new responsibility to the `ArchivistAgent` to analyze completed task trajectories (which have been signed off by the `VerifierAgent`).
+-   **T-060.3:** [PENDING] This analysis sub-task must use an LLM to distill a generalizable 'lesson' (e.g., Title, Description, Principle) from the task outcome.
+-   **T-060.4:** [PENDING] Update the `PlannerAgent` (from T-040) to query this 'ReasoningBank' in Neo4j for relevant `Principles` *before* generating a new plan.
+
+---
+
+## T-070: UTCP Communication Protocol Enhancement (COMPLETED)
+
+**Objective:** Enhance UTCP implementation to support multiple communication protocols with automatic selection and fallback mechanisms for improved reliability and flexibility.
+
+-   **T-070.1:** [COMPLETED] Add support for multiple UTCP communication protocols (HTTP, SSE, WebSocket, MCP, CLI).
+-   **T-070.2:** [COMPLETED] Implement automatic protocol selection algorithm based on tool requirements and network conditions.
+-   **T-070.3:** [COMPLETED] Create fallback mechanism that tries alternative protocols when primary protocol fails.
+-   **T-070.4:** [COMPLETED] Update orchestrator agent configuration to support protocol hierarchy and preferences.
+-   **T-070.5:** [COMPLETED] Document multi-protocol UTCP implementation in specs/utcp_communication_protocols.md.
+-   **T-070.6:** [COMPLETED] Update README.md and spec.md to reflect multi-protocol UTCP capabilities.
+-   **T-070.7:** [COMPLETED] Test protocol selection and fallback mechanisms with various tool operations.
+-   **T-070.8:** [COMPLETED] Implement protocol-specific error handling and logging.
+-   **T-070.9:** [COMPLETED] Add configuration options for protocol timeouts and retry policies.
+-   **T-070.10:** [COMPLETED] Verify UTCP communication remains stable with multi-protocol support.
+
+---
+
+## T-080: Simplified Output Management and Logging System (COMPLETED)
+
+**Objective:** Implement a simplified logging and output management system that consolidates all output to a single file while maintaining real-time console visibility, eliminating complex logging layers that were causing system issues.
+
+-   **T-080.1:** [COMPLETED] Consolidate all output to single log file (`logs/ece-llamacpp.txt`) to prevent logging complexity issues.
+-   **T-080.2:** [COMPLETED] Implement real-time console output display for immediate visibility during development.
+-   **T-080.3:** [COMPLETED] Remove complex logging layers and intermediate logging systems.
+-   **T-080.4:** [COMPLETED] Replace logger initialization with simple print statements for reduced complexity.
+-   **T-080.5:** [COMPLETED] Implement proper UTF-8 encoding to handle special characters and prevent Unicode errors.
+-   **T-080.6:** [COMPLETED] Update run_simplified_ecosystem.py to route all output to both console and log file.
+-   **T-080.7:** [COMPLETED] Add proper error handling for Unicode characters to prevent 'charmap' codec errors.
+-   **T-080.8:** [COMPLETED] Update start_simplified_ecosystem.py to use simple print functions instead of logger.
+-   **T-080.9:** [COMPLETED] Document simplified logging approach in README.md and specs/spec.md.
+-   **T-080.10:** [COMPLETED] Verify all system output is properly captured in the centralized log file.
+
+---
+
+## T-090: Changelog and Documentation Policy Update (COMPLETED)
+
+**Objective:** Create and document the changelog system to provide clear version history and update documentation policies to reflect new project structure.
+
+-   **T-090.1:** [COMPLETED] Create comprehensive changelog file (specs/changelog.md) with version history and detailed changes.
+-   **T-090.2:** [COMPLETED] Document new simplified logging and output management system in changelog.
+-   **T-090.3:** [COMPLETED] Update README.md to include changelog file in allowed documentation locations.
+-   **T-090.4:** [COMPLETED] Update specs/spec.md to include documentation and changelog policy section.
+-   **T-090.5:** [COMPLETED] Create build_scripts/README.md to document the build scripts project structure and policies.
+-   **T-090.6:** [COMPLETED] Add changelog.md to allowed files in documentation policy.
+-   **T-090.7:** [COMPLETED] Document proper changelog format and maintenance procedures.
+-   **T-090.8:** [COMPLETED] Include changelog reference in documentation guidelines.
+-   **T-090.9:** [COMPLETED] Verify changelog follows Keep a Changelog specification format.
+-   **T-090.10:** [COMPLETED] Document changelog maintenance responsibilities and procedures for future development cycles.

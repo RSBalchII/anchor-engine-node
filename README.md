@@ -113,6 +113,7 @@ All markdown files in the `specs/` directory are allowed, including:
 - `specs/reasoning_flow.md` - Detailed reasoning flow documentation
 - `specs/spec.md` - Technical specifications
 - `specs/tasks.md` - Task tracking and progress
+- `specs/changelog.md` - System changelog and version history
 - Any other markdown files created in the `specs/` directory for technical documentation
 
 ### Documentation Guidelines
@@ -146,6 +147,12 @@ All markdown files in the `specs/` directory are allowed, including:
 - **Git Operations**: Full Git repository management capabilities
 - **File System Operations**: Comprehensive file and directory operations
 - **Web Search**: Local DuckDuckGo-based search without external APIs
+
+### Improved Development Experience
+- **Real-time Logging**: All agent outputs and llama inference are displayed directly in the terminal during development
+- **Reduced Health Check Delays**: Minimized arbitrary health check waits for faster service communication
+- **Unified Output**: All logs are displayed in a single terminal view for easier debugging
+- **Configurable Logging**: Option to route logs to both terminal and files as needed
 
 ## Architecture Overview
 The ECE implements a multi-tier agent architecture:
@@ -260,7 +267,7 @@ The ECE implements a multi-tiered agent architecture:
 ```mermaid
 graph TD
     A[User Input] --> B[Orchestrator]
-    
+
     subgraph "Context Loading Sequence"
         P[POML/JSON Persona<br/>First-loaded identity]
         R[Redis Context<br/>Conversation history]
@@ -378,17 +385,27 @@ The PowerShell script provides the core functionality:
 - Starts all ECE agents with visible output in the terminal
 - Provides clear status messages and error handling
 
-## Communication and Logging Updates
+## Simplified Logging and Output Management
 
-Recent updates have improved error reporting and logging for better troubleshooting:
+The system now implements a simplified logging approach that consolidates all output into a single log file while maintaining real-time console visibility:
+
+- **Single Log File**: All outputs are now consolidated in `logs/ece-llamacpp.txt` for easier analysis
+- **Real-time Console Output**: All agent outputs and llama inference are displayed directly in the terminal during development
+- **Reduced Complexity**: Eliminated multiple log files and complex logging system that was causing issues
+- **Terminal-First Approach**: Output streams immediately to terminal with automatic logging
+- **UTF-8 Encoding**: Proper handling of special characters and Unicode output to prevent encoding errors
+- **Direct Routing**: All output is routed directly through the main run script eliminating intermediate logging layers
+- **Simplified Architecture**: Removed complex logger initialization and centralized output handling
+- **No File Logging Issues**: Eliminates the file logging problems that were causing system instability
+- **Streamlined Debugging**: All debug output appears in one centralized location for easier troubleshooting
+- **Unified Display**: All service outputs (llama.cpp server, orchestrator, agents) are displayed in the same terminal view
+- **Automatic File Writing**: While output appears in console, it's simultaneously written to the log file
+- **Proper Error Handling**: Improved handling of Unicode characters and special symbols to prevent console errors
+
+Recent updates have also improved error reporting and logging for better troubleshooting:
 - Debug logging has been enhanced to better track communication between agents
 - Fixed communication issues between orchestrator and agent services
 - Improved error reporting and logging for better troubleshooting
-- Enhanced visibility into system operations for development and debugging
-- Debug logs are now properly directed to files in the logs/ directory:
-  - `logs/debug_log_ecosystem.txt` - for ecosystem-related logs
-  - `logs/debug_log_model_inference.txt` - for model inference logs
-  - `logs/debug_log_orchestrator.txt` - for orchestrator logs
 - The system uses a rotating file handler to manage log sizes and prevent disk space issues
 - Fixed communication issues between orchestrator and agent services after recent configuration changes
 - Verified that ModelManager automatically updates configuration when model is changed via forge-cli
@@ -519,7 +536,7 @@ The ECE now includes a consolidated launcher system that focuses only on what's 
    # Start a model server first
    cd utility_scripts/start
    python run_deepseek_r1_distill_qwen_14b_q4km.py
-   
+
    # In another terminal, start the ECE ecosystem
    cd utility_scripts/start
    python start_ecosystem.py
@@ -558,6 +575,33 @@ The ECE now fully implements the Universal Tool Calling Protocol (UTCP) 1.0+ spe
 - Services include: Distiller (port 8001), QLearning (port 8002), Archivist (port 8003), Injector (port 8004), FileSystem (port 8006), and WebSearch (port 8007)
 
 This decentralized approach provides better reliability, scalability, and eliminates single points of failure.
+
+#### Communication Protocol Support
+
+The UTCP implementation now supports multiple communication protocols for enhanced flexibility:
+
+- **HTTP/HTTPS**: Standard REST API calls for synchronous communication
+- **SSE (Server-Sent Events)**: Streaming communication for long-running operations
+- **WebSocket**: Bidirectional real-time communication for interactive tools
+- **MCP (Model Context Protocol)**: Context-aware communication for AI agent interactions
+- **CLI Integration**: Command-line interface tools accessible through UTCP
+
+The system includes a protocol fallback mechanism that automatically tries alternative communication methods if the primary protocol fails.
+
+#### Protocol Configuration
+
+The UTCP client is configured with the following protocol priorities:
+
+```python
+"supported_protocols": [
+    "http",      # Standard HTTP/REST API calls (default)
+    "sse",       # Server-Sent Events for streaming
+    "websocket", # WebSocket for bidirectional communication
+    "mcp",       # Model Context Protocol
+    "cli"        # Command-line interface tools
+],
+"protocol_fallback_order": ["http", "sse", "websocket", "mcp", "cli"]
+```
 
 ### Current UTCP Configuration
 In the EnhancedOrchestratorAgent, the UTCP configuration is set up with direct endpoints:
@@ -784,26 +828,26 @@ Our **Planner, Executor, Verifier, Generator (PEVG)** framework is powered by a 
 
 Common issues with the filesystem agent and their solutions:
 
-1. **Port Conflict (WinError 10013)**: 
+1. **Port Conflict (WinError 10013)**:
    - **Issue**: "An attempt was made to access a socket in a way forbidden by its access permissions"
    - **Cause**: Another process is already using port 8006
    - **Solution**: Kill the conflicting process using `taskkill /PID <process_id> /F` or restart the system
    - **Diagnosis**: Use `netstat -ano | findstr :8006` to identify the process using the port
    - **Prevention**: Always check for conflicting processes before starting the ECE ecosystem and use proper shutdown procedures
-   
-2. **Agent Timeout**: 
+
+2. **Agent Timeout**:
    - **Issue**: "Timeout waiting for FileSystem to start on 0.0.0.0:8006"
    - **Cause**: Agent failed to start within expected time (usually due to port conflicts or startup errors)
    - **Solution**: Check logs for specific errors, free up port 8006, and restart the agent
    - **Additional Fix**: Ensure no orphaned Python processes are blocking the port
    - **Enhanced Solution**: Implement dynamic service health checks instead of fixed waits
-   
+
 3. **Slow Agent Startup**:
    - **Issue**: Sequential startup of all agents causes long wait times
    - **Cause**: Agents start one after another instead of in parallel
    - **Solution**: Future optimization planned to start agents in parallel with staggered startup
    - **Immediate Fix**: Add staggered timing (1-2 seconds between each agent) to prevent resource contention during startup
-   
+
 4. **422 Unprocessable Content Errors**:
    - **Issue**: "422 Unprocessable Content" when calling filesystem tools through UTCP clients
    - **Cause**: The filesystem agent only supported POST requests with JSON body, but UTCP clients were attempting to call filesystem tools with GET requests and query parameters
@@ -814,13 +858,13 @@ Common issues with the filesystem agent and their solutions:
      - `/execute_command` endpoint now supports both GET and POST methods
    - **Impact**: Resolved 422 "Unprocessable Content" errors with UTCP clients
    - **Compatibility**: Maintained backward compatibility with existing POST-based clients
-   
+
 5. **Dependency Issues**:
    - **Issue**: Missing libraries like beautifulsoup4, readability-lxml, or lxml
    - **Cause**: Required dependencies not installed in the virtual environment
    - **Solution**: Install missing dependencies using `uv pip install beautifulsoup4 readability-lxml lxml`
    - **Verification**: Check that all dependencies are properly installed in the virtual environment
-   
+
 6. **Diagnostic Commands**:
    - **Check Port Usage**: `netstat -ano | findstr :8006`
    - **Kill Process Using Port**: `taskkill /PID <process_id> /F`

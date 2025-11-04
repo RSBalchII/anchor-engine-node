@@ -2,9 +2,9 @@ llm:
   active_provider: llama_cpp
   providers:
     llama_cpp:
-      model_path: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
+      model_path: ./models/Huihui-granite-4.0-h-tiny-abliterated.i1-Q4_K_M.gguf
       api_base: http://localhost:8080/v1
-      model: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
+      model: ./models/Huihui-granite-4.0-h-tiny-abliterated.i1-Q4_K_M.gguf
 debug:
   verbose_output: false
 cache:
@@ -13,8 +13,8 @@ system:
   resources:
     memory_limit_mb: 2048
 ThinkerAgent:
-  model: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
-  synthesis_model: ./models/gemma-3-4b-it-qat-abliterated.q8_0.gguf
+  model: ./models/Huihui-granite-4.0-h-tiny-abliterated.i1-Q4_K_M.gguf
+  synthesis_model: ./models/Huihui-granite-4.0-h-tiny-abliterated.i1-Q4_K_M.gguf
   synthesis_max_tokens: 8192
   timeout: 180
   personas:

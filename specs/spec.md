@@ -183,6 +183,23 @@ To use the llama.cpp provider, build the llama.cpp project on Windows:
 
 The system is designed to achieve state-of-the-art reasoning capabilities on local hardware by implementing principles from cutting-edge research.
 
+## 4. Documentation and Changelog Policy
+
+To maintain organization and consistency, the ECE project follows a strict documentation policy:
+
+### Changelog Management
+- `specs/changelog.md` - Contains the system changelog with version history and changes
+- All significant changes, features, and fixes must be documented in the changelog
+- The changelog follows the format described in Keep a Changelog specification
+- Entries should include Added, Changed, Deprecated, Removed, Fixed, and Security sections as appropriate
+
+### Documentation Locations
+- All markdown documentation must be placed in allowed locations only:
+  - Root directory: README.md, QWEN.md
+  - Specs directory: All spec/*.md files including changelog.md
+- No markdown files should be created outside of these allowed locations
+- Session summaries and development logs belong in the specs directory
+
 ### 3.1. Cognitive Model: Markovian Thinking
 
 Inspired by the "Markovian Thinker" and "Delethink" research, the ECE's core reasoning process is **not based on an ever-growing context window**. Instead, it operates on a **Markovian principle**, where reasoning is broken down into a sequence of fixed-size "chunks."
@@ -342,6 +359,31 @@ The ECE now fully implements the Universal Tool Calling Protocol (UTCP) 1.0+ spe
 -   **GET Endpoint Support:** Added GET endpoint support to filesystem agent for better UTCP client compatibility.
 -   **Improved Error Handling:** Better error reporting when UTCP endpoints are unavailable.
 
+### 3.15. UTCP Communication Protocols & Multi-Protocol Support
+
+The ECE's UTCP implementation supports multiple communication protocols with automatic selection and fallback mechanisms:
+
+#### Supported Protocols
+1. **HTTP/HTTPS** - Primary synchronous communication method for standard REST API calls
+2. **SSE (Server-Sent Events)** - For streaming operations and long-running tasks with progress updates
+3. **WebSocket** - For bidirectional real-time communication with interactive tools
+4. **MCP (Model Context Protocol)** - For AI context-aware interactions with rich conversation state
+5. **CLI Integration** - For system-level operations through command-line interface tools
+
+#### Protocol Selection & Fallback Strategy
+- Automatically selects the most appropriate protocol based on tool requirements and operation type
+- Implements hierarchical fallback: HTTP → SSE → WebSocket → MCP → CLI when primary protocol fails
+- Configurable protocol preferences based on operation characteristics and network conditions
+- Adaptive communication that adjusts to current system state and tool availability
+
+#### Configuration
+The UTCP client is configured with protocol hierarchies in the orchestrator agent with the following priority order:
+- Primary: HTTP (most widely supported and reliable)
+- Secondary: SSE (for streaming operations with progress feedback)
+- Tertiary: WebSocket (for bidirectional communication)
+- Quaternary: MCP (for context-aware AI agent interactions)
+- Fallback: CLI (for system-level operations)
+
 ### 3.16. FileSystem Agent Implementation
 
 The ECE now implements a completely local filesystem agent that provides filesystem operations as UTCP tools:
@@ -450,9 +492,15 @@ python simple_model_server.py --model ./models/your-model.gguf --port 8080
 For users who want a simpler way to start the complete ECE system with both the llama.cpp model server and the full ECE ecosystem, we now offer a unified startup approach:
 
 - **Unified Startup**: Single script that starts both llama.cpp server and ECE ecosystem
-- **Proper Logging**: All logs are directed to the `logs/` directory
-- **Easy Management**: Simple scripts to start the complete system
-- **Reduced Complexity**: Fewer moving parts for simpler debugging and maintenance
+- **Simplified Logging**: All output is directed to a single file `logs/ece-llamacpp.txt` to prevent logging complexity issues and eliminate multiple log files
+- **Real-time Console Output**: All agent outputs and model inference are displayed directly in the terminal for immediate visibility
+- **Easy Management**: Simple scripts to start the complete system with full output visibility
+- **Reduced Complexity**: Eliminated complex logging layers that were causing system issues
+- **UTF-8 Encoding**: Proper handling of special characters and Unicode output to prevent encoding errors
+- **Direct Output Routing**: All output streams directly through the main run script without intermediate logging layers
+- **Streamlined Architecture**: Removed complex logger initialization in favor of simple print statements
+- **Centralized Log Location**: All system output consolidated in one predictable location (`logs/ece-llamacpp.txt`)
+- **Better Debugging**: Single log file makes troubleshooting significantly easier
 
 ### Prerequisites
 

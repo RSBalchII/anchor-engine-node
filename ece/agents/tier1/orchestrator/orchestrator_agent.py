@@ -154,7 +154,17 @@ class EnhancedOrchestratorAgent:
                         "call_template_type": "http",
                         "url": f"http://localhost:{websearch_port}/utcp",
                     }
-                ]
+                ],
+                # Additional UTCP configuration options for different communication protocols
+                "supported_protocols": [
+                    "http",  # Standard HTTP/REST API calls
+                    "sse",   # Server-Sent Events for streaming
+                    "websocket",  # WebSocket for bidirectional communication
+                    "mcp",   # Model Context Protocol
+                    "cli"    # Command-line interface tools
+                ],
+                # Configure protocol fallback options
+                "protocol_fallback_order": ["http", "sse", "websocket", "mcp", "cli"]
             }
             self.utcp_client = None
             logger.debug("Initialized UTCP config with decentralized endpoints")
@@ -388,7 +398,9 @@ class EnhancedOrchestratorAgent:
     async def handle_filesystem_request(self, path: str = ".") -> str:
         try:
             # Ensure UTCP client is initialized
-            await self._ensure_utcp_client()
+            success = await self._ensure_utcp_client()
+            if not success or self.utcp_client is None:
+                return f"UTCP client not available for filesystem operations. Please ensure UTCP is properly configured and dependencies are installed."
             
             # Search for all available tools
             all_tools = await self.utcp_client.search_tools("", limit=100)
@@ -419,6 +431,7 @@ class EnhancedOrchestratorAgent:
                 # Look for read_file tool specifically
                 elif any(name in tool_name_lower for name in ["read", "file", "content"]):
                     # We need a specific file path for reading, so let's list first to show available files
+                    # Find a list tool in all available filesystem tools
                     list_tool = next((t for t in fs_tools if any(n in t.name.lower() for n in ["list", "dir", "directory"])), None)
                     if list_tool:
                         list_result = await self.utcp_client.call_tool(list_tool.name, {"path": path})
@@ -440,7 +453,9 @@ class EnhancedOrchestratorAgent:
     async def handle_web_search_request(self, query: str) -> str:
         try:
             # Ensure UTCP client is initialized
-            await self._ensure_utcp_client()
+            success = await self._ensure_utcp_client()
+            if not success or self.utcp_client is None:
+                return f"UTCP client not available for web search operations. Please ensure UTCP is properly configured and dependencies are installed."
             
             # Search for all available tools
             all_tools = await self.utcp_client.search_tools("", limit=100)
@@ -716,9 +731,18 @@ class EnhancedOrchestratorAgent:
             try:
                 self.utcp_client = await UtcpClient.create(config=self.utcp_config)
                 self.logger.info("UTCP client initialized successfully")
+            except ImportError as e:
+                self.logger.error(f"UTCP dependencies not available: {e}")
+                self.logger.info("UTCP tools will not be available. To enable UTCP, install missing dependencies: pip install utcp utcp-http")
+                self.utcp_client = None  # Set to None to avoid repeated attempts
+                return False
             except Exception as e:
                 self.logger.error(f"Failed to initialize UTCP client: {e}")
-                raise
+                self.logger.error(traceback.format_exc())
+                # Set to None to avoid repeated failed attempts
+                self.utcp_client = None
+                return False
+        return True
 
     # Removed _evaluate_synthesis_quality method as it was part of the deprecated parallel thinking approach
     # The system now uses direct model calls and tool usage instead of synthesis from multiple thinkers
@@ -728,9 +752,15 @@ class EnhancedOrchestratorAgent:
             if self.utcp_client is None:
                 self.utcp_client = await UtcpClient.create(config=self.utcp_config)
             return True
+        except ImportError as e:
+            self.logger.error(f"UTCP dependencies not available: {e}")
+            self.logger.info("UTCP tools will not be available. To enable UTCP, install missing dependencies: pip install utcp utcp-http")
+            self.utcp_client = None  # Set to None to avoid repeated attempts
+            return False
         except Exception as e:
             self.logger.error(f"Error initializing UTCP client: {e}")
             self.logger.error(traceback.format_exc())
+            self.utcp_client = None  # Set to None to avoid repeated attempts
             return False
     
     async def cleanup(self):
