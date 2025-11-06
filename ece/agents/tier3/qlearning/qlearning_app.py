@@ -99,9 +99,9 @@ async def find_optimal_path(request: PathRequest):
         )
 
         # Call the qlearning agent to process the request
-        result = await qlearning_agent.find_optimal_path(
-            request.start_node, request.end_node
-        )
+        # Convert start_node and end_node to a list of keywords for the agent method
+        keywords = [request.start_node, request.end_node]
+        result = await qlearning_agent.find_optimal_path(keywords=keywords, max_tokens=1000000)
 
         return result
     except Exception as e:

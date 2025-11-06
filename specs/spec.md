@@ -719,3 +719,57 @@ The system enters a continuous evolution phase with:
 ## 6. Co-Evolutionary Mandate
 
 The system must be capable of understanding and modifying its own codebase, a goal directly supported by the deep reasoning capabilities enabled by Markovian Thinking.
+
+---
+
+## 7. Troubleshooting and Known Issues
+
+### 7.1 Missing Dependencies
+The ECE system requires several additional dependencies that may not be installed by default:
+
+- **spaCy**: Required by the Distiller agent (`uv pip install spacy`)
+- **spaCy Model**: The `en_core_web_sm` model is required (`python -m spacy download en_core_web_sm`)
+- **UTCP Dependencies**: Missing `langchain.globals` and other UTCP-related modules (`uv pip install utcp utcp-http utcp-mcp`)
+- **Web Scraping Libraries**: `beautifulsoup4`, `readability-lxml`, `lxml`, and `requests` for WebSearchAgent
+
+### 7.2 Installation Steps for Complete Setup
+To ensure all ECE functionality is available, install these additional dependencies:
+
+```bash
+# Install spaCy for Distiller agent
+uv pip install spacy
+
+# Download the English model for spaCy
+python -m spacy download en_core_web_sm
+
+# Install UTCP dependencies
+uv pip install utcp utcp-http utcp-mcp
+
+# Install web scraping libraries
+uv pip install beautifulsoup4 readability-lxml lxml requests
+
+# Install the complete ECE package
+uv pip install -e .
+```
+
+### 7.3 Port Conflicts and Service Timeout Issues
+- **Filesystem Agent Port Issues**: The FileSystem agent may experience port conflicts (WinError 10013) or 422 errors
+  - Check for processes using port 8006: `netstat -ano | findstr :8006`
+  - Kill conflicting processes if necessary: `taskkill /PID <process_id> /F`
+
+- **Agent Timeout Issues**: Some agents may timeout during startup due to dependency issues
+  - Ensure all required dependencies are installed as listed above
+  - Verify that Neo4j and Redis services are running properly
+  - Check that the model server is accessible on the configured port
+
+### 7.4 UTCP Tool Discovery Problems
+If forge-cli cannot access filesystem operations or other tools due to UTCP dependency issues:
+- Install missing UTCP dependencies: `uv pip install utcp utcp-http utcp-mcp`
+- Verify that all ECE agents are running and accessible on their respective ports
+- Check that UTCP endpoints are properly exposing their manuals at `/utcp` endpoints
+
+### 7.5 Distiller Agent Start-up Issues
+The Distiller agent may fail to start due to missing `spacy` dependency:
+- Install spacy: `uv pip install spacy`
+- Download the English model: `python -m spacy download en_core_web_sm`
+- The Distiller agent is critical as it affects other agents (QLearning, Archivist, Injector) that depend on it

@@ -171,3 +171,4 @@ lxml==5.3.0
 zipp==3.23.0
 pytest==8.3.5
 agentlightning>=0.2.1
+spacy>=3.7.0

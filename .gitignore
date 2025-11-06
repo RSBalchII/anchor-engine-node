@@ -15,7 +15,7 @@ env/
 
 # llama.cpp - ignore build artifacts but keep source
 llama.cpp/
-llama.cpp/* 
+llama.cpp/*
 !llama.cpp/README.md
 !llama.cpp/*.h
 !llama.cpp/*.hpp

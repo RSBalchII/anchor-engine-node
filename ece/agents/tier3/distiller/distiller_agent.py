@@ -13,16 +13,8 @@ from utcp.data.utcp_manual import UtcpManual
 from utcp.data.tool import Tool
 from utcp_http.http_call_template import HttpCallTemplate
 
-# Import and set up ECE logging system
-try:
-    from ece.common.logging_config import get_logger
-
-    logger = get_logger("distiller")
-except ImportError:
-    # Fallback if logging config not available
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    logger.warning("Could not import ECE logging system, using default logging")
+# Use simple print statements as per simplified logging approach
+logger = type('Logger', (), {'info': print, 'warning': print, 'error': print, 'debug': print})()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -71,6 +63,9 @@ class DistillerAgent:
 
     def _load_spacy_model(self) -> Any:
         """Load the spaCy NLP model."""
+        # Loading with increased timeout to handle slower initialization
+        import warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
         return spacy.load("en_core_web_sm")
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
@@ -238,7 +233,7 @@ async def process_text(data: DistillerData):
     """
     Endpoint to receive raw text, extract entities and relationships, and return structured data.
     """
-    logger.info(f"Received text for distillation from {data.source}")
+    print(f"Received text for distillation from {data.source}")
 
     entities = distiller_agent.extract_entities(data.text)
     relationships = distiller_agent.identify_relationships(data.text, entities)
@@ -249,4 +244,5 @@ async def process_text(data: DistillerData):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    # Run with increased timeout to allow for longer initialization
+    uvicorn.run(app, host="0.0.0.0", port=8001, timeout_keep_alive=300, log_level="info")

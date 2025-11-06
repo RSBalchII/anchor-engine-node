@@ -15,6 +15,7 @@ from pathlib import Path
 import signal
 import psutil
 import requests
+import threading
 from dotenv import dotenv_values
 
 # Load environment variables from .env file
@@ -706,6 +707,9 @@ class SimplifiedECEStartup:
         print("Starting ECE agents...")
 
         try:
+            # Start the orchestrator agent first (it was already started earlier in the flow)
+            # Now we'll start the remaining agents using run_all_agents.py if it exists
+            
             # Change to ece directory
             ece_dir = Path("ece")
             if not ece_dir.exists():
@@ -726,88 +730,7 @@ class SimplifiedECEStartup:
                 )
                 return False
 
-            # Start the orchestrator agent first
-            orchestrator_path = (
-                ece_dir / "agents" / "tier1" / "orchestrator" / "main.py"
-            )
-            if not orchestrator_path.exists():
-                print(f"Error: Orchestrator agent not found: {orchestrator_path}")
-                print("")
-                print("Troubleshooting ECE agents:")
-                print("- Make sure the ECE directory structure is correct")
-                print("- Check that all ECE components are properly installed")
-                print(
-                    "- Verify that orchestrator agent exists at ece/agents/tier1/orchestrator/main.py"
-                )
-                print(
-                    "- Ensure Python dependencies are installed: pip install -r requirements.txt"
-                )
-                print(
-                    "- Restart your terminal/command prompt after installing dependencies"
-                )
-                print(
-                    "- Check that the ECE directory structure matches the expected layout"
-                )
-                return False
-
-            # Use uvicorn to run the orchestrator as a proper ASGI server
-            cmd = [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "ece.agents.tier1.orchestrator.main:app",
-                "--host",
-                "0.0.0.0",
-                "--port",
-                "8000",
-            ]
-            print(f"Running ECE orchestrator: {' '.join(cmd)}")
-
-            # Start the orchestrator process with real-time output streaming
-            import threading
-
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                universal_newlines=True,
-                bufsize=1,
-            )
-            self.processes.append(("ECE orchestrator", process))
-            print(f"[SUCCESS] ECE orchestrator started with PID {process.pid}")
-
-            # Stream orchestrator output in real-time
-            def stream_output(pipe, prefix=""):
-                for line in iter(pipe.readline, ""):
-                    if line.strip():  # Only print non-empty lines
-                        print(f"[orchestrator] {line.rstrip()}")
-                pipe.close()
-
-            # Start threads to handle stdout and stderr
-            stdout_thread = threading.Thread(
-                target=stream_output, args=(process.stdout,)
-            )
-            stderr_thread = threading.Thread(
-                target=stream_output, args=(process.stderr,)
-            )
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Wait for orchestrator to be ready with reduced timeout
-            orchestrator_port = os.getenv("ORCHESTRATOR_PORT", "8000")
-            if not self.wait_for_service(
-                f"http://localhost:{orchestrator_port}/health",
-                "ECE Orchestrator",
-                timeout=30,
-            ):  # Reduced from 60
-                print(
-                    "ECE Orchestrator failed to become ready within the timeout period"
-                )
-                return False
-
-            # Start other agents (Distiller, QLearning, Archivist, etc.)
-            # For simplicity, we'll start them using the run_all_agents.py script if it exists
+            # Check for and start the run_all_agents.py script which handles all other agents
             run_all_script = Path("utility_scripts/run_all_agents.py")
             if run_all_script.exists():
                 cmd = [sys.executable, str(run_all_script)]
@@ -859,7 +782,7 @@ class SimplifiedECEStartup:
                 for port, name in port_checks:
                     if not self.wait_for_port(
                         f"ECE {name}", int(port), timeout=15
-                    ):  # Reduced from 45
+                    ):
                         print(f"ECE {name} on port {port} is not responding")
                         agents_ready = False
                     else:
@@ -869,18 +792,20 @@ class SimplifiedECEStartup:
                     print("All ECE agents started and responding successfully")
                 else:
                     print("Some ECE agents might not be responding yet, continuing...")
-
             else:
                 print("run_all_agents.py not found, starting orchestrator only...")
                 print(
                     "Consider creating utility_scripts/run_all_agents.py for a complete agent setup"
                 )
+                return False
 
             print("[SUCCESS] ECE agents started successfully")
             return True
 
         except Exception as e:
             print(f"Error starting ECE agents: {e}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             print("")
             print("Troubleshooting ECE agents:")
             print(

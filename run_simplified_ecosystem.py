@@ -201,7 +201,7 @@ def main():
                         print(safe_line.rstrip())
         except Exception as e:
             print(f"Could not read log file for debugging: {e}")
-        sys.exit(return_code)
+        sys.exit(returncode)
 
     # Print success message with safe encoding - explicitly avoid any potential emoji/unicode issues
     try:

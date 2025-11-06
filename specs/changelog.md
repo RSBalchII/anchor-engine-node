@@ -1,35 +1,73 @@
 # ECE Changelog
 
-## [Unreleased] - 2025-11-04
+## [Unreleased] - 2025-11-05
 
 ### Added
-- Simplified logging and output management system that consolidates all output to `logs/ece-llamacpp.txt`
-- Real-time console output display during development for immediate visibility
-- UTF-8 encoding support to prevent character encoding errors
-- Direct output routing from subprocess to central log file and console
-- Streamlined architecture by removing complex logging layers
+- Enhanced startup ordering to ensure Distiller agent starts before dependent agents
+- Improved port availability verification with timeout handling
+- Dependency-aware initialization sequence to prevent connection failures
+- Timeout configuration for agent initialization with longer grace periods
 
 ### Changed
-- Replaced complex logger infrastructure with simple print functions
-- Migrated all UTCP communication logs to centralized `logs/ece-llamacpp.txt` file
-- Updated README.md and spec documentation to reflect simplified logging approach
-- Modified run_simplified_ecosystem.py to properly capture and route all subprocess output
-- Changed start_simplified_ecosystem.py to use simple print functions instead of logger
-- Improved error handling for Unicode characters to prevent crashes
+- Prioritized Distiller agent startup to prevent cascade failures
+- Migrated startup scripts to use simple print functions instead of logger systems
+- Updated startup delays to allow sufficient time for agent initialization
+- Modified agent connection logic to verify service availability before communication
+- Increased timeout values for agent startup and health checks
 
 ### Fixed
-- Resolved 'charmap' codec errors when handling special characters
-- Fixed multiple log file generation that was causing system instability
-- Corrected encoding issues that led to crashes with Unicode output
-- Addressed communication timeout issues between agents during health checks
+- Resolved persistent Distiller agent failures causing "All connection attempts failed" errors
+- Fixed cascading failure pattern where Archivist and other agents failed due to Distiller unavailability
+- Addressed missing spaCy model dependency (en_core_web_sm) required by Distiller agent
+- Corrected startup timing issues preventing proper agent communication
+- Resolved communication timeout issues between agents during initialization
+- Fixed UTCP dependency issues affecting agent discovery and communication
 
 ### Removed
-- Complex multi-file logging system that was causing confusion
-- Intermediate logging layers that added unnecessary complexity
-- Separate log files for individual components in favor of centralized logging
-- Dependency on complex logger configuration systems
-- Unauthorized markdown documentation files that violated the documentation policy
-- References to documentation files outside of the allowed locations
+- Complex logging configurations that were interfering with startup sequence
+- Unnecessary intermediate verification steps that delayed agent startup
+
+### Known Issues
+- Distiller agent may still fail to start due to missing 'spacy' dependency that needs to be installed separately
+- UTCP dependencies may be missing causing "No module named 'langchain.globals'" errors
+- Filesystem agent may experience port conflicts (WinError 10013) and 422 errors
+
+## [v4.3.0] - 2025-10-31
+
+### Added
+- UTCP Multi-Protocol Support with fallback mechanisms
+- Markovian Thinking Architecture for enhanced reasoning
+- Multi-Agent Coordination with Theory of Mind (ToM) integration
+- Enhanced Context Loading with POML/JSON persona support
+- Real-time Logging with direct console output
+- On-Demand Model Execution with ModelManager
+- UTCP Integration with decentralized manual-based discovery
+- Model Context Protocol (MCP) support
+- Server-Sent Events (SSE) communication protocol
+
+### Changed
+- Updated all agents to use Unified Tool Calling Protocol (UTCP) for tool discovery
+- Refactored OrchestratorAgent to EnhancedOrchestratorAgent with context management
+- Migrated from Tavily API to local DuckDuckGo web search with no external dependencies
+- Implemented decentralized UTCP approach connecting directly to individual service endpoints
+- Upgraded to Q4_K_M quantized models for better performance and reduced VRAM usage
+- Enhanced error handling and logging for better troubleshooting
+- Improved model switching and management via ModelManager singleton
+- Optimized startup times with reduced health check delays
+- Centralized configuration management with environment variable support
+- Refactored GitAgent to use local operations without external APIs
+
+### Fixed
+- Resolved POML verbose output issue causing model confusion
+- Fixed 422 "Unprocessable Content" errors with UTCP clients
+- Fixed double `.gguf` extension issues in model paths
+- Fixed model switching inconsistencies between forge-cli and orchestrator
+- Fixed GitAgent authentication and operation issues in Windows environment
+- Fixed filesystem agent port conflicts and startup timeouts
+- Corrected memory limit configuration for Windows systems
+- Fixed UTCP endpoint registration and discovery issues
+- Resolved configuration synchronization between different components
+- Fixed model path configuration redundancies
 
 ## [v4.3.0] - 2025-10-31
 

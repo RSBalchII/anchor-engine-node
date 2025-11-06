@@ -295,7 +295,7 @@ The issue has been successfully resolved by:
 -   **T-018.3:** [COMPLETED] Remove dependency on centralized UTCP Registry service
 -   **T-018.4:** [COMPLETED] Fix Neo4j authentication by ensuring all agents use consistent credentials ("ECE_secure_password_2025")
 -   **T-018.5:** [COMPLETED] Update default passwords in agent configuration files to match .env file values
--   **T-018.6:** [COMPLETED] Verify all agents properly retrieve Neo4j credentials from environment variables
+-   **T-018.6:** [PARTIALLY COMPLETED] Verify all agents properly retrieve Neo4j credentials from environment variables and UTCP dependencies (UTCP dependencies may still cause issues with "No module named 'langchain.globals'" errors)
 
 ## T-019: Phase 22 - Externalized Memory & Context Loading Pattern Implementation
 
@@ -495,9 +495,9 @@ The issue has been successfully resolved by:
 
 **Objective:** Fix critical issues with the filesystem agent that are preventing proper tool usage and optimize its startup process.
 
--   **T-026.1:** [COMPLETED] Identify and resolve WinError 10013 "An attempt was made to access a socket in a way forbidden by its access permissions" by detecting and killing conflicting processes using port 8006
--   **T-026.2:** [COMPLETED] Add GET endpoint support to filesystem agent for better UTCP client compatibility and to resolve 422 "Unprocessable Content" errors
--   **T-026.3:** [COMPLETED] Implement proper error handling in filesystem agent to gracefully handle port conflicts and startup failures
+-   **T-026.1:** [PARTIALLY COMPLETED] Identify and resolve WinError 10013 "An attempt was made to access a socket in a way forbidden by its access permissions" by detecting and killing conflicting processes using port 8006
+-   **T-026.2:** [PARTIALLY COMPLETED] Add GET endpoint support to filesystem agent for better UTCP client compatibility and to resolve 422 "Unprocessable Content" errors
+-   **T-026.3:** [PARTIALLY COMPLETED] Implement proper error handling in filesystem agent to gracefully handle port conflicts and startup failures
 -   **T-026.4:** [COMPLETED] Optimize filesystem agent startup time by implementing parallel startup with staggered timing
 -   **T-026.5:** [COMPLETED] Add comprehensive logging to filesystem agent for better debugging and monitoring
 -   **T-026.6:** [COMPLETED] Implement health check mechanisms to verify filesystem agent is properly started and responsive
