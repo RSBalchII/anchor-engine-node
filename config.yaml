@@ -1,0 +1,70 @@
+# Anchor CLI Configuration
+# Single source of truth for all Anchor settings
+
+# ============================================================
+# ECE_Core Connection
+# ============================================================
+ece_core:
+  url: "http://localhost:8000"
+  timeout: 300
+  retry_attempts: 3
+  retry_delay: 2
+
+# ============================================================
+# Session Configuration
+# ============================================================
+session:
+  id: "anchor-session"
+  auto_generate: true
+  persist: true
+
+# ============================================================
+# Display Settings
+# ============================================================
+display:
+  show_tokens: true
+  show_timestamps: true
+  markdown: true
+  streaming: true
+  colors: true
+
+# ============================================================
+# MCP (Embedded Tool Server)
+# ============================================================
+mcp:
+  embedded: true
+  port: 8008
+  auto_start: true
+  tools:
+    - filesystem
+    - websearch
+    - shell
+
+# ============================================================
+# CLI Behavior
+# ============================================================
+cli:
+  # Input handling
+  prompt: "You: "
+  multiline: false
+  history: true
+  history_file: ".anchor_history"
+  
+  # Commands
+  commands:
+    - help
+    - exit
+    - quit
+    - clear
+    - session
+    - memories
+    - tools
+    - debug
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  level: "WARNING"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # Set to path for file logging
