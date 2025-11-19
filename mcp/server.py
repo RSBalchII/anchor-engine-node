@@ -1,8 +1,13 @@
-4#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
-Anchor MCP Server - Provides filesystem, shell, and web search tools
-Embedded tool server for Anchor CLI with security controls
+THIS FILE HAS BEEN ARCHIVED
+The Anchor MCP Server has been moved to the archive to remove MCP from the active runtime.
+If you need to restore the full functionality, copy the files from:
+    archive/removed_tool_protocols/mcp-utcp/anchor/mcp/
+into this directory and restart Anchor.
 """
+
+raise ImportError("MCP server archived; see archive/removed_tool_protocols/mcp-utcp/anchor/mcp/")
 import asyncio
 import json
 import subprocess
@@ -379,24 +384,4 @@ async def health():
 # ============================================================================
 
 if __name__ == "__main__":
-    import uvicorn
-    print("""
-    ============================================================
-                                                                
-            Anchor MCP Server - Embedded Tool Provider             
-                                                                
-    ============================================================
-
-    Available Tools:
-    - filesystem_read  - Read files and list directories
-    - shell_execute    - Run shell commands
-    - web_search       - Search the web
-
-    Endpoints:
-    GET  /mcp/tools     - List available tools with schemas
-    POST /mcp/call      - Execute a tool
-    GET  /health        - Health check
-
-    Running on: http://localhost:8008
-    """)
-    uvicorn.run(app, host="127.0.0.1", port=8008)
+    print("MCP server functionality archived. See archive/removed_tool_protocols/mcp-utcp/anchor/mcp/")

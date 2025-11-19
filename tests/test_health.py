@@ -32,7 +32,12 @@ async def test_ece_core_health():
 @pytest.mark.smoke
 def test_mcp_server_script_exists():
     """Test MCP server script exists"""
-    mcp_script = Path(__file__).parent.parent / "mcp" / "server.py"
+    mcp_dir = Path(__file__).parent.parent / "mcp"
+    mcp_script = mcp_dir / "server.py"
+    archived_marker = mcp_dir / "ARCHIVED.md"
+    # If MCP is archived, ensure the archive marker exists and do not assert the script
+    if archived_marker.exists():
+        pytest.skip("MCP modules archived - skipping MCP server presence check")
     assert mcp_script.exists(), f"MCP server not found at: {mcp_script}"
 
 

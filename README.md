@@ -16,7 +16,7 @@ Anchor is a lightweight terminal-based AI assistant that brings GitHub Copilot C
 - ✅ **Memory-Enhanced**: Persistent context with automatic retrieval (Redis + Neo4j)
 - ✅ **Local-First**: 100% on-device, zero telemetry, your data stays yours
 - ✅ **Graceful Degradation**: Works with or without memory backends
-- ✅ **Embedded MCP Server**: Built-in tools (filesystem, shell, web_search)
+- ⚠️ **Embedded MCP Server (ARCHIVED)**: The embedded MCP tools were moved to an archive and are no longer enabled by default. See `anchor/mcp/ARCHIVED.md` and `archive/removed_tool_protocols/mcp-utcp/anchor/mcp/` for details.
 - ✅ **🚀 Simple Tool Mode**: Pattern-based tool execution for small models (4B-8B) - NEW! (2025-11-15)
 - ✅ **Security Hardening**: Shell whitelist, path protection, API authentication (2025-11-14)
 - ✅ **Testing Infrastructure**: 18 automated tests, 50%+ coverage target (2025-11-14)

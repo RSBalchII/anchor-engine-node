@@ -3,6 +3,8 @@ Anchor - Lightweight Terminal CLI for ECE_Core
 Personal cognitive command center (Copilot CLI style)
 """
 import httpx
+import re
+import shlex
 import asyncio
 import sys
 import json
@@ -41,6 +43,7 @@ class AnchorCLI:
         ece_url: Optional[str] = None,
         session_id: Optional[str] = None,
         timeout: Optional[int] = None
+        , create_prompt: bool = True
     ):
         self.ece_url = ece_url or os.getenv("ECE_URL", "http://localhost:8000")
         self.session_id = session_id or os.getenv("SESSION_ID", "anchor-session")
@@ -65,13 +68,16 @@ class AnchorCLI:
             """Alt+Enter to insert newline, Enter to submit"""
             event.current_buffer.insert_text('\n')
         
-        self.prompt_session = PromptSession(
+        if create_prompt:
+            self.prompt_session = PromptSession(
             key_bindings=kb,
             enable_history_search=True,
             auto_suggest=AutoSuggestFromHistory(),
             multiline=False,  # Explicitly set to false, paste bracketing enabled by default
             enable_suspend=False  # Prevent Ctrl+Z issues
-        )
+            )
+        else:
+            self.prompt_session = None
         
         # MCP server process (embedded tool server)
         self.mcp_process = None
@@ -80,10 +86,48 @@ class AnchorCLI:
         # Simple tool mode (pattern-based tool execution for small models)
         self.simple_mode = SimpleToolMode()
         self.simple_handler = None  # Initialized after MCP server starts
+        # Plugin manager (disabled by default - uses PLUGINS_ENABLED env var)
+        # Import PluginManager dynamically so we can load from repo root when running from subdirs
+        plugin_manager_cls = None
+        try:
+            from plugins.manager import PluginManager as plugin_manager_cls
+        except Exception:
+            # Try to add repo root to sys.path so imports resolve when launched from anchor/
+            try:
+                repo_root = Path(__file__).resolve().parent.parent
+                sys.path.insert(0, str(repo_root))
+                from plugins.manager import PluginManager as plugin_manager_cls
+            except Exception:
+                plugin_manager_cls = None
+
+        if plugin_manager_cls:
+            self.plugin_manager = plugin_manager_cls({})
+        else:
+            self.plugin_manager = None
+        # Pre-compile tool call regex for quick parsing of 'TOOL_CALL: name(...)' patterns
+        self._tool_call_re = re.compile(r"TOOL_CALL:\s*([A-Za-z0-9_:]+)\s*\((.*)\)", re.DOTALL)
         
+    def start_plugins(self):
+        """Start plugins via PluginManager (if enabled)."""
+        if not self.plugin_manager:
+            logger.debug("No plugin manager available")
+            return False
+        discovered = self.plugin_manager.discover()
+        if discovered:
+            logger.info(f"Loaded plugins: {', '.join(discovered)}")
+            return True
+        logger.debug("No plugins discovered or plugin manager disabled")
+        return False
+
     def start_mcp_server(self):
         """Start embedded MCP server for tools"""
-        mcp_script = Path(__file__).parent / "mcp" / "server.py"
+        mcp_dir = Path(__file__).parent / "mcp"
+        mcp_script = mcp_dir / "server.py"
+
+        # If the mcp directory contains an ARCHIVED marker, don't attempt to start
+        if (mcp_dir / "ARCHIVED.md").exists():
+            logger.warning("MCP modules are archived and not available. Skipping MCP startup")
+            return False
         
         if not mcp_script.exists():
             logger.warning(f"MCP server not found at: {mcp_script}")
@@ -108,8 +152,26 @@ class AnchorCLI:
                 # Initialize simple tool handler
                 # Note: We'll create a minimal MCP client for simple mode
                 try:
-                    from mcp.client import MCPClient
-                    simple_mcp = MCPClient(f"http://localhost:{self.mcp_port}")
+                    # Prefer plugin manager shim for simple mode
+                    if self.plugin_manager and self.plugin_manager.enabled:
+                        class PluginMCPShim:
+                            def __init__(self, pm):
+                                self.pm = pm
+
+                            async def call_tool(self, tool_name, **kwargs):
+                                plugin_name = self.pm.lookup_plugin_for_tool(tool_name)
+                                if plugin_name:
+                                    res = await self.pm.execute_tool(f"{plugin_name}:{tool_name}", **kwargs)
+                                    return {"status": "success", "result": res}
+                                return {"status": "error", "error": f"Tool not found: {tool_name}"}
+
+                            async def get_tools(self):
+                                return self.pm.list_tools()
+
+                        simple_mcp = PluginMCPShim(self.plugin_manager)
+                    else:
+                        from mcp.client import MCPClient
+                        simple_mcp = MCPClient(f"http://localhost:{self.mcp_port}")
                     
                     # Create a minimal LLM client for formatting
                     class SimpleLLMClient:
@@ -216,6 +278,11 @@ class AnchorCLI:
                                 chunk = data["chunk"]
                                 chunk = chunk.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
                                 yield chunk
+                                # Process chunk for TOOL_CALL streaming detection
+                                try:
+                                    await self._process_stream_chunk(chunk)
+                                except Exception as e:
+                                    logger.debug(f"Stream tool call processing error: {e}")
                             elif data.get("done"):
                                 break
                             elif data.get("error"):
@@ -264,6 +331,48 @@ class AnchorCLI:
         except Exception as e:
             logger.error(f"Fallback error: {e}")
             yield f"❌ Error: {type(e).__name__}: {str(e)}"
+
+    async def _process_stream_chunk(self, chunk: str):
+        """Process a streaming chunk and fire a plugin tool call if a TOOL_CALL pattern is found.
+
+        This function accumulates chunks in an instance buffer until a complete TOOL_CALL
+        pattern is found (balanced parentheses). When found, it executes the tool and logs output.
+        """
+        if not hasattr(self, '_stream_buffer'):
+            self._stream_buffer = ''
+        # Append chunk and keep buffer at reasonable size
+        self._stream_buffer += chunk
+        if len(self._stream_buffer) > 8192:
+            # Trim older content
+            self._stream_buffer = self._stream_buffer[-8192:]
+        # Search for tools; find the first complete TOOL_CALL occurrence
+        m = self._tool_call_re.search(self._stream_buffer)
+        if not m:
+            return
+        # We need to ensure the parentheses are balanced; quick check
+        start = m.start()
+        end = m.end()
+        # If regex matched, assume it's complete enough; extract tool and params
+        tool_name_raw = m.group(1).strip()
+        params_str = m.group(2).strip()
+        parsed_tool_name, params = self._parse_tool_call(tool_name_raw, params_str)
+        if ":" in parsed_tool_name:
+            plugin_call = parsed_tool_name
+        else:
+            plugin_name = self.plugin_manager.lookup_plugin_for_tool(parsed_tool_name) if self.plugin_manager else None
+            plugin_call = f"{plugin_name}:{parsed_tool_name}" if plugin_name else parsed_tool_name
+        # Execute the tool and print the result
+        try:
+            if self.plugin_manager and self.plugin_manager.enabled:
+                res = await self.plugin_manager.execute_tool(plugin_call, **params)
+                try:
+                    import json as _json
+                    print('\n🔧 TOOL_CALL result:', _json.dumps(res, indent=2))
+                except Exception:
+                    print('\n🔧 TOOL_CALL result:', res)
+        finally:
+            # Remove the handled tool call from the buffer to avoid duplicate handling
+            self._stream_buffer = self._stream_buffer[:start] + self._stream_buffer[end:]
     
     def print_header(self):
         """Print header once on startup."""
@@ -274,14 +383,18 @@ class AnchorCLI:
         print("  Type /help for commands, /exit to quit")
         if self.simple_handler:
             print("  🚀 Simple Mode: ON (pattern-based tool execution)")
-        print("  Tools: filesystem, shell, websearch (auto-enabled)")
+        if self.plugin_manager and self.plugin_manager.enabled and len(self.plugin_manager.plugins) > 0:
+            print(f"  Plugins: {', '.join(self.plugin_manager.plugins.keys())}")
+        else:
+            print("  Tools and Plugins: DISABLED")
         print()
     
     
     async def run(self):
         """Main CLI loop."""
-        # Start embedded MCP server
-        self.start_mcp_server()
+        # Start plugin manager or embedded MCP server (if present)
+        self.start_plugins()
+        self.start_mcp_server()  # backward compatible: will no-op if archived
         
         # Check connection with retry
         for attempt in range(self.max_reconnect_attempts):
@@ -330,7 +443,9 @@ class AnchorCLI:
                     
                     # Handle commands (slash commands)
                     if user_input.startswith('/'):
-                        cmd = user_input[1:].lower()
+                        parts = user_input[1:].strip().split(None, 1)
+                        cmd = parts[0].lower()
+                        cmd_rest = parts[1] if len(parts) > 1 else ""
                         
                         if cmd in ["exit", "quit"]:
                             print("\n👋 Goodbye!\n")
@@ -371,8 +486,27 @@ class AnchorCLI:
                             else:
                                 # Try to re-enable
                                 try:
-                                    from mcp.client import MCPClient
-                                    simple_mcp = MCPClient(f"http://localhost:{self.mcp_port}")
+                                    # Prefer plugin manager shim for simple mode
+                                    if self.plugin_manager and self.plugin_manager.enabled:
+                                        # Create an MCP-like shim using plugin_manager
+                                        class PluginMCPShim:
+                                            def __init__(self, pm):
+                                                self.pm = pm
+
+                                            async def call_tool(self, tool_name, **kwargs):
+                                                plugin_name = self.pm.lookup_plugin_for_tool(tool_name)
+                                                if plugin_name:
+                                                    res = await self.pm.execute_tool(f"{plugin_name}:{tool_name}", **kwargs)
+                                                    return {"status": "success", "result": res}
+                                                return {"status": "error", "error": f"Tool not found: {tool_name}"}
+
+                                            async def get_tools(self):
+                                                return self.pm.list_tools()
+
+                                        simple_mcp = PluginMCPShim(self.plugin_manager)
+                                    else:
+                                        from mcp.client import MCPClient
+                                        simple_mcp = MCPClient(f"http://localhost:{self.mcp_port}")
                                     
                                     class SimpleLLMClient:
                                         def __init__(self, ece_url, headers):
@@ -393,6 +527,41 @@ class AnchorCLI:
                                     print("\n🚀 Simple Mode: ON (pattern-based tool execution)\n")
                                 except Exception as e:
                                     print(f"\n⚠️  Could not enable simple mode: {e}\n")
+                            continue
+                        elif cmd == "call":
+                            # Manual plugin tool invocation: /call plugin:tool arg1=val1 arg2=val2
+                            if not self.plugin_manager or not self.plugin_manager.enabled:
+                                print("\n⚠️  Plugins disabled. Enable PLUGINS_ENABLED and restart Anchor to use plugin tools.\n")
+                                continue
+                            if not cmd_rest:
+                                print("\n⚠️  Usage: /call plugin:tool key=value [more] or /call tool(key=value ...)\n")
+                                continue
+                            # If cmd_rest contains parentheses, use the same parsing we use for LLM outputs
+                            try:
+                                match = self._tool_call_re.search(cmd_rest)
+                                if match:
+                                    tool_name_raw = match.group(1).strip()
+                                    params_str = match.group(2).strip()
+                                else:
+                                    # Expect 'plugin:tool key=value key2=value2'
+                                    tokens = shlex.split(cmd_rest)
+                                    tool_name_raw = tokens[0]
+                                    params_str = ' '.join(tokens[1:]) if len(tokens) > 1 else ''
+                                parsed_tool_name, params = self._parse_tool_call(tool_name_raw, params_str)
+                                if ":" in parsed_tool_name:
+                                    plugin_call = parsed_tool_name
+                                else:
+                                    plugin_name = self.plugin_manager.lookup_plugin_for_tool(parsed_tool_name)
+                                    plugin_call = f"{plugin_name}:{parsed_tool_name}" if plugin_name else parsed_tool_name
+                                print(f"\n🔧 Manual tool invocation: {plugin_call} {params}\n")
+                                res = await self.plugin_manager.execute_tool(plugin_call, **params)
+                                try:
+                                    import json as _json
+                                    print(_json.dumps(res, indent=2))
+                                except Exception:
+                                    print(res)
+                            except Exception as e:
+                                print(f"\n⚠️  Could not execute tool: {e}\n")
                             continue
                         else:
                             print(f"\n⚠️  Unknown command: /{cmd}")
@@ -456,6 +625,34 @@ class AnchorCLI:
                         print("\n⚠️  Response cancelled")
                     
                     print("\n")
+
+                    # If the assistant produced a TOOL_CALL, try executing it via the plugin manager.
+                    if self.plugin_manager and self.plugin_manager.enabled:
+                        try:
+                            match = self._tool_call_re.search(full_response)
+                            if match:
+                                tool_name_raw = match.group(1).strip()
+                                params_str = match.group(2).strip()
+                                parsed_tool_name, params = self._parse_tool_call(tool_name_raw, params_str)
+                                # If the tool name doesn't include a plugin prefix, resolve the owning plugin
+                                if ":" in parsed_tool_name:
+                                    plugin_call = parsed_tool_name
+                                else:
+                                    plugin_name = self.plugin_manager.lookup_plugin_for_tool(parsed_tool_name)
+                                    plugin_call = f"{plugin_name}:{parsed_tool_name}" if plugin_name else parsed_tool_name
+
+                                print(f"\n🔧 Invoking tool: {plugin_call} with params: {params}\n")
+                                try:
+                                    res = await self.plugin_manager.execute_tool(plugin_call, **params)
+                                    try:
+                                        import json as _json
+                                        print(_json.dumps(res, indent=2))
+                                    except Exception:
+                                        print(res)
+                                except Exception as e:
+                                    print(f"⚠️  Tool call failed: {e}")
+                        except Exception as e:
+                            logger.debug(f"Tool call parsing/execution error: {e}")
                 
                 except KeyboardInterrupt:
                     print("\n\n👋 Goodbye!\n")
@@ -520,7 +717,16 @@ Tips:
     
     async def show_tools(self):
         """Show available MCP tools."""
+        # Prefer plugin manager tools, otherwise the MCP server
         try:
+            if self.plugin_manager and self.plugin_manager.enabled:
+                tools = self.plugin_manager.list_tools()
+                print(f"\n🔧 Available Plugin Tools ({len(tools)}):")
+                for tool in tools:
+                    print(f"   • {tool.get('name')}: {tool.get('description')}")
+                print()
+                return
+            # Fallback to local MCP server (if present)
             response = await self.client.get(f"http://localhost:{self.mcp_port}/mcp/tools")
             if response.status_code == 200:
                 tools_data = response.json()
@@ -533,6 +739,53 @@ Tips:
                 print("\n⚠️  Could not retrieve tools")
         except Exception as e:
             print(f"\n⚠️  Error retrieving tools: {e}")
+
+    def _parse_tool_call(self, raw_tool_name: str, params_str: str):
+        """Parse a TOOL_CALL invocation string.
+
+        - raw_tool_name: a string like 'filesystem_list_directory' or 'utcp:filesystem_list_directory'
+        - params_str: the contents inside the parentheses, either JSON or a comma-separated key=value list
+        Returns: (tool_name, params_dict)
+        """
+        params = {}
+        s = params_str.strip()
+        if not s:
+            return raw_tool_name, params
+        # Try JSON parsing first
+        try:
+            if s.startswith("{"):
+                import json
+                params = json.loads(s)
+                return raw_tool_name, params
+        except Exception:
+            pass
+
+        # Fallback: parse key=value pairs using shlex
+        try:
+            tokens = shlex.split(params_str)
+        except Exception:
+            tokens = [t.strip() for t in params_str.split(',') if t.strip()]
+
+        for tok in tokens:
+            if '=' in tok:
+                k, v = tok.split('=', 1)
+                k = k.strip()
+                v = v.strip()
+                if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
+                    v = v[1:-1]
+                # booleans
+                if v.lower() in ("true", "false"):
+                    v2 = v.lower() == 'true'
+                else:
+                    try:
+                        if '.' in v:
+                            v2 = float(v)
+                        else:
+                            v2 = int(v)
+                    except Exception:
+                        v2 = v
+                params[k] = v2
+        return raw_tool_name, params
 
 
 async def main():
