@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from mcp.server import code_search
+from tools.code_tools import code_search
 
 
 def test_code_search_with_context_and_glob():

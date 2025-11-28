@@ -1,5 +1,7 @@
 # Anchor
 
+> NOTE: Anchor can be maintained as an independent repository and included in the ECE_Core monorepo as a Git submodule. When used as a submodule in ECE_Core, the parent repo will reference an exact commit of Anchor. Developers should initialize submodules with `git submodule update --init --recursive` after cloning ECE_Core, and CI jobs should fetch submodules as part of the checkout step. See `../ECE_Core/scripts/README.md` for conversion and management scripts.
+
 **Copilot CLI for ECE_Core – Memory-Enhanced Terminal AI**
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)]()
@@ -7,6 +9,11 @@
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
 > *"Your mind, augmented. Your data, sovereign. Your tool, open."*
+
+> **SECURITY WARNING**: This repository contains tooling that may execute shell
+> commands and read/write files on your machine. Only run this software in a
+> trusted environment and review code before enabling tool functionality or
+> starting embedded servers.
 
 Anchor is a lightweight terminal-based AI assistant that brings GitHub Copilot CLI's simplicity to ECE_Core's memory architecture (Redis + Neo4j). Built as an assistive memory tool for developers, it provides persistent memory across sessions, automatic context retrieval, and real-time streaming responses.
 
@@ -16,54 +23,34 @@ Anchor is a lightweight terminal-based AI assistant that brings GitHub Copilot C
 - ✅ **Memory-Enhanced**: Persistent context with automatic retrieval (Redis + Neo4j)
 - ✅ **Local-First**: 100% on-device, zero telemetry, your data stays yours
 - ✅ **Graceful Degradation**: Works with or without memory backends
-- ⚠️ **Embedded MCP Server (ARCHIVED)**: The embedded MCP tools were moved to an archive and are no longer enabled by default. See `anchor/mcp/ARCHIVED.md` and `archive/removed_tool_protocols/mcp-utcp/anchor/mcp/` for details.
+- ⚠️ **Embedded MCP Server (ARCHIVED)**: The embedded MCP tools were moved to an archive and are no longer enabled by default. Anchor now prefers plugin-based UTCP integrations via ECE_Core's PluginManager. See `anchor/mcp/ARCHIVED.md` and `archive/removed_tool_protocols/mcp-utcp/anchor/mcp/` for details.
 - ✅ **🚀 Simple Tool Mode**: Pattern-based tool execution for small models (4B-8B) - NEW! (2025-11-15)
 - ✅ **Security Hardening**: Shell whitelist, path protection, API authentication (2025-11-14)
 - ✅ **Testing Infrastructure**: 18 automated tests, 50%+ coverage target (2025-11-14)
 
----
-
-## ⚠️ SECURITY WARNING
-
-**CRITICAL - READ BEFORE USE:**
-
-- **shell_execute tool can run arbitrary commands** on your system
-- **DO NOT expose ECE_Core or Anchor to public networks** without authentication
-- **Use .env to configure trusted tool execution paths**
 - **Review tool calls before execution** when using small models (<14B parameters)
-- This is a **local development tool** - not designed for production/multi-user environments
 
 **Small Model Support:**
 - ✅ **Simple Tool Mode** makes 4B-8B models reliably use tools (95%+ success rate)
 - Pattern-based execution bypasses complex LLM prompting
-- Toggle with `/simple` command
-- See `SIMPLE_MODE_GUIDE.md` for details
-- **Recommended**: Works great with Qwen3-8B, Gemma-3-4B, or larger models
-
----
-
 ## Quick Start
 
 ### Resource Requirements
-
 **Minimum:**
 - **CPU**: 4+ cores recommended
 - **RAM**: 8GB (4B model = ~3GB, 14B model = ~8GB)
 - **Disk**: 10GB free (models + databases)
 - **Startup**: 5-10 seconds (first run may take longer)
-
 **Recommended:**
 - **RAM**: 16GB+ for 14B+ models
 - **GPU**: NVIDIA GPU with 8GB+ VRAM for faster inference
 - **SSD**: For faster model loading
 
-### Prerequisites
 - Python 3.10+
 - ECE_Core running on localhost:8000
 - llama.cpp server running on localhost:8080 (optional - can use any OpenAI-compatible endpoint)
 - Redis (optional - for caching)
 - Neo4j (optional - for graph memory)
-
 ### Installation
 
 ```bash
@@ -77,24 +64,17 @@ pip install -e .
 **Start in 2 Terminals:**
 
 **Terminal 1 - ECE_Core:**
-```bash
-cd C:\Users\rsbiiw\Projects\ECE_Core
-.\dist\ECE_Core.exe
-# Or: python launcher.py
 ```
-
 **Terminal 2 - Anchor CLI (includes MCP server):**
 ```bash
 cd C:\Users\rsbiiw\Projects\anchor
 python main.py
 # MCP server starts automatically with Anchor
-```
 
 ---
 
 ## Usage
 
-Once running, just start typing:
 
 ```
 ============================================================
@@ -102,61 +82,42 @@ Once running, just start typing:
 ============================================================
   Type your message (Ctrl+C to quit, 'help' for commands)
 
-You: what are my recent memories?
 Assistant: Based on your memory system, here are recent items...
 
 You: help
 Commands:
   exit, quit    - Exit Anchor
-  clear         - Clear terminal
   help          - Show this help
 
 You: exit
 👋 Goodbye!
 ```
 
----
-
-## Commands
 
 | Command | Purpose |
-|---------|---------|
-| `exit` / `quit` | Exit Anchor |
 | `clear` | Clear terminal |
 | `help` | Show help |
-
-Everything else is sent to ECE_Core for processing.
-
 ---
 
 ## How It Works
-
 1. **You type a message** in the terminal
 2. **Message is sent to ECE_Core** which retrieves relevant memories and context
 3. **LLM processes** your message with full context
 4. **Response streams** back token-by-token in real-time
 5. **Memory is automatically updated** after each response
-
----
-
-## Project Structure
-
 ```
 anchor/
 ├── main.py              # Copilot CLI entry point
-├── pyproject.toml       # Package configuration
 ├── README.md            # This file
 ├── specs/               # Design specifications
 └── .env                 # Configuration (create from .env.example)
 ```
 
----
 
 ## Configuration
 
 Create `.env` from `.env.example`:
 
-```bash
 cp .env.example .env
 ```
 
@@ -164,28 +125,12 @@ Environment variables:
 - `ECE_URL` - ECE_Core API URL (default: http://localhost:8000)
 - `SESSION_ID` - Session identifier (default: anchor-session)
 
----
-
-## FAQ
-
-**Q: Why no fancy TUI?**
-A: Simplicity over feature creep. Copilot CLI is our inspiration – fast, focused, works everywhere.
-
 **Q: Does it work without ECE_Core?**
-A: No, but ECE_Core works standalone. This is the CLI for it.
-
-**Q: Can I use a different LLM?**
-A: Yes! As long as it has an OpenAI-compatible API and ECE_Core can reach it.
 
 **Q: How does streaming work?**
-A: ECE_Core sends responses as Server-Sent Events (SSE). This CLI displays them as they arrive.
-
-**Q: Are my conversations private?**
-A: Yes! 100% local. No telemetry, no cloud, no tracking. Your data never leaves your machine.
 
 **Q: What about the shell_execute tool security?**
 A: The shell tool is DANGEROUS by design. Only use in trusted environments. We plan to add sandboxing (see specs/tasks.md).
-
 ---
 
 ## Troubleshooting
@@ -221,7 +166,35 @@ A: The shell tool is DANGEROUS by design. Only use in trusted environments. We p
 - Review Anchor logs for startup errors
 - Try manual start: `cd mcp && python server.py`
 
-For more help, see specs/TROUBLESHOOTING.md (coming soon) or file an issue.
+For more help, see `specs/spec.md` Troubleshooting section or file an issue.
+
+### Troubleshooting (Consolidated)
+
+#### Connection Issues
+- Ensure ECE_Core is running: `cd ../ECE_Core && python launcher.py`
+- Check health: `curl http://localhost:8000/health` (should return `{"status": "healthy"}`)
+- Confirm `.env` has valid `ECE_URL`
+- If port conflicts exist, change `ECE_URL` or stop the conflicting service
+
+#### Tool-Calling Issues
+- For malformed tool calls, enable `TOOL_CONFIRMATION_REQUIRED=true` to review tool calls before execution
+- If tools are not running, verify MCP server is active: `cd mcp && python server.py`
+- Use a larger model (14B+) for reliable LLM-based tool calling; otherwise use `/simple` mode
+
+#### Memory Issues
+- Confirm Redis/Neo4j services if used: Redis (optional), Neo4j (optional but required for graph features)
+- Validate `SESSION_ID` matches between Anchor and ECE_Core
+- Check ECE_Core logs if memory retrieval fails
+
+#### MCP Server Issues
+- Confirm `anchor/mcp/server.py` exists and able to start; check port 8008 availability
+- Start manually to debug: `cd anchor/mcp && python server.py`
+
+#### Redis & Neo4j
+- Redis is optional; system degrades gracefully when unavailable
+- Neo4j is optional but required for graph features; ensure credentials and DB are configured
+
+If you hit issues not covered here, open an issue or consult `specs/spec.md` for more in-depth troubleshooting guidance.
 
 ---
 
@@ -239,6 +212,59 @@ python main.py
 ```bash
 uv pip install -e .
 anchor  # now you can run it from anywhere
+```
+
+### Build standalone executable (PyInstaller)
+
+```bash
+# Install PyInstaller
+pip install pyinstaller
+
+# Build standalone executable
+pyinstaller anchor.spec
+
+# The standalone executable will be in dist/anchor/anchor.exe
+# This can be run without any Python environment
+# File size: ~52MB (contains Python interpreter + all dependencies)
+```
+
+### Distributing Anchor
+
+The standalone executable is completely self-contained:
+- No Python installation required
+- No package dependencies needed
+- Single .exe file (plus _internal folder, if present)
+- Works on Windows systems without development environment
+- Ideal for sharing with others or deployment
+
+### Submodule & Development Notes (when Anchor is a submodule in ECE_Core)
+
+If this repository is used as a submodule inside ECE_Core, follow these steps:
+
+```pwsh
+# When cloning the parent repo (ECE_Core):
+git clone --recurse-submodules https://github.com/your-user/ECE_Core.git
+
+# If you cloned without submodules initially:
+git submodule update --init --recursive
+
+# To work on Anchor (update code inside the submodule):
+cd anchor
+git checkout main
+git pull origin main
+# Make changes, commit, and push to Anchor:
+git add .
+git commit -m "Fix or feature in Anchor"
+git push origin main
+
+# Back in the parent repo, update the submodule pointer to the new commit
+cd ..
+git add anchor
+git commit -m "Update anchor submodule to latest commit"
+git push origin development
+```
+
+Note: CI for ECE_Core checks out submodules recursively; Anchor also has its own CI workflow template at `anchor/.github/workflows/anchor-ci-template.yml`.
 ```
 
 ---

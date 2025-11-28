@@ -360,6 +360,11 @@ patterns:
     tool: filesystem.read
     confidence: high
     requires_confirmation: true
+
+  code_search:
+    keywords: [grep, find code, search code, where is]
+    tool: mgrep
+    confidence: high
 ```
 
 ### Pattern Matching Algorithm
@@ -641,7 +646,7 @@ Anchor follows the GitHub Copilot CLI pattern where a model may request tools vi
 - `mcp/client.py`: MCP client used for calling tools
 
 ### Tool Categories
-- SAFE Tools: filesystem_read, filesystem_list_directory, web_search
+- SAFE Tools: filesystem_read, filesystem_list_directory, web_search, mgrep
 - DANGEROUS Tools: shell_execute, filesystem_write
 - BLOCKED Tools: user-configurable via envvar `BLOCKED_TOOLS`
 
@@ -688,3 +693,54 @@ Before production:
 - [ ] Run tests (`run_tests.bat`)
 - [ ] Test blocked commands (try `rm -rf /`)
 - [ ] Test path traversal (try `../../etc/passwd`)
+
+---
+
+## Consolidated Implementation & Integration Notes
+
+The following content consolidates implementation and integration notes previously housed in multiple documents. These topics are now captured in this canonical `spec.md`.
+
+### Implementation Summary
+- Implemented Simple Tool Mode (pattern-based mapper)
+- Minimal MCP client for local tool execution
+- CLI integration with toggle commands and streaming support
+- Core files: `simple_tool_mode.py`, `mcp/client.py`, `main.py`
+
+### Integration Summary
+- Replaced the Textual TUI approach with a lightweight Copilot CLI style interface
+- Simplified dependencies to reduce installation friction
+- Improved streaming and ECE_Core integration to better leverage memory tiers (Redis/Neo4j/SQLite)
+
+### Troubleshooting (summarized)
+- Connection issues:
+  - Confirm ECE_Core is running: `cd ../ECE_Core && python launcher.py`
+  - Check ECE_Core health: `curl http://localhost:8000/health`
+  - Verify `.env` values, especially `ECE_URL`
+- Tool calling issues:
+  - For malformed tool calls, confirm model size (>14B recommended) or use Simple Tool Mode for small models
+  - Ensure MCP server is running (`python mcp/server.py` if needed)
+  - Enable `TOOL_CONFIRMATION_REQUIRED=true` in `.env` to inspect tool calls prior to execution
+- Memory issues:
+  - Verify Redis/Neo4j connectivity (optional / required respectively)
+  - Check ECE_Core logs for memory retrieval errors
+  - Ensure SESSION_ID matches between Anchor and ECE_Core
+
+### Simple Tool Mode - Short Guide
+- Toggle `/simple` to enable/disable Simple Mode; `/debug` to inspect pattern mapping
+- Pattern mapping examples:
+  - `list files` → `filesystem_read(path=".")`
+  - `read README.md` → `filesystem_read(path="README.md")`
+  - `search for async python` → `web_search(query="async python")`
+- Use confirmation flow for `shell_execute` by default; Simple Tool Mode avoids complex LLM prompts and instead maps patterns to tools deterministically
+
+### Trigger Patterns
+- `list_files` – `list/show/display files`, `show me the files`, etc.
+- `current_directory` – `pwd`, `what directory am I in`
+- `read_file` – `read/cat/show/open <file>`
+- `search_web` – `search/get info about <query>`, `what is <x>`
+- `mgrep` – `grep <pattern>`, `find code <pattern>`, `where is <function>`
+- `run_command` – `run <command>`, `execute <command>` (dangerous – requires confirmation)
+
+---
+
+NOTE: Older, auxiliary docs such as `simple_mode_*` and `TRIGGER_SPECS.md` were consolidated into this `spec.md` to comply with the one-source-of-truth policy.

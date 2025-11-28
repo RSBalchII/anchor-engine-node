@@ -21,7 +21,22 @@ from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.key_binding import KeyBindings
 
 # Simple tool mode for small models
-from simple_tool_mode import SimpleToolMode, SimpleToolHandler
+try:
+    from simple_tool_mode import SimpleToolMode, SimpleToolHandler
+except ImportError:
+    # When installed via pip install -e ., the module may not be in Python path
+    # so we directly execute it to get the classes
+    import sys
+    from pathlib import Path
+    import importlib.util
+
+    # Add the directory containing the script to Python path
+    script_dir = Path(__file__).parent
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+
+    # Now try the import again
+    from simple_tool_mode import SimpleToolMode, SimpleToolHandler
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -48,17 +63,22 @@ class AnchorCLI:
         self.ece_url = ece_url or os.getenv("ECE_URL", "http://localhost:8000")
         self.session_id = session_id or os.getenv("SESSION_ID", "anchor-session")
         self.api_key = os.getenv("ECE_API_KEY")
-        timeout_val = timeout or int(os.getenv("ECE_TIMEOUT", "300"))
-        
+        timeout_val = timeout or int(os.getenv("ECE_TIMEOUT", "120"))
+        # default to a higher read timeout (long streaming responses need more time)
+        self._timeout_seconds = float(timeout_val)
         # Set up headers with API key if configured
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         
-        self.client = httpx.AsyncClient(timeout=timeout_val, headers=headers)
+        # Configure a robust httpx.Timeout: short connect; larger read/write timeouts
+        client_timeout = httpx.Timeout(connect=5.0, read=self._timeout_seconds, write=self._timeout_seconds, pool=15.0)
+        self.client = httpx.AsyncClient(timeout=client_timeout, headers=headers)
         self.running = True
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = 3
+        # Streaming retries (exponential backoff) - maximum number of attempts
+        self.streaming_max_retries = int(os.getenv("ANCHOR_STREAM_MAX_RETRIES", "3"))
         
         # Set up key bindings for multiline support
         kb = KeyBindings()
@@ -69,13 +89,35 @@ class AnchorCLI:
             event.current_buffer.insert_text('\n')
         
         if create_prompt:
-            self.prompt_session = PromptSession(
-            key_bindings=kb,
-            enable_history_search=True,
-            auto_suggest=AutoSuggestFromHistory(),
-            multiline=False,  # Explicitly set to false, paste bracketing enabled by default
-            enable_suspend=False  # Prevent Ctrl+Z issues
-            )
+            try:
+                self.prompt_session = PromptSession(
+                key_bindings=kb,
+                enable_history_search=True,
+                auto_suggest=AutoSuggestFromHistory(),
+                multiline=False,  # Explicitly set to false, paste bracketing enabled by default
+                enable_suspend=False  # Prevent Ctrl+Z issues
+                )
+            except Exception as e:
+                # Handle terminal compatibility issues (e.g., when running in PowerShell/WSL)
+                if "NoConsoleScreenBufferError" in str(type(e).__name__) or "xterm-256color" in str(e):
+                    logger.warning(f"Console compatibility issue detected: {e}")
+                    logger.warning("Falling back to basic input method")
+                    # For Windows PowerShell compatibility, force stdout as the output
+                    import sys
+                    from prompt_toolkit.output import DummyOutput
+                    # Create a minimal prompt session with a dummy output to avoid console issues
+                    logger.warning("Using fallback terminal compatibility mode")
+                    self.prompt_session = PromptSession(
+                        output=DummyOutput(),  # Use dummy output to avoid console issues
+                        key_bindings=kb,
+                        enable_history_search=False,
+                        auto_suggest=None,
+                        multiline=False,
+                        enable_suspend=False
+                    )
+                else:
+                    # Re-raise if it's a different error
+                    raise
         else:
             self.prompt_session = None
         
@@ -243,67 +285,97 @@ class AnchorCLI:
     
     async def send_message_streaming(self, message: str):
         """Send message and stream response token-by-token. Falls back to regular endpoint if streaming not available."""
+        # Use retry/backoff for streaming requests
         try:
             # Sanitize message to remove surrogate characters
             message = message.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
-            
+
             payload = {
                 "session_id": self.session_id,
                 "message": message
             }
-            
-            # Try streaming first
-            async with self.client.stream(
-                "POST",
-                f"{self.ece_url}/chat/stream",
-                json=payload
-            ) as response:
-                if response.status_code == 404:
-                    # Fallback to regular endpoint
-                    async for chunk in self.send_message_fallback(message):
-                        yield chunk
-                    return
-                    
-                if response.status_code != 200:
-                    yield f"Error: HTTP {response.status_code}"
-                    return
-                
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:]
-                        try:
-                            data = json.loads(data_str)
-                            if data.get("chunk"):
-                                # Sanitize chunk to prevent encoding errors
-                                chunk = data["chunk"]
-                                chunk = chunk.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+
+            attempt = 0
+            last_exc = None
+            while attempt < self.streaming_max_retries:
+                try:
+                    # Try streaming first
+                    async with self.client.stream(
+                        "POST",
+                        f"{self.ece_url}/chat/stream",
+                        json=payload
+                    ) as response:
+                        if response.status_code == 404:
+                            # Fallback to regular endpoint
+                            async for chunk in self.send_message_fallback(message):
                                 yield chunk
-                                # Process chunk for TOOL_CALL streaming detection
+                            return
+
+                        if response.status_code != 200:
+                            yield f"Error: HTTP {response.status_code}"
+                            return
+
+                        async for line in response.aiter_lines():
+                            if line.startswith("data: "):
+                                data_str = line[6:]
                                 try:
-                                    await self._process_stream_chunk(chunk)
-                                except Exception as e:
-                                    logger.debug(f"Stream tool call processing error: {e}")
-                            elif data.get("done"):
-                                break
-                            elif data.get("error"):
-                                yield f"\n❌ {data['error']}\n"
-                                break
-                        except json.JSONDecodeError:
-                            continue
+                                    data = json.loads(data_str)
+                                    if data.get("chunk"):
+                                        # Sanitize chunk to prevent encoding errors
+                                        chunk = data["chunk"]
+                                        chunk = chunk.encode('utf-8', errors='ignore').decode('utf-8', errors='ignore')
+                                        yield chunk
+                                        # Process chunk for TOOL_CALL streaming detection
+                                        try:
+                                            await self._process_stream_chunk(chunk)
+                                        except Exception as e:
+                                            logger.debug(f"Stream tool call processing error: {e}")
+                                    elif data.get("done"):
+                                        break
+                                    elif data.get("error"):
+                                        yield f"\n[ERROR] {data['error']}\n"
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
+                        # If we reached here, the stream finished normally
+                        return
+                except (httpx.ReadTimeout, httpx.ReadError, httpx.ConnectError, asyncio.TimeoutError) as exc:
+                    last_exc = exc
+                    attempt += 1
+                    if attempt >= self.streaming_max_retries:
+                        logger.warning("Streaming failed after %d attempts: %s", attempt, exc)
+                        break
+                    backoff = 0.5 * (2 ** (attempt - 1))
+                    logger.info("Streaming attempt %d failed, retrying after %.2fs: %s", attempt, backoff, exc)
+                    await asyncio.sleep(backoff)
+                    continue
+            # If we got here without returning, that implies streaming failed in all attempts
+            # and `last_exc` contains the last exception
+            if last_exc is not None:
+                # Fallback to non-streaming endpoint
+                async for chunk in self.send_message_fallback(message):
+                    yield chunk
+                return
         except asyncio.CancelledError:
             # Gracefully handle cancellation (e.g., from pasting multiline text)
             logger.debug("Stream cancelled")
-            yield "\n⚠️  Response cancelled\n"
+            yield "\n[WARN] Response cancelled\n"
         except asyncio.TimeoutError:
             logger.error("Request timed out")
-            yield "\n⏱️  Request timed out\n"
+            yield "\n[TIMEOUT] Request timed out\n"
+        except httpx.ReadTimeout as e:
+            logger.warning("Stream ReadTimeout: %s", e)
+            # fallback to non-streaming
+            async for chunk in self.send_message_fallback(message):
+                yield chunk
+            return
         except httpx.ConnectError:
             logger.error("Connection lost to ECE_Core")
-            yield "\n❌ Connection lost to ECE_Core. Attempting to reconnect...\n"
+            yield "\n[ERROR] Connection lost to ECE_Core. Attempting to reconnect...\n"
             self.reconnect_attempts += 1
         except Exception as e:
             logger.error(f"Stream error: {e}")
-            yield f"\n❌ Error: {type(e).__name__}: {str(e)}\n"
+            yield f"\n[ERROR] {type(e).__name__}: {str(e)}\n"
     
     async def send_message_fallback(self, message: str):
         """Fallback to regular /chat endpoint."""
@@ -324,13 +396,13 @@ class AnchorCLI:
                 yield f"Error: HTTP {response.status_code} - {response.text[:100]}"
         except asyncio.TimeoutError:
             logger.error("Fallback request timed out")
-            yield "⏱️  Request timed out"
+            yield "[TIMEOUT] Request timed out"
         except httpx.ConnectError:
             logger.error("Connection lost during fallback")
-            yield "❌ Connection lost to ECE_Core"
+            yield "[ERROR] Connection lost to ECE_Core"
         except Exception as e:
             logger.error(f"Fallback error: {e}")
-            yield f"❌ Error: {type(e).__name__}: {str(e)}"
+            yield f"[ERROR] {type(e).__name__}: {str(e)}"
 
     async def _process_stream_chunk(self, chunk: str):
         """Process a streaming chunk and fire a plugin tool call if a TOOL_CALL pattern is found.
@@ -382,7 +454,7 @@ class AnchorCLI:
         print("="*60)
         print("  Type /help for commands, /exit to quit")
         if self.simple_handler:
-            print("  🚀 Simple Mode: ON (pattern-based tool execution)")
+            print("  [TOOL] Simple Mode: ON (pattern-based tool execution)")
         if self.plugin_manager and self.plugin_manager.enabled and len(self.plugin_manager.plugins) > 0:
             print(f"  Plugins: {', '.join(self.plugin_manager.plugins.keys())}")
         else:
@@ -402,11 +474,11 @@ class AnchorCLI:
             if connected:
                 break
             if attempt < self.max_reconnect_attempts - 1:
-                print(f"⏳ Retrying connection (attempt {attempt + 2}/{self.max_reconnect_attempts})...")
+                print(f"[WAIT] Retrying connection (attempt {attempt + 2}/{self.max_reconnect_attempts})...")
                 await asyncio.sleep(2)
         
         if not connected:
-            print("❌ ECE_Core not running. Start it first:")
+            print("[ERROR] ECE_Core not running. Start it first:")
             print("   cd ECE_Core && python launcher.py")
             self.stop_mcp_server()  # Clean up MCP server
             await self.client.aclose()
@@ -419,7 +491,7 @@ class AnchorCLI:
                 try:
                     # Check if we need to reconnect
                     if self.reconnect_attempts > 0 and self.reconnect_attempts < self.max_reconnect_attempts:
-                        print(f"\n⏳ Reconnecting to ECE_Core...")
+                        print(f"\n[WAIT] Reconnecting to ECE_Core...")
                         await asyncio.sleep(2)
                         connected = await self.check_connection()
                         if not connected:
@@ -448,7 +520,7 @@ class AnchorCLI:
                         cmd_rest = parts[1] if len(parts) > 1 else ""
                         
                         if cmd in ["exit", "quit"]:
-                            print("\n👋 Goodbye!\n")
+                            print("\n[EXIT] Goodbye!\n")
                             break
                         elif cmd == "help":
                             self.print_help()
@@ -471,10 +543,10 @@ class AnchorCLI:
                             current_level = logging.getLogger().level
                             if current_level == logging.DEBUG:
                                 logging.getLogger().setLevel(logging.WARNING)
-                                print("\n🔧 Debug mode: OFF\n")
+                                print("\n[DEBUG] Debug mode: OFF\n")
                             else:
                                 logging.getLogger().setLevel(logging.DEBUG)
-                                print("\n🔧 Debug mode: ON\n")
+                                print("\n[DEBUG] Debug mode: ON\n")
                             continue
                         elif cmd == "simple":
                             # Toggle simple mode
@@ -553,7 +625,7 @@ class AnchorCLI:
                                 else:
                                     plugin_name = self.plugin_manager.lookup_plugin_for_tool(parsed_tool_name)
                                     plugin_call = f"{plugin_name}:{parsed_tool_name}" if plugin_name else parsed_tool_name
-                                print(f"\n🔧 Manual tool invocation: {plugin_call} {params}\n")
+                                print(f"\n[TOOL] Manual tool invocation: {plugin_call} {params}\n")
                                 res = await self.plugin_manager.execute_tool(plugin_call, **params)
                                 try:
                                     import json as _json
@@ -561,17 +633,17 @@ class AnchorCLI:
                                 except Exception:
                                     print(res)
                             except Exception as e:
-                                print(f"\n⚠️  Could not execute tool: {e}\n")
+                                print(f"\n[WARN] Could not execute tool: {e}\n")
                             continue
                         else:
-                            print(f"\n⚠️  Unknown command: /{cmd}")
+                            print(f"\n[WARN] Unknown command: /{cmd}")
                             print("   Type /help for available commands\n")
                             continue
                     
                     # Legacy command support (without slash)
                     if user_input.lower() in ["exit", "quit", "help", "clear"]:
                         if user_input.lower() in ["exit", "quit"]:
-                            print("\n👋 Goodbye!\n")
+                            print("\n[EXIT] Goodbye!\n")
                             break
                         elif user_input.lower() == "help":
                             self.print_help()
@@ -655,10 +727,10 @@ class AnchorCLI:
                             logger.debug(f"Tool call parsing/execution error: {e}")
                 
                 except KeyboardInterrupt:
-                    print("\n\n👋 Goodbye!\n")
+                    print("\n\n[EXIT] Goodbye!\n")
                     break
                 except EOFError:
-                    print("\n\n👋 Goodbye!\n")
+                    print("\n\n[EXIT] Goodbye!\n")
                     break
         
         finally:
@@ -703,7 +775,11 @@ Tips:
     async def show_recent_memories(self):
         """Show recent memories from ECE_Core."""
         try:
-            response = await self.client.get(f"{self.ece_url}/memories?limit=5")
+            # Try the `search` endpoint (supported by ECE_Core) for recent memories.
+            response = await self.client.get(f"{self.ece_url}/memories/search?limit=5")
+            # Backcompat: if server uses /memories with a 405, try the older endpoint
+            if response.status_code == 405:
+                response = await self.client.get(f"{self.ece_url}/memories?limit=5")
             if response.status_code == 200:
                 memories = response.json().get('memories', [])
                 print(f"\n💭 Recent Memories ({len(memories)}):")
@@ -792,6 +868,11 @@ async def main():
     """Entry point."""
     cli = AnchorCLI()
     await cli.run()
+
+
+def main_sync():
+    """Synchronous entry point for console script."""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":

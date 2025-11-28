@@ -4,6 +4,65 @@
 
 ---
 
+## CURRENT DEVELOPMENT CYCLE (2025-11-27)
+
+## 2025-11-27 - PyInstaller Support & Enhanced Distribution
+
+### Type: FEATURE
+
+**What Changed**:
+- ✅ **PyInstaller Support**: Added anchor.spec file for standalone executable builds
+- ✅ **Distribution Enhancement**: Create portable executables without Python environment dependencies
+- ✅ **Documentation Updates**: Added build instructions to README.md
+
+**Technical Details**:
+- Created `anchor.spec` with proper hidden imports for prompt_toolkit, httpx, dotenv, and asyncio
+- Includes support for console application with proper module collection
+- Build with: `pyinstaller anchor.spec`
+- Executable output: `dist/anchor/anchor.exe`
+- Can run without Python installation or environment setup
+
+**Files Modified**:
+- `anchor.spec`: PyInstaller spec file for standalone builds
+- `README.md`: Added build instructions section
+
+**Status**: ✅ Complete - Standalone executable support available
+
+---
+
+## 2025-11-27 - Module Import Resolution Fix
+
+### Type: BUG FIX
+
+**What Changed**:
+- ✅ **Module Import Issue Fixed**: Resolved `ModuleNotFoundError: No module named 'simple_tool_mode'` when running installed package
+- ✅ **Installation Entry Point**: Fixed console script entry point to properly handle async main function
+- ✅ **Path Resolution**: Added fallback import mechanism that adds script directory to Python path when direct import fails
+
+**Technical Details**:
+- Modified `main.py` to use fallback import with sys.path manipulation when `from simple_tool_mode import SimpleToolMode, SimpleToolHandler` fails
+- Created `main_sync()` wrapper function in `main.py` to properly handle asyncio event loop for console script entry point
+- Updated `pyproject.toml` to use `main:main_sync` as the entry point instead of async `main:main`
+- Issue occurred when package was installed with `pip install -e .` and module resolution failed in installed context
+
+**Files Modified**:
+- `main.py`: Added fallback import mechanism and sync wrapper function
+- `pyproject.toml`: Updated console script entry point
+
+**Status**: ✅ Complete - Import error resolved, anchor command now executes past import phase
+
+---
+
+## 2025-11-19 - Backend Compatibility Update
+
+### Type: MAINTENANCE
+
+**What Changed**:
+- **ECE_Core Compatibility**: Verified compatibility with ECE_Core's new "Distiller" memory architecture and Neo4j 5 schema.
+- **Documentation**: Updated references to ensure alignment with the latest ECE_Core specifications.
+
+**Status**: ✅ Verified
+
 ## 2025-11-14 - Security Hardening & Testing Infrastructure
 
 ### Type: SECURITY + TESTING
@@ -67,6 +126,19 @@
 - ✅ Documentation policy compliance verified
 
 **Status**: ✅ Documentation aligned with ECE_Core standards
+
+---
+
+## 2025-11-20 - Documentation Cleanup & Consolidation
+
+### Type: DOCUMENTATION
+
+**What Changed**:
+- Consolidated Simple Mode, Trigger Specs, Integration Summary, and Troubleshooting into `specs/spec.md`.
+- Updated `README.md` to link to the canonical `specs/spec.md` and `specs/plan.md`.
+- Archived legacy docs and created a compact set of canonical spec files compliant with `specs/doc_policy.md`.
+
+**Status**: ✅ Consolidation completed
 
 ---
 

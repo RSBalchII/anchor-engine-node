@@ -99,6 +99,30 @@ anchor/
 
 **Philosophy:** Dead stupid simple. If you can't find it in these 6 files, it's not documented.
 
+## Code & Architecture Standards (CRITIQUE-DRIVEN)
+
+These standards are enforced to maintain project quality and consistency.
+
+### Architecture
+1. **Tiered Memory**: Explicit separation of hot (Redis) and cold (Neo4j) storage.
+2. **Async-First**: Non-blocking I/O for all LLM and DB operations.
+3. **Graph-R1**: Iterative graph retrieval over simple vector search.
+
+### Code Quality
+1. **No God Objects**: Components must be focused; avoid monolithic `main.py`.
+2. **Type Safety**: Strict Pydantic models for all data structures.
+3. **Centralized Prompts**: All LLM prompts must reside in `src/prompts.py`.
+
+### Testing
+1. **Mock-First**: Unit tests must not depend on live DBs.
+2. **Integration Separation**: E2E tests must be marked and separated.
+
+### Traceability & Maintenance (NEW)
+1. **Traceability**: Automated maintenance or repair tools that write to the DB must generate and persist a `run_id` UUID per run and write it to created relationships (property name `r.auto_commit_run_id`). All runs must be auditable via CSV and runtime logs.
+2. **Rollback Support**: Every write operation must be reversible: tools that create relationships must provide a rollback script that deletes relationships by run_id.
+3. **Weaver Engine**: Any periodic agent that runs repairs (the Weaver) must be auditable, reversible, and integrated into a supervising agent (Archivist) that toggles, monitors, and logs activity.
+4. **Audit Fields**: Relationship merges from automated tooling must include properties: `auto_commit_run_id`, `auto_commit_score`, `auto_commit_delta`, `auto_committed_by`, and `auto_commit_ts`.
+
 ## Alignment with ECE_Core
 
 This policy mirrors ECE_Core's documentation approach with one addition:

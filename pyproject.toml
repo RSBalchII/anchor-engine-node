@@ -1,0 +1,25 @@
+[project]
+name = "anchor"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dotenv>=0.9.9",
+    "httpx>=0.28.1",
+    "prompt-toolkit>=3.0.52",
+]
+
+[project.scripts]
+anchor = "main:main_sync"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["archived_docs", "specs", "tests", "tools", "htmlcov", "archive"]

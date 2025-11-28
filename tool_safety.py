@@ -65,6 +65,13 @@ class ToolSafetyManager:
             r"nc\s+.*-e",          # Netcat backdoor
             r"eval\s*\(",          # Code evaluation
         ]
+
+        # Strict Whitelist (CRITIQUE-DRIVEN)
+        self.strict_whitelist_enabled = os.getenv("SHELL_STRICT_WHITELIST_ENABLED", "true").lower() == "true"
+        self.shell_whitelist = set(os.getenv(
+            "SHELL_ALLOWED_COMMANDS",
+            "ls,dir,echo,cat,grep,find,pwd,cd,mkdir,git,npm,uv,python,node"
+        ).split(","))
         
         logger.info(f"Tool Safety Manager initialized:")
         logger.info(f"  Safe tools: {len(self.safe_tools)}")
@@ -112,6 +119,13 @@ class ToolSafetyManager:
         Returns:
             (is_safe, warning_message)
         """
+        # Check strict whitelist first if enabled
+        if self.strict_whitelist_enabled:
+            # Extract base command (first word)
+            base_cmd = command.strip().split()[0] if command.strip() else ""
+            if base_cmd not in self.shell_whitelist:
+                return False, f"Command '{base_cmd}' not in strict whitelist (SHELL_ALLOWED_COMMANDS)"
+
         # Check for dangerous patterns
         for pattern in self.dangerous_shell_patterns:
             if re.search(pattern, command, re.IGNORECASE):

@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from mcp.server import code_grep
+from tools.code_tools import code_grep
 
 
 def test_code_grep_counts_and_exclusions():

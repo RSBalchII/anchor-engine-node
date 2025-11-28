@@ -7,7 +7,9 @@ If you need to restore the full functionality, copy the files from:
 into this directory and restart Anchor.
 """
 
-raise ImportError("MCP server archived; see archive/removed_tool_protocols/mcp-utcp/anchor/mcp/")
+import os
+if os.environ.get("ANCHOR_ALLOW_ARCHIVED_MCP_TESTS", "false").lower() not in ("1", "true", "yes"):
+    raise ImportError("MCP server archived; see archive/removed_tool_protocols/mcp-utcp/anchor/mcp/")
 import asyncio
 import json
 import subprocess
