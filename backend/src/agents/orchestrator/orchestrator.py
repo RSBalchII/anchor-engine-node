@@ -4,38 +4,9 @@ from typing import List, Dict, Any, Optional
 from src.llm import LLMClient
 from src.tools import ToolExecutor
 from src.agents.orchestrator.schemas import SGRPlan, NextAction, IntentType
+from src.agents.orchestrator.prompts import PLANNER_PERSONA, SCRIBE_PERSONA
 
 logger = logging.getLogger(__name__)
-
-SGR_SYSTEM_PROMPT = """
-You are the Orchestrator for the Context Engine. Your goal is to "Think, Plan, then Act".
-You must analyze the user's request and the current context, then produce a structured JSON plan.
-
-You must output valid JSON matching this schema:
-{
-  "analysis": "Detailed analysis of the user's request and current state.",
-  "intent": "QUERY" | "ACTION" | "CLARIFICATION" | "CHIT_CHAT",
-  "confidence_score": 0.0 to 1.0,
-  "steps": [
-    {
-      "step_id": 1,
-      "description": "What this step does",
-      "tool_name": "optional_tool_name_if_needed",
-      "tool_args": { "arg1": "value" },
-      "reasoning": "Why this tool is needed"
-    }
-  ],
-  "next_action": "CALL_TOOL" | "FINALIZE_RESPONSE" | "ASK_USER",
-  "final_response": "The final text response to the user (only if next_action is FINALIZE_RESPONSE or ASK_USER)"
-}
-
-RULES:
-1. If you need to use a tool, set "next_action" to "CALL_TOOL" and define the tool in the first step.
-2. Only plan ONE tool call at a time. You will get the result back in the next turn.
-3. If you have enough information or no tools are needed, set "next_action" to "FINALIZE_RESPONSE".
-4. If the user's request is unclear, set "next_action" to "ASK_USER".
-5. Do not hallucinate tool names. Only use available tools.
-"""
 
 class SGROrchestrator:
     def __init__(self, llm_client: LLMClient, tool_executor: ToolExecutor, audit_logger=None):
@@ -52,8 +23,9 @@ class SGROrchestrator:
         # We start with the retrieved context + user message
         # Note: 'context' here is the assembled context string from ContextManager
         
+        # Initial Planner Context
         current_history = [
-            {"role": "system", "content": SGR_SYSTEM_PROMPT},
+            {"role": "system", "content": PLANNER_PERSONA},
             {"role": "user", "content": f"Context:\n{context}\n\nUser Request: {user_message}"}
         ]
 
@@ -91,33 +63,49 @@ class SGROrchestrator:
 
                 # 2. Execute Logic based on NextAction
                 if plan.next_action == NextAction.FINALIZE_RESPONSE:
-                    return plan.final_response or "I have completed the task."
+                    # Optimization: If the plan already has a good final response, use it.
+                    # Otherwise, we could switch to SCRIBE_PERSONA here if needed.
+                    # For now, we trust the Planner's final_response if present.
+                    if plan.final_response:
+                        return plan.final_response
+                    
+                    # If no final response in JSON, do a quick Scribe pass
+                    scribe_history = current_history + [{"role": "assistant", "content": response_text}]
+                    scribe_history[0] = {"role": "system", "content": SCRIBE_PERSONA}
+                    scribe_history.append({"role": "user", "content": "Please synthesize the final response based on the above plan and context."})
+                    
+                    final_answer = await self.llm.generate_response(
+                        messages=scribe_history,
+                        temperature=0.7
+                    )
+                    return final_answer
                 
                 elif plan.next_action == NextAction.ASK_USER:
                     return plan.final_response or "Could you please clarify?"
 
                 elif plan.next_action == NextAction.CALL_TOOL:
-                    # Execute the first step that has a tool
-                    tool_step = next((s for s in plan.steps if s.tool_name), None)
-                    
-                    if not tool_step:
-                        logger.warning("SGR planned CALL_TOOL but no step had a tool_name.")
-                        # Fallback to finalize to avoid loop
+                    if not plan.tool_call:
+                        logger.warning("SGR planned CALL_TOOL but no tool_call provided.")
                         return plan.final_response or "I intended to use a tool but couldn't determine which one."
 
-                    logger.info(f"Executing tool: {tool_step.tool_name}")
+                    logger.info(f"Executing tool: {plan.tool_call.name}")
                     
                     # Execute Tool
-                    tool_result = await self.tools.execute_tool(
-                        tool_name=tool_step.tool_name,
-                        tool_args=tool_step.tool_args or {}
-                    )
-                    
+                    try:
+                        tool_result = await self.tools.execute_tool(
+                            tool_name=plan.tool_call.name,
+                            tool_args=plan.tool_call.arguments
+                        )
+                    except Exception as tool_err:
+                        tool_result = {"error": str(tool_err)}
+
                     # Add result to history
+                    # We append the planner's JSON output as assistant message
                     current_history.append({"role": "assistant", "content": response_text})
+                    # Then the tool output as user message (simulating environment feedback)
                     current_history.append({
                         "role": "user", 
-                        "content": f"Tool '{tool_step.tool_name}' Output: {json.dumps(tool_result)}"
+                        "content": f"Tool '{plan.tool_call.name}' Output: {json.dumps(tool_result)}"
                     })
                     
                     # Continue to next turn
@@ -128,3 +116,4 @@ class SGROrchestrator:
                 return f"I encountered an internal error: {str(e)}"
 
         return "I reached the maximum number of reasoning steps without a final answer."
+
