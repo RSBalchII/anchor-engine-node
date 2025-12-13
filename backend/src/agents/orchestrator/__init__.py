@@ -6,6 +6,6 @@ perform greedy aggregation of the teams' ideas.
 
 This is intentionally a skeleton to be extended in future iterations.
 """
-from .orchestrator import CrossTeamOrchestrator
+from .orchestrator import SGROrchestrator
 
-__all__ = ["CrossTeamOrchestrator"]
+__all__ = ["SGROrchestrator"]

@@ -3,7 +3,7 @@ Comprehensive configuration management for ECE_Core.
 Organized by component/file for easy maintenance.
 """
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, model_validator, Field
 from pathlib import Path
 try:
     import yaml
@@ -31,11 +31,19 @@ class Settings(BaseSettings):
     """
     
     # ============================================================
+    # SECURITY
+    # ============================================================
+    ece_api_key: str = "ece-secret-key"
+    # Map SERVER_REQUIRE_AUTH (from config.yaml server.require_auth) to this field
+    # Also check ECE_REQUIRE_AUTH for backward compatibility
+    ece_require_auth: bool = Field(default=False, validation_alias="SERVER_REQUIRE_AUTH") 
+
+    # ============================================================
     # LLM_CLIENT.PY - Local GGUF Model Settings
     # ============================================================
-    llm_api_base: str = "http://localhost:8080/v1"  # llama.cpp server
+    llm_api_base: str = "http://localhost:8080/v1"  # WebGPU Bridge
     # Optional: specify a distinct base URL for embeddings (useful when embedding server runs separately on port 8081)
-    llm_embeddings_api_base: Optional[str] = "http://127.0.0.1:8081/v1"
+    llm_embeddings_api_base: Optional[str] = "http://localhost:8080/v1"
     # Optional: specific model name for embeddings (embedding-capable model like qwen3-embedding-4b)
     llm_embeddings_model_name: Optional[str] = ""
     # Control whether a local GGUF model should be used as a fallback for embeddings
@@ -437,12 +445,17 @@ def _load_config_fallbacks() -> None:
         for ek, ev in _flatten(raw):
             # Only set env var if not already present
             if os.environ.get(ek) is None and ev is not None:
+                # print(f"Setting env {ek} = {ev}")
                 os.environ[ek] = str(ev)
+            # else:
+            #     print(f"Env {ek} already set to {os.environ.get(ek)}")
 
 _load_config_fallbacks()
 
+print(f"DEBUG: NEO4J_URI in env: {os.environ.get('NEO4J_URI')}")
+
 try:
-    settings = Settings()
+    settings = Settings(_env_file=None)
 except Exception:
     # During tests or in constrained environments, extra env vars can cause validation errors.
     # Fall back to a constructed default settings object to avoid blocking collection.

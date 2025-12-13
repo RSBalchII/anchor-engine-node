@@ -26,6 +26,8 @@ Context-Engine consists of three primary components working in harmony:
 - ✅ Automatic memory distillation and summarization
 - ✅ Traceability & rollback for automated repairs
 - ✅ Circuit breakers and graceful degradation
+- ✅ **Comprehensive Logging**: Server logs redirected to `logs/server_stdout.log` for persistent debugging.
+- ✅ **Automated Testing**: Integration tests available in `backend/scripts/tests/`.
 
 ### 🤖 **Anchor** - The Body
 **Role**: Terminal interface and interaction layer
@@ -53,6 +55,14 @@ Context-Engine consists of three primary components working in harmony:
   - 👁️ **Sight**: Reads active page content on demand
   - 🗣️ **Voice**: Streaming chat interface
   - ✋ **Hands**: Executes JavaScript actions on the page
+
+### 🛠️ **Sovereign Tools** - The Toolkit
+**Role**: Portable, browser-native inference and diagnostics
+**Location**: `tools/`
+
+- **WebGPU Bridge**: Replaces local Python LLM servers with browser-based inference (Llama 3, Qwen 2.5).
+- **Sovereign UI**: Lightweight, single-file HTML interfaces (`mobile-chat.html`, `log-viewer.html`).
+- **Philosophy**: Zero-dependency, offline-capable, "run anywhere" tools.
 
 ---
 

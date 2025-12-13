@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebGPU Embed Server</title>
+    <style>
+        body { background: #001; color: #0ff; font-family: monospace; padding: 20px; }
+        .log { margin-top: 10px; color: #88c; }
+        .success { color: #0ff; }
+        .error { color: #f00; }
+        #status { font-weight: bold; font-size: 1.2em; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div id="status">🔴 Disconnected</div>
+    <div>
+        <label>Embedding Model:</label>
+        <input type="text" id="model-input" value="snowflake-arctic-embed-m-q0f32-MLC-b32" style="width: 300px; background: #222; color: white; border: 1px solid #444; padding: 5px;">
+    </div>
+    <div style="margin-top: 10px;">
+        <label>Bridge URL:</label>
+        <input type="text" id="bridge-url" value="ws://localhost:8080/ws/embed" style="width: 300px; background: #222; color: white; border: 1px solid #444; padding: 5px;">
+        <button id="connect-btn">Start Server</button>
+    </div>
+    <div id="logs"></div>
+
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        const statusDiv = document.getElementById('status');
+        const logsDiv = document.getElementById('logs');
+        const connectBtn = document.getElementById('connect-btn');
+        const modelInput = document.getElementById('model-input');
+
+        let engine = null;
+        let ws = null;
+
+        function log(msg, type = 'log') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logsDiv.prepend(div);
+        }
+
+        connectBtn.onclick = async () => {
+            connectBtn.disabled = true;
+            const model = modelInput.value;
+            
+            try {
+                log(`Loading WebGPU Engine (${model})...`);
+                engine = await CreateMLCEngine(model, {
+                    initProgressCallback: (report) => {
+                        statusDiv.textContent = `🟡 Loading: ${report.text}`;
+                    }
+                });
+                log("Engine Loaded.", "success");
+                
+                connectWebSocket();
+            } catch (e) {
+                log(`Engine Load Failed: ${e.message}`, "error");
+                connectBtn.disabled = false;
+            }
+        };
+
+        function connectWebSocket() {
+            const bridgeUrl = document.getElementById('bridge-url').value;
+            log(`Connecting to Bridge (${bridgeUrl})...`);
+            ws = new WebSocket(bridgeUrl);
+
+            ws.onopen = () => {
+                statusDiv.textContent = "🟢 Connected & Ready";
+                log("Bridge Connected.", "success");
+            };
+
+            ws.onclose = () => {
+                statusDiv.textContent = "🔴 Disconnected";
+                log("Bridge Disconnected. Retrying in 3s...", "error");
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'embedding') {
+                    handleEmbedRequest(msg.id, msg.data);
+                }
+            };
+        }
+
+        async function handleEmbedRequest(reqId, data) {
+            log(`Embedding Request ${reqId.slice(0,8)}...`);
+            try {
+                // WebLLM embedding API
+                // Note: As of late 2024, WebLLM supports embeddings via `embeddings.create`
+                const result = await engine.embeddings.create({
+                    input: data.input,
+                    model: data.model
+                });
+
+                // Forward result to bridge
+                ws.send(JSON.stringify({
+                    id: reqId,
+                    result: result
+                }));
+
+                log(`Request ${reqId.slice(0,8)} Complete.`, "success");
+
+            } catch (e) {
+                log(`Request Failed: ${e.message}`, "error");
+                ws.send(JSON.stringify({ id: reqId, error: e.message }));
+            }
+        }
+    </script>
+</body>
+</html>

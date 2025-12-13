@@ -97,6 +97,15 @@ class AuditLogger:
                 "arguments": arguments,
                 "result_preview": str(result)[:100]
             })
+
+    async def log_event(self, session_id: str, event_type: str, content: str, metadata: dict = None):
+        """Log a generic event (async wrapper for log)."""
+        details = {
+            "session_id": session_id,
+            "content": content,
+            **(metadata or {})
+        }
+        self.log(event_type, details)
     
     def log_memory_access(self, session_id: str, operation: str, details: dict):
         """Log memory access operations."""

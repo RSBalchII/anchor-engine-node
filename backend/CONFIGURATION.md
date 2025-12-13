@@ -55,3 +55,19 @@ If you encounter issues with the server startup scripts, check that:
 2. Your configuration files are properly set up
 3. The required ports are available
 4. Models are properly located in the models directory
+### Advanced Weaver & Embeddings Configuration
+- WEAVER_CANDIDATE_LIMIT: Candidate limit per summary used by repair scripts (default 200)
+- WEAVER_BATCH_SIZE_DEFAULT: Default batch size used by the MemoryWeaver and repair scripts (default 2)
+- LLM_EMBEDDINGS_CHUNK_SIZE_DEFAULT: Char-based chunk size used for chunking long documents (default 2048)
+- LLM_EMBEDDINGS_DEFAULT_BATCH_SIZE: Number of document embeddings requested per API call (default 2)
+- LLM_EMBEDDINGS_API_BASE: Embeddings API base URL (default http://127.0.0.1:8081/v1)
+- NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD: Configuration for Neo4j
+- REDIS_URL: Redis server URL
+- ECE_HOST, ECE_PORT: Server host & port
+
+### Logging & Testing
+- **Logging**: Server logs are automatically redirected to `logs/server_stdout.log` when using `backend/scripts/run_server_with_logs.ps1`.
+- **Testing**: Integration tests are located in `backend/scripts/tests/`. Run them using `python backend/scripts/tests/test_chat_interface.py`.
+
+**Tips:**
+- Set LLM_EMBEDDINGS_DEFAULT_BATCH_SIZE and LLM_EMBEDDINGS_CHUNK_SIZE_DEFAULT to small values for local, lower-resource embedding servers to avoid 500 errors.

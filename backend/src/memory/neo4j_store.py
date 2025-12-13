@@ -116,7 +116,7 @@ class Neo4jStore:
             logger.error(f"Cypher execution failed: {e}")
             return []
 
-    async def add_memory(self, session_id: str, content: str, category: str, tags: List[str], importance: int, metadata: Dict[str, Any], entities: List[Dict[str, Any]] = None, content_cleaned: str = None, content_hash: str = None, content_embedding_text: str = None):
+    async def add_memory(self, session_id: str, content: str, category: str, tags: List[str], importance: int, metadata: Dict[str, Any], entities: List[Dict[str, Any]] = None, content_cleaned: str = None, content_hash: str = None, content_embedding_text: str = None, created_at: str = None):
         """Add memory node and link entities."""
         if not self.neo4j_driver:
             return
@@ -234,7 +234,7 @@ class Neo4jStore:
                         "provenance_score": provenance_score,
                         "freshness_score": freshness_score,
                         "last_verified_at": last_verified_at,
-                        "created_at": datetime.now(timezone.utc).isoformat()
+                        "created_at": created_at or datetime.now(timezone.utc).isoformat()
                     }
                 )
                 record = await result.single()

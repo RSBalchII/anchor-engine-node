@@ -62,6 +62,21 @@ class ToolExecutor:
         self.audit_logger = audit_logger
         self.max_iterations = max_iterations
 
+    async def execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Any:
+        """
+        Directly execute a single tool by name.
+        Used by SGROrchestrator.
+        """
+        if self.plugin_manager and getattr(self.plugin_manager, 'enabled', False):
+            plugin_name = self.plugin_manager.lookup_plugin_for_tool(tool_name)
+            if plugin_name:
+                return await self.plugin_manager.execute_tool(f"{plugin_name}:{tool_name}", **tool_args)
+        
+        if self.mcp_client:
+            return await self.mcp_client.call_tool(tool_name, **tool_args)
+            
+        return {"error": f"Tool '{tool_name}' not found or tools disabled."}
+
     async def execute(self, parsed_response, full_context, request, system_prompt, context_mgr):
         """
         Execute tool calls detected in the LLM response.
