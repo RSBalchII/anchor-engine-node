@@ -18,5 +18,8 @@
         "serverUrl": "http://localhost:8000",
         "toolsPath": "/mcp/tools",
         "callPath": "/mcp/call"
-    }
+    },
+    "terminal.integrated.tabs.enableAnimation": false,
+    "editor.cursorBlinking": "smooth",
+    "workbench.reduceMotion": "off"
 }

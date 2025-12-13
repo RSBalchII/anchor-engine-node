@@ -2,16 +2,17 @@ from enum import Enum
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
+class NextAction(str, Enum):
+    CALL_TOOL = "CALL_TOOL"
+    FINALIZE_RESPONSE = "FINALIZE_RESPONSE"
+    ASK_USER = "ASK_USER"
+
 class IntentType(str, Enum):
     QUERY = "QUERY"
     ACTION = "ACTION"
     CLARIFICATION = "CLARIFICATION"
     CHIT_CHAT = "CHIT_CHAT"
-
-class NextAction(str, Enum):
-    CALL_TOOL = "CALL_TOOL"
-    FINALIZE_RESPONSE = "FINALIZE_RESPONSE"
-    ASK_USER = "ASK_USER"
+    FINALIZE_RESPONSE = "FINALIZE_RESPONSE" # Added for local model compatibility
 
 class ToolCall(BaseModel):
     name: str = Field(..., description="The name of the tool to call")

@@ -32,8 +32,9 @@ class ArchivistAgent:
         # Use the provided settings instance or fallback to the module-global settings
         self.settings = settings or GLOBAL_SETTINGS
         self.weaver = MemoryWeaver(self.settings)
-        self._last_weave = None
-        self._last_purge = None
+        # Initialize timestamps to now so we wait for the first interval instead of running immediately
+        self._last_weave = datetime.now(timezone.utc)
+        self._last_purge = datetime.now(timezone.utc)
         
     async def start(self):
         """Start the background maintenance loop."""

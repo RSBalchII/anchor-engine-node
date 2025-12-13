@@ -35,6 +35,11 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         logger.info("Starting ECE_Core with Markovian reasoning... (bootstrap)")
+        
+        # Log Auth Status
+        auth_status = "ENABLED" if settings.ece_require_auth else "DISABLED"
+        logger.info(f"🔐 API Authentication is {auth_status}")
+
         memory = TieredMemory()
         await memory.initialize()
 

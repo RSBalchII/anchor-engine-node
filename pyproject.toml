@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Monorepo for Context Engine - Executive Cognitive Enhancement tools"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "chardet>=5.2.0",
+]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

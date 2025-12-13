@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glass Box Debugger</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #toolbar {
+            background-color: #111;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        input {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px 10px;
+            font-family: inherit;
+        }
+        button {
+            background: #333;
+            color: #fff;
+            border: 1px solid #444;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+        button:hover { background: #444; }
+        button.active { background: #005500; border-color: #00aa00; }
+        
+        #main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            min-width: 0;
+        }
+        .panel:last-child { border-right: none; }
+        
+        .panel-header {
+            background: #1a1a1a;
+            padding: 5px 10px;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        
+        .log-line {
+            padding: 2px 0;
+            border-bottom: 1px solid #111;
+            word-break: break-all;
+        }
+        .log-line:hover { background-color: #111; }
+        
+        .info { color: #88ccff; }
+        .warning { color: #ffcc00; }
+        .error { color: #ff4444; font-weight: bold; }
+        .debug { color: #888; }
+        .success { color: #00ff00; }
+        
+        /* Context specific styles */
+        .context-block {
+            border: 1px solid #333;
+            margin-bottom: 10px;
+            padding: 5px;
+            background: #050505;
+        }
+        .context-header {
+            color: #aaa;
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <span>Backend:</span>
+        <input type="text" id="backend-url" value="http://localhost:8000" style="width: 150px;">
+        <span>Bridge:</span>
+        <input type="text" id="bridge-url" value="http://localhost:8080" style="width: 150px;">
+        <span>Session:</span>
+        <input type="text" id="session-id" placeholder="Session ID" value="default">
+        <button id="toggle-poll" class="active">Polling: ON</button>
+        <button id="clear-btn">Clear All</button>
+    </div>
+    
+    <div id="main-container">
+        <!-- Panel 1: Bridge Logs (LLM Inference) -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>WebGPU Bridge (LLM/Chat)</span>
+                <span id="bridge-status" style="color: #888;">●</span>
+            </div>
+            <div id="bridge-logs" class="log-container"></div>
+        </div>
+        
+        <!-- Panel 2: Backend Logs (Memory/Embeddings) -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>ECE Backend (Memory/Embed)</span>
+                <span id="backend-status" style="color: #888;">●</span>
+            </div>
+            <div id="backend-logs" class="log-container"></div>
+        </div>
+        
+        <!-- Panel 3: Context Inspector -->
+        <div class="panel">
+            <div class="panel-header">
+                <span>Redis Context Window</span>
+                <button id="refresh-context" style="padding: 0 5px; font-size: 10px;">Refresh</button>
+            </div>
+            <div id="context-view" class="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const bridgeContainer = document.getElementById('bridge-logs');
+        const backendContainer = document.getElementById('backend-logs');
+        const contextContainer = document.getElementById('context-view');
+        
+        const backendUrlInput = document.getElementById('backend-url');
+        const bridgeUrlInput = document.getElementById('bridge-url');
+        const sessionIdInput = document.getElementById('session-id');
+        
+        const toggleBtn = document.getElementById('toggle-poll');
+        const clearBtn = document.getElementById('clear-btn');
+        const refreshContextBtn = document.getElementById('refresh-context');
+
+        let isPolling = true;
+        let lastBridgeLogCount = 0;
+        let lastBackendLogCount = 0;
+
+        function colorize(line) {
+            if (line.includes('ERROR') || line.includes('❌')) return `<span class="error">${line}</span>`;
+            if (line.includes('WARNING')) return `<span class="warning">${line}</span>`;
+            if (line.includes('INFO') || line.includes('✅')) return `<span class="info">${line}</span>`;
+            if (line.includes('DEBUG')) return `<span class="debug">${line}</span>`;
+            return `<span class="debug">${line}</span>`;
+        }
+
+        async function fetchBridgeLogs() {
+            const baseUrl = bridgeUrlInput.value.replace(/\/$/, "");
+            try {
+                const res = await fetch(`${baseUrl}/logs?limit=50`);
+                if (!res.ok) throw new Error("Bridge Error");
+                const data = await res.json();
+                
+                // Simple render
+                bridgeContainer.innerHTML = '';
+                data.logs.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'log-line';
+                    div.innerHTML = colorize(line);
+                    bridgeContainer.appendChild(div);
+                });
+                document.getElementById('bridge-status').style.color = '#0f0';
+            } catch (e) {
+                document.getElementById('bridge-status').style.color = '#f00';
+            }
+        }
+
+        async function fetchBackendLogs() {
+            const baseUrl = backendUrlInput.value.replace(/\/$/, "");
+            try {
+                const res = await fetch(`${baseUrl}/audit/server-logs?limit=50`);
+                if (!res.ok) throw new Error("Backend Error");
+                const data = await res.json();
+                
+                backendContainer.innerHTML = '';
+                data.logs.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'log-line';
+                    div.innerHTML = colorize(line);
+                    backendContainer.appendChild(div);
+                });
+                document.getElementById('backend-status').style.color = '#0f0';
+            } catch (e) {
+                document.getElementById('backend-status').style.color = '#f00';
+            }
+        }
+
+        async function fetchContext() {
+            const baseUrl = backendUrlInput.value.replace(/\/$/, "");
+            const sessionId = sessionIdInput.value;
+            try {
+                const res = await fetch(`${baseUrl}/audit/context/${sessionId}`);
+                if (!res.ok) throw new Error("Context Error");
+                const data = await res.json();
+                
+                contextContainer.innerHTML = '';
+                
+                if (data.context) {
+                    const div = document.createElement('div');
+                    div.className = 'context-block';
+                    div.innerText = data.context;
+                    contextContainer.appendChild(div);
+                } else {
+                    contextContainer.innerHTML = '<span class="debug">No active context found for this session.</span>';
+                }
+            } catch (e) {
+                contextContainer.innerHTML = `<span class="error">Failed to fetch context: ${e.message}</span>`;
+            }
+        }
+
+        async function poll() {
+            if (!isPolling) return;
+            await Promise.all([fetchBridgeLogs(), fetchBackendLogs()]);
+            // Context is polled less frequently or manually, but let's poll it every 2nd cycle or just keep it separate
+            // For now, let's poll context too so it updates live
+            await fetchContext();
+        }
+
+        setInterval(poll, 2000);
+
+        toggleBtn.onclick = () => {
+            isPolling = !isPolling;
+            toggleBtn.textContent = isPolling ? "Polling: ON" : "Polling: PAUSED";
+            toggleBtn.className = isPolling ? "active" : "";
+        };
+
+        clearBtn.onclick = () => {
+            bridgeContainer.innerHTML = '';
+            backendContainer.innerHTML = '';
+            contextContainer.innerHTML = '';
+        };
+        
+        refreshContextBtn.onclick = fetchContext;
+        
+        // Initial load
+        poll();
+    </script>
+</body>
+</html>

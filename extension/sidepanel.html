@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Coda Side Panel</title>
   <style>
     body {
@@ -196,6 +197,12 @@
     <textarea id="prompt" placeholder="Type a message..."></textarea>
     <button id="send">Send</button>
   </div>
+  
+  <details style="background-color: #252526; border-top: 1px solid #3e3e3e;">
+    <summary style="cursor: pointer; padding: 5px 15px; font-size: 11px; color: #888; user-select: none;">Debug Log</summary>
+    <div id="debug-log" style="font-family: monospace; font-size: 10px; max-height: 100px; overflow-y: auto; background: #000; color: #0f0; padding: 5px; margin: 0;"></div>
+  </details>
+
   <script src="sidepanel.js"></script>
 </body>
 </html>

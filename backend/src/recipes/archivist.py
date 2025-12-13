@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
@@ -78,10 +78,16 @@ async def ingest_content(
             metadata=plaintext_memory.metadata
         )
 
-        return IngestResponse(
+        response_data = IngestResponse(
             status="success",
             memory_ids=[memory_id] if memory_id else [],
             message="Content successfully ingested, archived, and indexed."
+        )
+        
+        # Force UTF-8 encoding in header to prevent Mojibake in Extension
+        return Response(
+            content=response_data.model_dump_json(), 
+            media_type="application/json; charset=utf-8"
         )
 
     except Exception as e:

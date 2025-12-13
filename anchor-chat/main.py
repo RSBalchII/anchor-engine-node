@@ -131,49 +131,38 @@ class AnchorChatApp(App):
         await history.mount(ai_bubble)
         history.scroll_end(animate=False)
 
-        # Trigger background streaming task
-        self.stream_response(message, ai_bubble)
+        # Trigger background response task
+        self.get_response(message, ai_bubble)
 
     @work(exclusive=True)
-    async def stream_response(self, message: str, bubble: ChatBubble) -> None:
-        """Stream response from ECE Core and update the bubble."""
+    async def get_response(self, message: str, bubble: ChatBubble) -> None:
+        """Get response from ECE Core and update the bubble."""
         session_id = "anchor-tui-session"
-        full_response = ""
         
         try:
+            # Update bubble to show thinking state
+            self.call_from_thread(bubble.update_content, "🤔 Thinking... (SGR Planning)")
+            
             async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream(
-                    "POST", 
-                    f"{ECE_URL}/chat/stream", 
+                response = await client.post(
+                    f"{ECE_URL}/chat/", 
                     json={"session_id": session_id, "message": message}
-                ) as response:
-                    
-                    if response.status_code != 200:
-                        bubble.update_content(f"❌ Error: HTTP {response.status_code}")
-                        return
+                )
+                
+                if response.status_code != 200:
+                    self.call_from_thread(bubble.update_content, f"❌ Error: HTTP {response.status_code}\n{response.text}")
+                    return
 
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            data_str = line[6:]
-                            try:
-                                data = json.loads(data_str)
-                                chunk = data.get("chunk", "")
+                data = response.json()
+                final_response = data.get("response", "")
+                
+                # Update UI on the main thread
+                self.call_from_thread(bubble.update_content, final_response)
+                self.call_from_thread(self.query_one("#chat-history").scroll_end, animate=False)
                                 
-                                # Filter out raw protocol tags if you don't want to see them
-                                if chunk in ["thinking:", "response:"]:
-                                    continue
-                                    
-                                full_response += chunk
-                                # Update UI on the main thread
-                                self.call_from_thread(bubble.update_content, full_response)
-                                
-                                # Auto-scroll to keep latest text visible
-                                self.call_from_thread(self.query_one("#chat-history").scroll_end, animate=False)
-                                
-                            except json.JSONDecodeError:
-                                pass
         except Exception as e:
             self.call_from_thread(bubble.update_content, f"❌ Connection Error: {e}")
+
 
 if __name__ == "__main__":
     app = AnchorChatApp()

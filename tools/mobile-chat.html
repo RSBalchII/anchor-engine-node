@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sovereign Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --text-color: #e0e0e0;
+            --user-msg-bg: #2b5c87;
+            --ai-msg-bg: #2d2d2d;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--surface-color);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        h1 { margin: 0; font-size: 1.2rem; }
+        #settings-btn { background: none; border: none; color: var(--text-color); font-size: 1.5rem; cursor: pointer; }
+        
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .message {
+            max-width: 85%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .user { align-self: flex-end; background-color: var(--user-msg-bg); color: white; border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background-color: var(--ai-msg-bg); border: 1px solid #333; border-bottom-left-radius: 2px; }
+        
+        /* Markdown Styles */
+        .ai pre { background: #111; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .ai code { font-family: monospace; }
+        .ai p { margin: 0 0 10px 0; }
+        .ai p:last-child { margin: 0; }
+
+        /* Thinking Block */
+        details.thinking {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        details.thinking summary {
+            padding: 5px 10px;
+            cursor: pointer;
+            color: #888;
+            font-style: italic;
+        }
+        details.thinking div {
+            padding: 10px;
+            border-top: 1px solid #333;
+            color: #aaa;
+            white-space: pre-wrap;
+        }
+
+        #input-area {
+            background-color: var(--surface-color);
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #333;
+        }
+        textarea {
+            flex: 1;
+            background-color: #333;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            padding: 10px 15px;
+            resize: none;
+            height: 40px;
+            font-family: inherit;
+        }
+        textarea:focus { outline: none; background-color: #444; }
+        button#send-btn {
+            background-color: var(--primary-color);
+            color: #000;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Settings Modal */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: var(--surface-color);
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 300px;
+        }
+        .modal-content input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+        }
+        .modal-content button {
+            width: 100%;
+            padding: 10px;
+            background: var(--primary-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Sovereign Chat</h1>
+        <button id="settings-btn">⚙️</button>
+    </header>
+    
+    <div id="chat-container">
+        <div class="message ai">System ready. Connected to Sovereign Node.</div>
+    </div>
+
+    <div id="input-area">
+        <textarea id="message-input" placeholder="Type a message..."></textarea>
+        <button id="send-btn">➤</button>
+    </div>
+
+    <div id="settings-modal">
+        <div class="modal-content">
+            <h3>Settings</h3>
+            <label>API Base URL</label>
+            <input type="text" id="api-url-input" placeholder="http://localhost:8000">
+            <label>API Key (Optional)</label>
+            <input type="password" id="api-key-input" placeholder="Secret Key">
+            <button id="save-settings">Save</button>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let config = {
+            baseUrl: localStorage.getItem('ece_api_url') || 'http://localhost:8000',
+            apiKey: localStorage.getItem('ece_api_key') || ''
+        };
+        const sessionId = 'mobile-' + Date.now();
+
+        // Elements
+        const chatContainer = document.getElementById('chat-container');
+        const input = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const modal = document.getElementById('settings-modal');
+        const saveSettingsBtn = document.getElementById('save-settings');
+        const apiUrlInput = document.getElementById('api-url-input');
+        const apiKeyInput = document.getElementById('api-key-input');
+
+        // Wake Lock
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log(`${err.name}, ${err.message}`);
+            }
+        }
+        requestWakeLock();
+
+        // Settings Logic
+        settingsBtn.onclick = () => {
+            apiUrlInput.value = config.baseUrl;
+            apiKeyInput.value = config.apiKey;
+            modal.style.display = 'flex';
+        };
+        
+        saveSettingsBtn.onclick = () => {
+            let url = apiUrlInput.value.replace(/\/$/, ""); // Remove trailing slash
+            config.baseUrl = url;
+            config.apiKey = apiKeyInput.value;
+            localStorage.setItem('ece_api_url', config.baseUrl);
+            localStorage.setItem('ece_api_key', config.apiKey);
+            modal.style.display = 'none';
+            appendMessage('ai', `Configuration updated. Pointing to ${config.baseUrl}`);
+        };
+
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        };
+
+        // Chat Logic
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            if (role === 'ai') {
+                // Parse Thinking Tags
+                let displayHtml = text;
+                const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+                
+                if (thinkMatch) {
+                    const thought = thinkMatch[1];
+                    const cleanText = text.replace(/<think>[\s\S]*?<\/think>/, "").trim();
+                    
+                    const thoughtHtml = `
+                        <details class="thinking">
+                            <summary>Thinking Process</summary>
+                            <div>${thought.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+                        </details>
+                    `;
+                    displayHtml = thoughtHtml + marked.parse(cleanText);
+                } else {
+                    displayHtml = marked.parse(text);
+                }
+                div.innerHTML = displayHtml;
+            } else {
+                div.textContent = text;
+            }
+            
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+            
+            input.value = '';
+            appendMessage('user', text);
+            
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai';
+            loadingDiv.textContent = '...';
+            chatContainer.appendChild(loadingDiv);
+
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (config.apiKey) headers['Authorization'] = `Bearer ${config.apiKey}`;
+
+                const res = await fetch(`${config.baseUrl}/chat/`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        message: text
+                    })
+                });
+
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                
+                const data = await res.json();
+                chatContainer.removeChild(loadingDiv);
+                appendMessage('ai', data.response);
+
+            } catch (e) {
+                chatContainer.removeChild(loadingDiv);
+                appendMessage('ai', `Error: ${e.message}. Check your settings.`);
+            }
+        }
+
+        sendBtn.onclick = sendMessage;
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        };
+
+    </script>
+</body>
+</html>

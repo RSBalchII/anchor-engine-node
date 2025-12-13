@@ -141,10 +141,10 @@ def create_project_corpus(
             try:
                 with open(file_path, "rb") as raw_file:
                     raw_data = raw_file.read()
-                    if not raw_data:
-                        continue
-                    # Use chardet to guess the encoding, but default to utf-8
-                    encoding = chardet.detect(raw_data)["encoding"] or "utf-8"
+                if not raw_data:
+                    continue
+                # Use chardet to guess the encoding, but default to utf-8
+                encoding = chardet.detect(raw_data)["encoding"] or "utf-8"
 
                 # Decode using the detected encoding, replacing any errors
                 decoded_content = raw_data.decode(encoding, errors="replace")

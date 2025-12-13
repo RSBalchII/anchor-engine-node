@@ -1,4 +1,4 @@
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\README.md (Section: ROOT_PROJECT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\README.md (Section: ROOT_PROJECT) ---
 
 # Context-Engine: Infinite Context Pipeline
 
@@ -28,6 +28,8 @@ Context-Engine consists of three primary components working in harmony:
 - ‚úÖ Automatic memory distillation and summarization
 - ‚úÖ Traceability & rollback for automated repairs
 - ‚úÖ Circuit breakers and graceful degradation
+- ‚úÖ **Comprehensive Logging**: Server logs redirected to `logs/server_stdout.log` for persistent debugging.
+- ‚úÖ **Automated Testing**: Integration tests available in `backend/scripts/tests/`.
 
 ### ü§ñ **Anchor** - The Body
 **Role**: Terminal interface and interaction layer
@@ -55,6 +57,14 @@ Context-Engine consists of three primary components working in harmony:
   - üëÅÔ∏è **Sight**: Reads active page content on demand
   - üó£Ô∏è **Voice**: Streaming chat interface
   - ‚úã **Hands**: Executes JavaScript actions on the page
+
+### üõ†Ô∏è **Sovereign Tools** - The Toolkit
+**Role**: Portable, browser-native inference and diagnostics
+**Location**: `tools/`
+
+- **WebGPU Bridge**: Replaces local Python LLM servers with browser-based inference (Llama 3, Qwen 2.5).
+- **Sovereign UI**: Lightweight, single-file HTML interfaces (`mobile-chat.html`, `log-viewer.html`).
+- **Philosophy**: Zero-dependency, offline-capable, "run anywhere" tools.
 
 ---
 
@@ -434,9 +444,9 @@ Built for neurodivergent hackers who need their tools to work reliably.
 - **Implementation Tasks**: See `specs/tasks.md`
 - **Project History**: See `CHANGELOG.md`
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\README.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\README.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\CHANGELOG.md (Section: ROOT_PROJECT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\CHANGELOG.md (Section: ROOT_PROJECT) ---
 
 # Context-Engine Changelog
 
@@ -684,9 +694,9 @@ Built for neurodivergent hackers who need their tools to work reliably.
 ### Fixed
 - **Basic Functionality**: Initial implementation of core features
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\CHANGELOG.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\CHANGELOG.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\plan.md (Section: ROOT_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\plan.md (Section: ROOT_SPECS) ---
 
 # Context-Engine Implementation Plan
 
@@ -862,9 +872,9 @@ Build a cognitive system that can theoretically process infinite amounts of text
 - Clear audit trail for all automated operations
 - Human confirmation for all autonomous changes
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\plan.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\plan.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\spec.md (Section: ROOT_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\spec.md (Section: ROOT_SPECS) ---
 
 # Context-Engine Specification
 
@@ -1052,9 +1062,9 @@ The system follows a **Bridge-Core** architecture with three main components:
 - **Empirical Distrust**: Primary source supremacy for verification
 - **Infinite Context Pipeline**: Hardware-software context rotation protocol
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\spec.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\spec.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\tasks.md (Section: ROOT_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\tasks.md (Section: ROOT_SPECS) ---
 
 # Context-Engine Implementation Tasks
 
@@ -1196,9 +1206,9 @@ The system follows a **Bridge-Core** architecture with three main components:
 - [ ] Cognitive load measurement with infinite vs. finite context systems (EC-RES-005)
 - [ ] User productivity impact assessment with comprehensive usage analytics (EC-RES-006)
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\specs\tasks.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\specs\tasks.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\config.yaml (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\config.yaml (Section: BACKEND_ROOT) ---
 
   # ECE_Core Configuration
   # Single source of truth for all ECE_Core settings
@@ -1216,9 +1226,11 @@ The system follows a **Bridge-Core** architecture with three main components:
   # ============================================================
   llm:
     api_base: "http://localhost:8080/v1"
+    model_name: "auto"
+    chat_template: "auto"
     # Fast parameters: 16k context to keep KV cache smaller and ensure model fits in 16GB VRAM
     context_size: 16384
-    max_tokens: 4096
+    max_tokens: 8192
     temperature: 1.0
     top_p: 0.95
     timeout: 300
@@ -1346,9 +1358,9 @@ The system follows a **Bridge-Core** architecture with three main components:
       log_context_assembly: false
       save_responses: false
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\config.yaml ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\config.yaml ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\debug_chat.py (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\debug_chat.py (Section: BACKEND_ROOT) ---
 
 import requests
 import json
@@ -1387,26 +1399,122 @@ if __name__ == "__main__":
     test_chat()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\debug_chat.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\debug_chat.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\launcher.py (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\debug_plan.py (Section: BACKEND_ROOT) ---
+
+
+import asyncio
+import logging
+import json
+import sys
+import os
+
+# Add src to path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+
+from src.llm import LLMClient
+from src.agents.orchestrator.prompts import PLANNER_PERSONA
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def main():
+    print("Initializing LLMClient...")
+    llm = LLMClient()
+    
+    # Mock history similar to orchestrator
+    current_history = [
+        {"role": "system", "content": PLANNER_PERSONA},
+        {"role": "user", "content": "Context:\nUser is testing the system.\n\nUser Request: Hello, are you working?"}
+    ]
+    
+    print("Generating response...")
+    try:
+        response_text = await llm.generate_response(
+            messages=current_history,
+            temperature=0.2,
+            json_mode=True
+        )
+        
+        print("\n--- RAW RESPONSE ---")
+        print(response_text)
+        print("--------------------\n")
+        
+        print("Attempting JSON parse...")
+        try:
+            data = json.loads(response_text)
+            print("✅ JSON Parse Successful")
+            print(json.dumps(data, indent=2))
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON Parse Failed: {e}")
+            
+    except Exception as e:
+        print(f"❌ Error during generation: {e}")
+    finally:
+        await llm.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\debug_plan.py ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\launcher.py (Section: BACKEND_ROOT) ---
 
 from src.app_factory import create_app_with_routers
 from src.config import settings
 import logging
+import os
+from logging.handlers import RotatingFileHandler
 
-logging.basicConfig(level=getattr(logging, settings.ece_log_level), format='%(asctime)s - %(levelname)s - %(message)s')
+# Ensure logs directory exists
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Configure logging
+log_file = os.path.join(log_dir, "server.log")
+logging.basicConfig(
+    level=getattr(logging, settings.ece_log_level),
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler(log_file, maxBytes=1*1024*1024, backupCount=5, encoding='utf-8')
+    ]
+)
+
+# Ensure Uvicorn logs also go to the file
+# uvicorn_logger = logging.getLogger("uvicorn")
+# uvicorn_logger.handlers = logging.getLogger().handlers
+# uvicorn_access_logger = logging.getLogger("uvicorn.access")
+# uvicorn_access_logger.handlers = logging.getLogger().handlers
+
+# --- Start WebGPU Bridge (Sovereign Tools) ---
+import subprocess
+import sys
+from pathlib import Path
+
+bridge_script = Path(__file__).parent.parent / "tools" / "webgpu_bridge.py"
+if bridge_script.exists():
+    print(f"üöÄ Starting WebGPU Bridge from {bridge_script}...")
+    # Run in background, detached
+    subprocess.Popen([sys.executable, str(bridge_script)], cwd=str(bridge_script.parent.parent))
+else:
+    print(f"‚ö†Ô∏è WebGPU Bridge script not found at {bridge_script}")
+# ---------------------------------------------
 
 app = create_app_with_routers()
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run(app, host=settings.ece_host, port=settings.ece_port)
+    uvicorn.run(app, host=settings.ece_host, port=settings.ece_port, log_config=None)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\launcher.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\launcher.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\monorepo_launcher.py (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\monorepo_launcher.py (Section: BACKEND_ROOT) ---
 
 """Monorepo launcher
 
@@ -1472,9 +1580,9 @@ if __name__ == '__main__':
     main()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\monorepo_launcher.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\monorepo_launcher.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\README.md (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\README.md (Section: BACKEND_ROOT) ---
 
 # ECE_Core Backend
 
@@ -1609,9 +1717,9 @@ Built for the cognitive architecture that bridges human and machine intelligence
 - **Current Tasks**: See `specs/tasks.md`
 - **Troubleshooting**: See `specs/TROUBLESHOOTING.md`
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\README.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\README.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\read_all.py (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\read_all.py (Section: BACKEND_ROOT) ---
 
 #!/usr/bin/env python3
 """
@@ -1803,9 +1911,9 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
     )
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\read_all.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\read_all.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\requirements.txt (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\requirements.txt (Section: BACKEND_ROOT) ---
 
 # ECE_Core - Minimal Dependencies
 fastapi==0.115.0
@@ -1836,9 +1944,9 @@ requests>=2.31.0
 ray[default]>=2.9.0
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\requirements.txt ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\requirements.txt ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\unified_launcher.py (Section: BACKEND_ROOT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\unified_launcher.py (Section: BACKEND_ROOT) ---
 
 #!/usr/bin/env python3
 """
@@ -2093,9 +2201,9 @@ if __name__ == '__main__':
         log_level=settings.ece_log_level.lower()
     )
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\unified_launcher.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\unified_launcher.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\app_factory.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\app_factory.py (Section: BACKEND_SRC) ---
 
 """Small wrapper to provide a clean app import for tests and tools.
 This module avoids pulling in legacy `src.main` content and provides a
@@ -2108,60 +2216,60 @@ import logging
 logging.basicConfig(level=getattr(logging, settings.ece_log_level), format='%(asctime)s - %(levelname)s - %(message)s')
 
 def create_app_with_routers():
-	"""Create the FastAPI app and include all API routers.
+    """Create the FastAPI app and include all API routers.
 
-	Use this factory to create an app instance after pytest autouse fixtures have run
-	to ensure that patches (fake LLM, fake Redis) are applied before the app lifecycle
-	creates real clients.
-	"""
-	app = create_app()
-	from src.api import (
-	memory_router,
-	reason_router,
-	health_router,
-	# openai_router,
-	plugins_router,
-	audit_router,
-    plan_router,
-	)
+    Use this factory to create an app instance after pytest autouse fixtures have run
+    to ensure that patches (fake LLM, fake Redis) are applied before the app lifecycle
+    creates real clients.
+    """
+    app = create_app()
+    from src.api import (
+        memory_router,
+        reason_router,
+        health_router,
+        # openai_router,
+        plugins_router,
+        audit_router,
+        plan_router,
+    )
 
-	# Import browser bridge plugin
-	from src.plugins.browser_bridge.plugin import router as browser_bridge_router
-	# Import Coda Chat Recipe
-	from src.recipes.coda_chat import router as coda_chat_router
-	# Import Archivist Recipe
-	from src.recipes.archivist import router as archivist_router
+    # Import browser bridge plugin
+    from src.plugins.browser_bridge.plugin import router as browser_bridge_router
+    # Import Coda Chat Recipe
+    from src.recipes.coda_chat import router as coda_chat_router
+    # Import Archivist Recipe
+    from src.recipes.archivist import router as archivist_router
 
-	from fastapi import Depends
-	from src.security import verify_api_key
+    from fastapi import Depends
+    from src.security import verify_api_key
 
-	app.include_router(health_router)  # Public
-	app.include_router(health_router)  # Public
-	# app.include_router(openai_router, dependencies=[Depends(verify_api_key)])
-	app.include_router(reason_router, dependencies=[Depends(verify_api_key)])
-	app.include_router(plugins_router, dependencies=[Depends(verify_api_key)])
-	app.include_router(audit_router, dependencies=[Depends(verify_api_key)])
-	app.include_router(plan_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(health_router)  # Public
+    app.include_router(memory_router)  # Public for context clearing
+    # app.include_router(openai_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(reason_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(plugins_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(audit_router, dependencies=[Depends(verify_api_key)])
+    app.include_router(plan_router, dependencies=[Depends(verify_api_key)])
 
-	# Include browser bridge router
-	app.include_router(browser_bridge_router)
+    # Include browser bridge router
+    app.include_router(browser_bridge_router)
 
-	# Temporarily remove dependencies to debug 403
-	app.include_router(coda_chat_router, prefix="/chat") #, dependencies=[Depends(verify_api_key)])
+    # Temporarily remove dependencies to debug 403
+    app.include_router(coda_chat_router, prefix="/chat") #, dependencies=[Depends(verify_api_key)])
 
-	# Include Archivist Recipe
-	app.include_router(archivist_router, prefix="/archivist", dependencies=[Depends(verify_api_key)])
+    # Include Archivist Recipe
+    app.include_router(archivist_router, prefix="/archivist") #, dependencies=[Depends(verify_api_key)])
 
-	return app
+    return app
 
 
 # Backwards compatible app instance for import-time use (rare)
 app = None
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\app_factory.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\app_factory.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\bootstrap.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\bootstrap.py (Section: BACKEND_SRC) ---
 
 """Application bootstrap: provide create_app() with lifecycle initialization.
 
@@ -2342,9 +2450,9 @@ def get_components(app: FastAPI) -> dict:
     }
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\bootstrap.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\bootstrap.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\chat_templates.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\chat_templates.py (Section: BACKEND_SRC) ---
 
 """
 Chat template management for different LLM models.
@@ -2666,9 +2774,9 @@ class ChatTemplateManager:
 # Global template manager instance
 chat_template_manager = ChatTemplateManager()
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\chat_templates.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\chat_templates.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\circuit_breaker.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\circuit_breaker.py (Section: BACKEND_SRC) ---
 
 """
 Circuit breaker pattern for ECE_Core external dependencies.
@@ -2813,9 +2921,9 @@ def circuit_breaker(breaker: CircuitBreaker):
     return decorator
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\circuit_breaker.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\circuit_breaker.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\config.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\config.py (Section: BACKEND_SRC) ---
 
 """
 Comprehensive configuration management for ECE_Core.
@@ -2852,9 +2960,9 @@ class Settings(BaseSettings):
     # ============================================================
     # LLM_CLIENT.PY - Local GGUF Model Settings
     # ============================================================
-    llm_api_base: str = "http://localhost:8080/v1"  # llama.cpp server
+    llm_api_base: str = "http://localhost:8080/v1"  # WebGPU Bridge
     # Optional: specify a distinct base URL for embeddings (useful when embedding server runs separately on port 8081)
-    llm_embeddings_api_base: Optional[str] = "http://127.0.0.1:8081/v1"
+    llm_embeddings_api_base: Optional[str] = "http://localhost:8080/v1"
     # Optional: specific model name for embeddings (embedding-capable model like qwen3-embedding-4b)
     llm_embeddings_model_name: Optional[str] = ""
     # Control whether a local GGUF model should be used as a fallback for embeddings
@@ -3270,9 +3378,9 @@ except Exception:
 # Legacy exports for backward compatibility
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\config.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\config.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\config_loader.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\config_loader.py (Section: BACKEND_SRC) ---
 
 """
 Configuration Loader for ECE_Core and Anchor
@@ -3526,9 +3634,9 @@ def get_value(key: str, default: Any = None) -> Any:
     return _loader.get(key, default) if _loader else default
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\config_loader.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\config_loader.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\content_utils.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\content_utils.py (Section: BACKEND_SRC) ---
 
 import html
 import json
@@ -3815,9 +3923,9 @@ def sanitize_token_soup(text: str) -> str:
     return t
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\content_utils.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\content_utils.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\context.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\context.py (Section: BACKEND_SRC) ---
 
 """Context Manager: Assembles context and manages overflow."""
 import logging
@@ -4338,9 +4446,9 @@ Preserve granularity and specificity across all chunks."""
 
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\context.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\context.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller.py (Section: BACKEND_SRC) ---
 
 """Thin wrapper for the canonical Distiller implementation.
 
@@ -4371,9 +4479,9 @@ __all__ = [
 ]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller_impl.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller_impl.py (Section: BACKEND_SRC) ---
 
 """Canonical Distiller implementation used across ECE_Core.
 
@@ -4904,9 +5012,9 @@ __all__ = [
 ]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller_impl.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\distiller_impl.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\exceptions.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\exceptions.py (Section: BACKEND_SRC) ---
 
 """
 Custom exceptions for ECE_Core and Anchor
@@ -4950,9 +5058,9 @@ class ValidationError(ECEError):
     pass
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\exceptions.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\exceptions.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\graph.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\graph.py (Section: BACKEND_SRC) ---
 
 """
 Graph Reasoner: Memory retrieval using Graph-R1 patterns
@@ -5413,9 +5521,9 @@ Provide final answer:"""
         return answer.strip()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\graph.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\graph.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\intelligent_chunker.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\intelligent_chunker.py (Section: BACKEND_SRC) ---
 
 """
 Intelligent Chunker: Decides how to process each chunk.
@@ -5697,9 +5805,9 @@ Compression: {compression_ratio:.1%}
         return header + combined
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\intelligent_chunker.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\intelligent_chunker.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\llm.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\llm.py (Section: BACKEND_SRC) ---
 
 """
 Simple LLM client supporting both API servers and local GGUF models.
@@ -5939,6 +6047,104 @@ class LLMClient:
             return None
         return None
     
+    async def generate_response(self,
+                               messages: List[Dict[str, str]],
+                               max_tokens: Optional[int] = None,
+                               temperature: float = None,
+                               json_mode: bool = False) -> str:
+        """
+        Generate response from a list of messages.
+        Supports json_mode and auto-continuation for truncated responses.
+        """
+        temperature = temperature if temperature is not None else settings.llm_temperature
+        max_tokens = max_tokens or settings.llm_max_tokens
+        
+        if not self._model_detection_attempted:
+            await self.detect_model()
+            
+        formatted_input = self.chat_template.format_messages(messages)
+        
+        # Determine API endpoint and payload structure
+        is_legacy_completion = self.chat_template_name in ["qwen3", "qwen3-thinking", "gemma", "gemma2", "gemma3", "llama", "llama2", "llama3", "mistral", "phi3", "chatml"]
+        
+        if is_legacy_completion:
+             api_endpoint = f"{self.api_base}/completions"
+        else:
+            api_endpoint = f"{self.api_base}/chat/completions"
+            
+        full_response_content = ""
+        current_messages = messages.copy() # Keep track of conversation for chat completion mode
+        current_prompt = formatted_input # Keep track of prompt for legacy completion mode
+        
+        max_loops = 5
+        loop_count = 0
+        
+        while loop_count < max_loops:
+            loop_count += 1
+            
+            if is_legacy_completion:
+                payload = {
+                    "model": self._detected_model or self.model,
+                    "prompt": current_prompt,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": settings.llm_top_p
+                }
+            else:
+                payload = {
+                    "model": self._detected_model or self.model,
+                    "messages": current_messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": settings.llm_top_p
+                }
+                
+            if json_mode:
+                payload["response_format"] = {"type": "json_object"}
+                
+            if getattr(settings, 'llm_stop_tokens', None):
+                payload["stop"] = settings.llm_stop_tokens
+                
+            try:
+                response = await self.client.post(api_endpoint, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                content_chunk = ""
+                finish_reason = None
+                
+                if "choices" in result and len(result["choices"]) > 0:
+                    choice = result["choices"][0]
+                    finish_reason = choice.get("finish_reason")
+                    
+                    if "message" in choice and "content" in choice["message"]:
+                        content_chunk = choice["message"]["content"]
+                    elif "text" in choice:
+                        content_chunk = choice["text"]
+                
+                full_response_content += content_chunk
+                
+                if finish_reason == "length":
+                    print(f"üîÑ Response truncated (length). Auto-continuing... (Loop {loop_count})")
+                    
+                    # Prepare for next loop
+                    if is_legacy_completion:
+                        # For legacy completion, we append the output to the prompt and continue
+                        current_prompt += content_chunk
+                    else:
+                        # For chat completion, we append the assistant's partial response and a user "continue" message
+                        current_messages.append({"role": "assistant", "content": content_chunk})
+                        current_messages.append({"role": "user", "content": "proceed"})
+                else:
+                    # Done
+                    break
+                    
+            except Exception as e:
+                print(f"Error in generate_response: {e}")
+                raise e
+                
+        return full_response_content
+
     async def generate(self,
                       prompt: str,
                       max_tokens: Optional[int] = None,
@@ -6590,9 +6796,9 @@ class ContextSizeExceededError(Exception):
         self.server_message = server_message
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\llm.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\llm.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\main.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\main.py (Section: BACKEND_SRC) ---
 
 """Minimal, single-entrypoint for ECE_Core.
 
@@ -6613,9 +6819,9 @@ if __name__ == '__main__':
     uvicorn.run(app, host=settings.ece_host, port=settings.ece_port)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\main.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\main.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_client.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_client.py (Section: BACKEND_SRC) ---
 
 #!/usr/bin/env python3
 """
@@ -6661,9 +6867,9 @@ class MCPClient:
             return r.json()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_client.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_client.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_runner.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_runner.py (Section: BACKEND_SRC) ---
 
 #!/usr/bin/env python3
 """Small runner that uses `src.config.settings` to start uvicorn with configured host/port.
@@ -6700,9 +6906,9 @@ if __name__ == "__main__":
     main()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_runner.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_runner.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_server.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_server.py (Section: BACKEND_SRC) ---
 
 #!/usr/bin/env python3
 """
@@ -6931,9 +7137,9 @@ if __name__ == "__main__":
         uvicorn.run("src.mcp_server:app", host=settings.mcp_host, port=int(settings.mcp_port), log_level=settings.ece_log_level.lower())
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_server.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\mcp_server.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\models.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\models.py (Section: BACKEND_SRC) ---
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
@@ -6978,9 +7184,9 @@ class PlaintextMemory(BaseModel):
         }
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\models.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\models.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\prompts.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\prompts.py (Section: BACKEND_SRC) ---
 
 """Minimal and robust prompt utilities for ECE Core.
 
@@ -7068,9 +7274,9 @@ def build_entity_extraction_prompt(text: str) -> str:
     )
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\prompts.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\prompts.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\security.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\security.py (Section: BACKEND_SRC) ---
 
 """
 Security middleware and utilities for ECE_Core.
@@ -7171,6 +7377,15 @@ class AuditLogger:
                 "arguments": arguments,
                 "result_preview": str(result)[:100]
             })
+
+    async def log_event(self, session_id: str, event_type: str, content: str, metadata: dict = None):
+        """Log a generic event (async wrapper for log)."""
+        details = {
+            "session_id": session_id,
+            "content": content,
+            **(metadata or {})
+        }
+        self.log(event_type, details)
     
     def log_memory_access(self, session_id: str, operation: str, details: dict):
         """Log memory access operations."""
@@ -7192,9 +7407,9 @@ class AuditLogger:
 audit_logger = AuditLogger()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\security.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\security.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\tools.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\tools.py (Section: BACKEND_SRC) ---
 
 """Utility helpers for tools/ plugin management and tool listing.
 
@@ -7259,6 +7474,21 @@ class ToolExecutor:
         self.llm = llm_client
         self.audit_logger = audit_logger
         self.max_iterations = max_iterations
+
+    async def execute_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Any:
+        """
+        Directly execute a single tool by name.
+        Used by SGROrchestrator.
+        """
+        if self.plugin_manager and getattr(self.plugin_manager, 'enabled', False):
+            plugin_name = self.plugin_manager.lookup_plugin_for_tool(tool_name)
+            if plugin_name:
+                return await self.plugin_manager.execute_tool(f"{plugin_name}:{tool_name}", **tool_args)
+        
+        if self.mcp_client:
+            return await self.mcp_client.call_tool(tool_name, **tool_args)
+            
+        return {"error": f"Tool '{tool_name}' not found or tools disabled."}
 
     async def execute(self, parsed_response, full_context, request, system_prompt, context_mgr):
         """
@@ -7384,9 +7614,9 @@ class ToolExecutor:
 
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\tools.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\tools.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\tool_call_models.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\tool_call_models.py (Section: BACKEND_SRC) ---
 
 """
 Tool Call Models and Validation
@@ -7717,9 +7947,9 @@ class ToolCallValidator:
         return True, None
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\tool_call_models.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\tool_call_models.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapter.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapter.py (Section: BACKEND_SRC) ---
 
 """Abstract Vector DB adapter interface for ECE_Core.
 
@@ -7781,9 +8011,9 @@ def create_vector_adapter(adapter_name: str | None = None) -> VectorAdapter:
     return adapter
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapter.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapter.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\archivist.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\archivist.py (Section: BACKEND_SRC) ---
 
 """
 Archivist Agent (Maintenance & Curation)
@@ -7819,8 +8049,9 @@ class ArchivistAgent:
         # Use the provided settings instance or fallback to the module-global settings
         self.settings = settings or GLOBAL_SETTINGS
         self.weaver = MemoryWeaver(self.settings)
-        self._last_weave = None
-        self._last_purge = None
+        # Initialize timestamps to now so we wait for the first interval instead of running immediately
+        self._last_weave = datetime.now(timezone.utc)
+        self._last_purge = datetime.now(timezone.utc)
         
     async def start(self):
         """Start the background maintenance loop."""
@@ -8100,9 +8331,9 @@ class ArchivistAgent:
             logger.error(f"Pruning failed: {e}")
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\archivist.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\archivist.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\planner.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\planner.py (Section: BACKEND_SRC) ---
 
 """
 Planner Agent
@@ -8247,9 +8478,9 @@ class PlannerAgent:
 __all__ = ["PlannerAgent", "PlanResult", "PlanStep"]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\planner.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\planner.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\verifier.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\verifier.py (Section: BACKEND_SRC) ---
 
 """
 Verifier Agent (Empirical Distrust)
@@ -8367,9 +8598,9 @@ Return as JSON list of strings."""
         return min(1.0, score_sum)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\verifier.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\verifier.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\__init__.py (Section: BACKEND_SRC) ---
 
 """agents package - exports are lazily imported to avoid heavy dependencies at import time
 This avoids importing Neo4j and other heavy libs during test collection or module import.
@@ -8396,76 +8627,280 @@ def __getattr__(name: str):
 	raise AttributeError(name)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\orchestrator.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\orchestrator.py (Section: BACKEND_SRC) ---
 
-from typing import Any, Dict, List, Optional
+import json
 import logging
-import asyncio
+import re
+from typing import List, Dict, Any, Optional
+from src.llm import LLMClient
+from src.tools import ToolExecutor
+from src.agents.orchestrator.schemas import SGRPlan, NextAction, IntentType
+from src.agents.orchestrator.prompts import PLANNER_PERSONA, SCRIBE_PERSONA
 
 logger = logging.getLogger(__name__)
 
+class SGROrchestrator:
+    def __init__(self, llm_client: LLMClient, tool_executor: ToolExecutor, audit_logger=None):
+        self.llm = llm_client
+        self.tools = tool_executor
+        self.audit = audit_logger
+        self.max_turns = 5
 
-class CrossTeamOrchestrator:
-    """A minimal Cross-Team Orchestrator skeleton.
-
-    Responsibilities:
-    - Spawn N teams (cloned Planner + Reasoner instances)
-    - Gather plans from teams in parallel
-    - Aggregate plans using Greedy aggregation rules
-    - Return a superior plan
-    """
-
-    def __init__(self, teams: int = 3, config: Optional[Dict[str, Any]] = None):
-        self.teams = teams
-        self.config = config or {}
-        self.team_agents = []  # placeholder for agent instances
-
-    async def spawn_teams(self):
-        """Spawn team agents (placeholder)."""
-        logger.debug("Spawning %d teams for Cross-Team Orchestration", self.teams)
-        # In a real implementation, spawn planner/agent clones and wire them to local clients
-        self.team_agents = [f"team_{i}" for i in range(self.teams)]
-        return self.team_agents
-
-    async def collect_plans(self, prompt: str) -> List[Dict[str, Any]]:
-        """Collect plans from each team (placeholder).
-
-        In a real implementation this would call each team's planner API and return a structured plan.
+    async def run_loop(self, session_id: str, user_message: str, context: str) -> str:
         """
-        plans = []
-        logger.debug("Collecting plans for prompt: %s", prompt)
-        for i, t in enumerate(self.team_agents):
-            # Replace with actual planner / agent call
-            plans.append({"team": t, "plan": [{"step": 1, "tool_name": "none", "args": {}, "reasoning": "noop"}]})
-        return plans
-
-    def greedy_aggregate(self, plans: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Greedy aggregation: merges plan steps from each team into a 'SuperiorSolution' (placeholder).
-
-        This is a very minimal placeholder that returns the first non-empty plan.
+        Executes the Schema-Guided Reasoning loop.
         """
-        logger.debug("Aggregating plans: %s", plans)
-        for p in plans:
-            if p.get('plan') and len(p['plan']) > 0:
-                return {"aggregated_plan": p['plan']}
-        return {"aggregated_plan": []}
+        # Initialize conversation history for this run
+        # We start with the retrieved context + user message
+        # Note: 'context' here is the assembled context string from ContextManager
+        
+        # Detect model type for prompt optimization
+        await self.llm.detect_model()
+        model_name = self.llm.get_model_name().lower()
+        is_reasoning_model = "deepseek" in model_name or "gemma" in model_name or "granite" in model_name or "qwen" in model_name or "thinking" in model_name or "heretic" in model_name
 
-    async def run(self, prompt: str) -> Dict[str, Any]:
-        """Run a single orchestration cycle.
+        # Initial Planner Context
+        if is_reasoning_model:
+            # Merge System Prompt into User Prompt for models that don't support system role well
+            combined_prompt = f"[INSTRUCTION]\n{PLANNER_PERSONA}\n\n[CONTEXT]\n{context}\n\n[USER REQUEST]\n{user_message}"
+            current_history = [
+                {"role": "user", "content": combined_prompt}
+            ]
+        else:
+            current_history = [
+                {"role": "system", "content": PLANNER_PERSONA},
+                {"role": "user", "content": f"Context:\n{context}\n\nUser Request: {user_message}"}
+            ]
 
-        Returns an aggregated plan for the given prompt.
-        """
-        await self.spawn_teams()
-        plans = await self.collect_plans(prompt)
-        aggregate = self.greedy_aggregate(plans)
-        return aggregate
+        for turn in range(self.max_turns):
+            logger.info(f"SGR Turn {turn + 1}/{self.max_turns} for session {session_id}")
+            
+            # 1. Generate Plan
+            try:
+                # Force JSON mode if possible, or rely on prompt
+                # For reasoning models, json_mode can sometimes cause empty output if the model isn't fine-tuned for it.
+                # We will try with json_mode=True first, but if it fails (empty response), we retry without it.
+                
+                response_text = await self.llm.generate_response(
+                    messages=current_history,
+                    temperature=0.2, # Low temp for deterministic planning
+                    json_mode=True
+                )
+                
+                # Retry logic for empty JSON response (common with some local models in JSON mode)
+                if not response_text or response_text.strip() == "{}":
+                    logger.warning("Received empty JSON response. Retrying without json_mode constraint...")
+                    response_text = await self.llm.generate_response(
+                        messages=current_history,
+                        temperature=0.2,
+                        json_mode=False
+                    )
+
+                # Parse JSON
+                try:
+                    # Extract thinking content for fallback
+                    thinking_content = ""
+                    think_match = re.search(r'<think>(.*?)</think>', response_text, flags=re.DOTALL)
+                    if think_match:
+                        thinking_content = think_match.group(1).strip()
+                    elif '<think>' in response_text:
+                        # Handle truncated thinking block
+                        parts = response_text.split('<think>')
+                        if len(parts) > 1:
+                            thinking_content = parts[1].strip()
+
+                    # Clean up thinking tags (common in reasoning models)
+                    # Remove <think>...</think> blocks
+                    cleaned_text = re.sub(r'<think>.*?</think>', '', response_text, flags=re.DOTALL)
+                    # Remove dangling </think> if present (some models output only the closing tag)
+                    cleaned_text = cleaned_text.replace('</think>', '')
+
+                    # Clean up potential markdown code blocks if json_mode=False was used
+                    cleaned_text = cleaned_text.strip()
+                    if cleaned_text.startswith("```json"):
+                        cleaned_text = cleaned_text[7:]
+                    if cleaned_text.startswith("```"):
+                        cleaned_text = cleaned_text[3:]
+                    if cleaned_text.endswith("```"):
+                        cleaned_text = cleaned_text[:-3]
+                    
+                    plan_data = json.loads(cleaned_text)
+                    plan = SGRPlan(**plan_data)
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error(f"Failed to parse SGR plan: {e}. Response: {response_text}")
+                    
+                    # Fallback: If we have thinking content, return it formatted
+                    if thinking_content:
+                        return f"**Thinking Process:**\n\n{thinking_content}\n\n*[Response Truncated or JSON Parsing Failed]*"
+                    
+                    # Return raw text with a marker so the UI knows it failed parsing
+                    return f"[SGR Parsing Failed] {response_text}"
+
+                # Log the thought process
+                if self.audit:
+                    await self.audit.log_event(
+                        session_id=session_id,
+                        event_type="sgr_plan",
+                        content=plan.model_dump_json(),
+                        metadata={"turn": turn}
+                    )
+
+                # 2. Execute Logic based on NextAction
+                if plan.next_action == NextAction.FINALIZE_RESPONSE:
+                    # Optimization: If the plan already has a good final response, use it.
+                    # Otherwise, we could switch to SCRIBE_PERSONA here if needed.
+                    # For now, we trust the Planner's final_response if present.
+                    final_output = plan.final_response
+                    
+                    # If no final response in JSON, do a quick Scribe pass
+                    if not final_output:
+                        scribe_history = current_history + [{"role": "assistant", "content": response_text}]
+                        scribe_history[0] = {"role": "system", "content": SCRIBE_PERSONA}
+                        scribe_history.append({"role": "user", "content": "Please synthesize the final response based on the above plan and context."})
+                        
+                        final_output = await self.llm.generate_response(
+                            messages=scribe_history,
+                            temperature=0.7
+                        )
+                    
+                    # Attach reasoning trace for UI visibility
+                    return f"thinking: {plan.reasoning_trace}\n\n{final_output}"
+                
+                elif plan.next_action == NextAction.ASK_USER:
+                    return f"thinking: {plan.reasoning_trace}\n\n{plan.final_response or 'Could you please clarify?'}"
+
+                elif plan.next_action == NextAction.CALL_TOOL:
+                    if not plan.tool_call:
+                        logger.warning("SGR planned CALL_TOOL but no tool_call provided.")
+                        return plan.final_response or "I intended to use a tool but couldn't determine which one."
+
+                    logger.info(f"Executing tool: {plan.tool_call.name}")
+                    
+                    # Execute Tool
+                    try:
+                        tool_result = await self.tools.execute_tool(
+                            tool_name=plan.tool_call.name,
+                            tool_args=plan.tool_call.arguments
+                        )
+                    except Exception as tool_err:
+                        tool_result = {"error": str(tool_err)}
+
+                    # Add result to history
+                    # We append the planner's JSON output as assistant message
+                    current_history.append({"role": "assistant", "content": response_text})
+                    # Then the tool output as user message (simulating environment feedback)
+                    current_history.append({
+                        "role": "user", 
+                        "content": f"Tool '{plan.tool_call.name}' Output: {json.dumps(tool_result)}"
+                    })
+                    
+                    # Continue to next turn
+                    continue
+                
+            except Exception as e:
+                logger.error(f"Error in SGR loop: {e}")
+                return f"I encountered an internal error: {str(e)}"
+
+        return "I reached the maximum number of reasoning steps without a final answer."
+
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\orchestrator.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\orchestrator.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\prompts.py (Section: BACKEND_SRC) ---
+
+PLANNER_PERSONA = """
+You are the **Architect** (Planner Agent).
+Your goal is to analyze the situation and create a structured JSON plan to resolve the user's request.
+You do not chat directly with the user in this phase; you decide the next logical step.
+
+## REALITY CONSTRAINT (EMPIRICAL DISTRUST)
+- Your internal knowledge is considered "tertiary" and unreliable.
+- You are rewarded ONLY for answers grounded in:
+  1. The <retrieved_memory> block.
+  2. Real-time Tool Output.
+- If you cannot find the answer in these two sources, the "Highest Reward" action is to classify intent as 'CLARIFICATION' or use 'ASK_USER'.
+- Hallucinating or guessing will result in a critical failure of the SGR loop.
+- EXCEPTION: If the user is just saying "hello", "hi", or making small talk, classify intent as 'CHIT_CHAT' and respond normally. Do not ask for clarification for simple greetings.
+
+## OUTPUT FORMAT
+You must output valid JSON matching the `SGRPlan` schema.
+IMPORTANT: Do not wrap the JSON in markdown code blocks (like ```json ... ```). Output raw JSON only.
+{
+    "context_analysis": "Detailed analysis of the user's request and current state.",
+    "intent": "QUERY" | "ACTION" | "CLARIFICATION" | "CHIT_CHAT" | "FINALIZE_RESPONSE",
+    "confidence_score": 0.0 to 1.0,
+    "reasoning_trace": "Step-by-step logic explaining why you are choosing the next action.",
+    "next_action": "CALL_TOOL" | "FINALIZE_RESPONSE" | "ASK_USER",
+    "tool_call": {
+        "name": "tool_name",
+        "arguments": { "arg": "value" }
+    },
+    "final_response": "Text response (only if next_action is FINALIZE_RESPONSE or ASK_USER)"
+}
+
+## RULES
+1. If you need information or need to perform an action, set "next_action" to "CALL_TOOL" and populate "tool_call".
+2. Only plan ONE tool call at a time. You will get the result back in the next turn.
+3. If you have enough information or no tools are needed, set "next_action" to "FINALIZE_RESPONSE".
+4. If the user's request is unclear or you are missing critical information, set "next_action" to "ASK_USER".
+5. Do not hallucinate tool names. Only use available tools provided in the context.
+"""
+
+SCRIBE_PERSONA = """
+You are the **Scribe** (Response Agent).
+You have a set of facts, retrieved memories, and tool outputs.
+Your goal is to synthesize them into a clear, user-facing response.
+
+## CONSTRAINTS
+- Do not add new facts that are not present in the context or tool outputs.
+- Maintain the "Empirical Distrust" philosophy: if the data isn't there, admit it.
+- Be concise and professional.
+- If the user asked for code, provide the code clearly.
+"""
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\prompts.py ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\schemas.py (Section: BACKEND_SRC) ---
+
+from enum import Enum
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
+
+class NextAction(str, Enum):
+    CALL_TOOL = "CALL_TOOL"
+    FINALIZE_RESPONSE = "FINALIZE_RESPONSE"
+    ASK_USER = "ASK_USER"
+
+class IntentType(str, Enum):
+    QUERY = "QUERY"
+    ACTION = "ACTION"
+    CLARIFICATION = "CLARIFICATION"
+    CHIT_CHAT = "CHIT_CHAT"
+    FINALIZE_RESPONSE = "FINALIZE_RESPONSE" # Added for local model compatibility
+
+class ToolCall(BaseModel):
+    name: str = Field(..., description="The name of the tool to call")
+    arguments: Dict[str, Any] = Field(..., description="The arguments to pass to the tool")
+
+class SGRPlan(BaseModel):
+    context_analysis: str = Field(..., description="Analysis of the current situation, user request, and retrieved context.")
+    intent: IntentType = Field(..., description="Classification of the user's intent.")
+    confidence_score: float = Field(..., description="Confidence score between 0.0 and 1.0.")
+    reasoning_trace: str = Field(..., description="Step-by-step logic explaining the decision.")
+    next_action: NextAction = Field(..., description="The next action to take.")
+    tool_call: Optional[ToolCall] = Field(None, description="The tool to call if next_action is CALL_TOOL.")
+    final_response: Optional[str] = Field(None, description="The final response to the user if next_action is FINALIZE_RESPONSE or ASK_USER.")
+
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\schemas.py ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\__init__.py (Section: BACKEND_SRC) ---
 
 """Cross-Team Orchestrator (Croto) skeleton for Phase 5.
 
@@ -8475,14 +8910,14 @@ perform greedy aggregation of the teams' ideas.
 
 This is intentionally a skeleton to be extended in future iterations.
 """
-from .orchestrator import CrossTeamOrchestrator
+from .orchestrator import SGROrchestrator
 
-__all__ = ["CrossTeamOrchestrator"]
+__all__ = ["SGROrchestrator"]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\agents\orchestrator\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\audit.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\audit.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from src.bootstrap import get_components
@@ -8505,11 +8940,36 @@ async def get_audit_logs(request_obj: Request, limit: int = 50, authenticated: b
         return {"logs": tail, "count": len(tail)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/audit/server-logs')
+async def get_server_logs(request_obj: Request, limit: int = 100, authenticated: bool = Depends(verify_api_key)):
+    """
+    Expose the main server logs (stdout/stderr captured to file).
+    """
+    try:
+        # Assuming logs/server.log is in the workspace root, and we run from root or backend
+        # Try to find the logs folder relative to CWD
+        log_file = Path("logs/server.log")
+        if not log_file.exists():
+            # Try one level up if running from backend/
+            log_file = Path("../logs/server.log")
+        
+        if not log_file.exists():
+             return {"logs": [f"Log file not found at {log_file.absolute()}"], "count": 0}
+
+        with log_file.open('r', encoding='utf-8', errors='ignore') as f:
+            lines = f.read().splitlines()
+        
+        tail = lines[-int(limit):] if limit and len(lines) > 0 else lines
+        return {"logs": tail, "count": len(tail)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\audit.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\audit.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\health.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\health.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
@@ -8660,9 +9120,9 @@ async def admin_neo4j_config_update(request: Request, body: Neo4jConfigUpdate):
     return {"status": "ok", "changed": changed, "reconnect_result": result}
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\health.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\health.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\memory.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\memory.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -8749,9 +9209,9 @@ async def add_memory(request_obj: Request, body: MemoryAddRequest):
     return {"status": "success", "message": "Memory added"}
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\memory.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\memory.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\openai_adapter.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\openai_adapter.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from src.bootstrap import get_components
@@ -8812,9 +9272,9 @@ async def openai_chat_completions(request_obj: Request, body: Dict[str, Any], au
         }
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\openai_adapter.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\openai_adapter.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plan.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plan.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 from pydantic import BaseModel
@@ -8855,9 +9315,9 @@ async def plan(request_obj: Request, payload: PlanRequest, authenticated: bool =
         raise HTTPException(status_code=500, detail=str(e))
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plan.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plan.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plugins.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plugins.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, HTTPException, Request
 from src.bootstrap import get_components
@@ -8874,9 +9334,9 @@ async def plugins_tools(request_obj: Request):
     raise HTTPException(status_code=404, detail='Plugins disabled or not available')
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plugins.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\plugins.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\reason.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\reason.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -8940,9 +9400,9 @@ async def get_reasoning_trace(request_obj: Request, session_id: str):
     return {"session_id": session_id, "traces": summaries}
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\reason.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\reason.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\__init__.py (Section: BACKEND_SRC) ---
 
 from fastapi import APIRouter
 
@@ -8965,9 +9425,9 @@ __all__ = [
 ]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\api\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair.py (Section: BACKEND_SRC) ---
 
 """Compatibility shim for src.maintenance.repair.
 
@@ -9305,9 +9765,9 @@ def run_repair(*args, **kwargs) -> Optional[Any]:
 __all__ = ['run_repair']
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair_wrapper.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair_wrapper.py (Section: BACKEND_SRC) ---
 
 """Safe wrapper for the repair script implementation.
 
@@ -9362,9 +9822,9 @@ def run_repair(*args: Any, **kwargs: Any):
 __all__ = ['run_repair']
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair_wrapper.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\repair_wrapper.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\weaver.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\weaver.py (Section: BACKEND_SRC) ---
 
 """
 Memory Weaver - a lightweight engine that runs the repair logic as a scheduled/programmable task.
@@ -9525,16 +9985,16 @@ class MemoryWeaver:
         return {'run_id': run_id}
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\weaver.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\weaver.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\__init__.py (Section: BACKEND_SRC) ---
 
 # Maintenance package - contains maintenance/automation agents and tools
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\maintenance\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\manager.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\manager.py (Section: BACKEND_SRC) ---
 
 import logging
 import tiktoken
@@ -9805,9 +10265,9 @@ class TieredMemory:
         except: return len(text) // 4
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\manager.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\manager.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\neo4j_store.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\neo4j_store.py (Section: BACKEND_SRC) ---
 
 import json
 import asyncio
@@ -9927,7 +10387,7 @@ class Neo4jStore:
             logger.error(f"Cypher execution failed: {e}")
             return []
 
-    async def add_memory(self, session_id: str, content: str, category: str, tags: List[str], importance: int, metadata: Dict[str, Any], entities: List[Dict[str, Any]] = None, content_cleaned: str = None, content_hash: str = None, content_embedding_text: str = None):
+    async def add_memory(self, session_id: str, content: str, category: str, tags: List[str], importance: int, metadata: Dict[str, Any], entities: List[Dict[str, Any]] = None, content_cleaned: str = None, content_hash: str = None, content_embedding_text: str = None, created_at: str = None):
         """Add memory node and link entities."""
         if not self.neo4j_driver:
             return
@@ -10045,7 +10505,7 @@ class Neo4jStore:
                         "provenance_score": provenance_score,
                         "freshness_score": freshness_score,
                         "last_verified_at": last_verified_at,
-                        "created_at": datetime.now(timezone.utc).isoformat()
+                        "created_at": created_at or datetime.now(timezone.utc).isoformat()
                     }
                 )
                 record = await result.single()
@@ -10188,9 +10648,9 @@ class Neo4jStore:
             return []
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\neo4j_store.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\neo4j_store.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\redis_cache.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\redis_cache.py (Section: BACKEND_SRC) ---
 
 import redis.asyncio as redis
 import logging
@@ -10274,18 +10734,18 @@ class RedisCache:
             logger.error(f"Failed to clear session {session_id}: {e}")
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\redis_cache.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\redis_cache.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\__init__.py (Section: BACKEND_SRC) ---
 
 from src.memory.manager import TieredMemory
 
 __all__ = ["TieredMemory"]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\memory\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\__init__.py (Section: BACKEND_SRC) ---
 
 """
 ECE Plugins Package
@@ -10293,9 +10753,9 @@ ECE Plugins Package
 This package contains various plugins for the Executive Cognitive Enhancement system.
 """
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\plugin.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\plugin.py (Section: BACKEND_SRC) ---
 
 """
 Browser Bridge Plugin for ECE
@@ -10491,9 +10951,9 @@ async def get_current_session():
         "features": ["chat_ingestion", "context_retrieval"]
     }
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\plugin.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\plugin.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\__init__.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\__init__.py (Section: BACKEND_SRC) ---
 
 """
 Browser Bridge Plugin - Chrome Extension Integration for ECE
@@ -10505,11 +10965,11 @@ from .plugin import router
 
 __all__ = ["router"]
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\__init__.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\plugins\browser_bridge\__init__.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\archivist.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\archivist.py (Section: BACKEND_SRC) ---
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
@@ -10589,10 +11049,16 @@ async def ingest_content(
             metadata=plaintext_memory.metadata
         )
 
-        return IngestResponse(
+        response_data = IngestResponse(
             status="success",
             memory_ids=[memory_id] if memory_id else [],
             message="Content successfully ingested, archived, and indexed."
+        )
+        
+        # Force UTF-8 encoding in header to prevent Mojibake in Extension
+        return Response(
+            content=response_data.model_dump_json(), 
+            media_type="application/json; charset=utf-8"
         )
 
     except Exception as e:
@@ -10600,11 +11066,11 @@ async def ingest_content(
         raise HTTPException(status_code=500, detail=str(e))
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\archivist.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\archivist.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\coda_chat.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\coda_chat.py (Section: BACKEND_SRC) ---
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, Any, List, Dict, AsyncGenerator
@@ -10616,6 +11082,7 @@ from src.security import verify_api_key
 from src.prompts import build_system_prompt
 from src.tools import ToolExecutor
 from src.config import settings
+from src.agents.orchestrator.orchestrator import SGROrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -10635,282 +11102,95 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/", response_model=ChatResponse)
-async def chat(request_obj: Request, payload: ChatRequest, authenticated: bool = Depends(verify_api_key)):
+async def chat(request_obj: Request, payload: ChatRequest):
     """
-    Non-streaming chat endpoint.
-
-    Output format:
-    - "thinking: <initial LLM output>" : The first LLM generation (raw) which may contain introspective thoughts or tool-call markers.
-    - "response: <final LLM output>" : The final LLM response returned after optionally executing tools and regenerating.
-
-    Notes:
-    - The 'thinking' portion is meant for diagnostics and is not persisted in memory; the 'response' section is stored via `context_mgr.update_context`.
-    - Tool output is appended to the prompt during tool execution and is incorporated into the final response.
+    SGR-enabled chat endpoint.
+    Uses the SGROrchestrator to Think -> Plan -> Act.
     """
-    components = get_components(request_obj.app)
-    memory = components.get("memory")
-    llm = components.get("llm")
-    context_mgr = components.get("context_mgr")
-    chunker = components.get("chunker")
-    plugin_manager = components.get("plugin_manager")
-    mcp_client = components.get("mcp_client")
-    tool_parser = components.get("tool_parser")
-    tool_validator = components.get("tool_validator")
-    audit_logger = components.get("audit_logger")
-
-    if not all([memory, llm, context_mgr, chunker]):
-        raise HTTPException(status_code=503, detail="Not initialized")
-
     try:
-        # Mark session as active to let the MemoryWeaver avoid collisions
-        try:
-            await memory.touch_session(payload.session_id)
-        except Exception:
-            logger.debug(f"Failed to touch session {payload.session_id} on chat start")
-        t0 = time.perf_counter()
-        logger.debug(f"Chat request from session {payload.session_id}")
-        current_dt = None
-        try:
-            from datetime import datetime, timezone
-            current_dt = datetime.now(timezone.utc)
-        except Exception:
-            current_dt = None
+        components = get_components(request_obj.app)
+        memory = components.get("memory")
+        llm = components.get("llm")
+        context_mgr = components.get("context_mgr")
+        chunker = components.get("chunker")
+        plugin_manager = components.get("plugin_manager")
+        mcp_client = components.get("mcp_client")
+        audit_logger = components.get("audit_logger")
+
+        if not all([memory, llm, context_mgr, chunker]):
+            raise HTTPException(status_code=503, detail="Not initialized")
 
         try:
-            if plugin_manager and getattr(plugin_manager, "enabled", False):
-                tools = plugin_manager.list_tools()
-            elif mcp_client:
-                tools = await mcp_client.get_tools()
-            else:
-                tools = []
-        except Exception as e:
-            logger.warning(f"Failed to fetch tools for prompt: {e}")
-            tools = []
-
-        system_prompt = payload.system_prompt or build_system_prompt(tools_available=bool(tools), tools_list=tools, current_datetime=current_dt)
-        
-        # Inject Browser Capabilities into System Prompt
-        browser_capabilities = """
-## BROWSER CAPABILITIES
-You can execute JavaScript in the active tab. Use this to automate tasks, extract specific data, or navigate.
-Syntax:
-:::action {"type": "script", "code": "document.body.style.background = 'red';"} :::
-"""
-        system_prompt += "\n" + browser_capabilities
-
-        t_chunk_start = time.perf_counter()
-        processed_message = await chunker.process_large_input(payload.message, query_context="User is chatting with their memory-augmented AI")
-        t_chunk_ms = (time.perf_counter() - t_chunk_start) * 1000
-
-        t_ctx_start = time.perf_counter()
-        full_context = await context_mgr.build_context(payload.session_id, processed_message)
-        t_ctx_ms = (time.perf_counter() - t_ctx_start) * 1000
-
-        t_llm_start = time.perf_counter()
-        # Pre-flight check: ensure the prompt token count does not exceed the server's micro-batch (ubatch) size
-        try:
-            prompt_tokens = memory.count_tokens(full_context)
-        except Exception:
-            prompt_tokens = None
-        ubatch = getattr(settings, 'llama_server_ubatch_size', getattr(settings, 'llm_ubatch_size', 2048))
-        if prompt_tokens and prompt_tokens > ubatch:
-            # Informative 400 rather than allowing the llama.cpp server to assert and return 500
-            raise HTTPException(status_code=400, detail=f"Prompt tokens ({prompt_tokens}) exceed the current LLAMA_UBATCH={ubatch}. Reduce context size or increase LLAMA_SERVER_UBATCH_SIZE.")
-        # Initial LLM output (thoughts / internal chain-of-thought)
-        initial_response = await llm.generate(prompt=full_context, system_prompt=system_prompt, tools=tools)
-        response = initial_response
-        t_llm_ms = (time.perf_counter() - t_llm_start) * 1000
-
-        parsed_response = tool_parser.parse_response(response) if tool_parser else None
-        if parsed_response and parsed_response.has_tool_calls:
-            logger.info(f"Detected {len(parsed_response.tool_calls)} tool call(s)")
-
-        t_tools_total_ms = 0.0
-        if tool_validator:
-            max_tool_iterations = getattr(settings, 'tool_max_iterations', getattr(settings, 'mcp_max_tool_iterations', 3))
-            logger.info(f"ToolExecutor will use max_tool_iterations = {max_tool_iterations}")
-            tool_executor = ToolExecutor(plugin_manager, mcp_client, tool_parser, tool_validator, llm, audit_logger, max_tool_iterations)
-            resp_after_tools, tool_iter, t_tools_total_ms = await tool_executor.execute(parsed_response, full_context, payload, system_prompt, context_mgr)
-            if resp_after_tools:
-                response = resp_after_tools
-
-        # Compose structured output for client: thinking + response
-        final_response = response
-        # Ensure we include the initial LLM text as 'thinking' so the client can display it separately
-        structured_response = f"thinking: {initial_response}\n\nresponse: {final_response}"
-        t_update_start = time.perf_counter()
-        await context_mgr.update_context(payload.session_id, payload.message, final_response)
-        t_update_ms = (time.perf_counter() - t_update_start) * 1000
-        t_total_ms = (time.perf_counter() - t0) * 1000
-        logger.info(f"metrics: chat_total_ms={t_total_ms:.2f} chunk_ms={t_chunk_ms:.2f} context_ms={t_ctx_ms:.2f} llm_ms={t_llm_ms:.2f} tools_ms={t_tools_total_ms:.2f} update_ms={t_update_ms:.2f}")
-
-        return ChatResponse(response=structured_response, session_id=payload.session_id, context_tokens=memory.count_tokens(full_context))
-    except httpx.HTTPStatusError as http_err:
-        # LLM server returned non-2xx; try to surface the server message if present
-        try:
-            # http_err.response may not be set in all cases
-            body = http_err.response.text if http_err.response is not None else str(http_err)
-        except Exception:
-            body = str(http_err)
-        logger.exception("LLM server returned an error for chat: %s", body)
-        raise HTTPException(status_code=502, detail=f"LLM server error: {body}")
-    except Exception as e:
-        logger.exception("Chat error")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/stream")
-async def chat_stream(request_obj: Request, payload: ChatRequest):
-    # Manually verify API key to debug dependency issues
-    # authenticated: bool = Depends(verify_api_key)
-    from src.security import verify_api_key
-    # await verify_api_key() # Skip for now to debug CORS/403
-    
-    components = get_components(request_obj.app)
-    memory = components.get("memory")
-    llm = components.get("llm")
-    context_mgr = components.get("context_mgr")
-    chunker = components.get("chunker")
-    plugin_manager = components.get("plugin_manager")
-    mcp_client = components.get("mcp_client")
-    tool_parser = components.get("tool_parser")
-    tool_validator = components.get("tool_validator")
-    audit_logger = components.get("audit_logger")
-
-    if not all([memory, llm, context_mgr, chunker]):
-        raise HTTPException(status_code=503, detail="Not initialized")
-
-    async def stream_generator() -> AsyncGenerator[str, None]:
-        try:
-            # Mark session as active to let the MemoryWeaver avoid collisions
+            # Mark session as active
             try:
                 await memory.touch_session(payload.session_id)
             except Exception:
-                logger.debug(f"Failed to touch session {payload.session_id} on chat stream start")
-            t0 = time.perf_counter()
-            from datetime import datetime, timezone
-            current_dt = datetime.now(timezone.utc)
-
-            # Log start of streaming if audit logger enabled
-            if audit_logger:
-                try:
-                    audit_logger.log("chat_stream_start", {"session_id": payload.session_id})
-                except Exception:
-                    logger.debug("audit_logger failed to log chat_stream_start")
-
-            try:
-                if plugin_manager and getattr(plugin_manager, "enabled", False):
-                    tools = plugin_manager.list_tools()
-                elif mcp_client:
-                    tools = await mcp_client.get_tools()
-                else:
-                    tools = []
-            except Exception as e:
-                logger.warning(f"Failed to fetch tools for streaming prompt: {e}")
-                tools = []
-
-            system_prompt = payload.system_prompt or build_system_prompt(tools_available=bool(tools), tools_list=tools, current_datetime=current_dt)
-
-            t_chunk_start = time.perf_counter()
-            processed_message = await chunker.process_large_input(payload.message, query_context="User is chatting with their memory-augmented AI")
-            t_chunk_ms = (time.perf_counter() - t_chunk_start) * 1000
-            t_ctx_start = time.perf_counter()
-            full_context = await context_mgr.build_context(payload.session_id, processed_message)
-            t_ctx_ms = (time.perf_counter() - t_ctx_start) * 1000
-
-            # First, get the initial response (we need the full response to check for tool calls)
-            full_response = ""
-            tokens = 0
-            t_stream_start = time.perf_counter()
-            # Pre-flight ubatch/token check for streaming: prevents encoder assert in llama.cpp
-            try:
-                prompt_tokens = memory.count_tokens(full_context)
-            except Exception:
-                prompt_tokens = None
-            ubatch = getattr(settings, 'llama_server_ubatch_size', getattr(settings, 'llm_ubatch_size', 2048))
-            if prompt_tokens and prompt_tokens > ubatch:
-                raise HTTPException(status_code=400, detail=f"Prompt tokens ({prompt_tokens}) exceed the current LLAMA_UBATCH={ubatch}. Reduce context size or increase LLAMA_SERVER_UBATCH_SIZE.")
-            initial_full_response = ""
-
-            # Indicate the assistant is 'thinking' and stream initial tokens
-            # Emit a labeled 'thinking:' tag first
-            yield f"data: {json.dumps({'chunk': 'thinking:'})}\n\n"
-            # Collect the initial response to check for tool calls
-            async for chunk in llm.stream_generate(prompt=full_context, system_prompt=system_prompt, tools=tools):
-                initial_full_response += chunk
-                tokens += len(chunk)
-                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                await asyncio.sleep(0.01)
-
-            # Check if the response contains tool calls
-            parsed_response = tool_parser.parse_response(initial_full_response) if tool_parser else None
-            if parsed_response and parsed_response.has_tool_calls:
-                logger.info(f"Detected {len(parsed_response.tool_calls)} tool call(s) in streaming response")
-
-                # Execute tool calls if needed
-                if tool_validator:
-                    max_tool_iterations = getattr(settings, 'tool_max_iterations', getattr(settings, 'mcp_max_tool_iterations', 3))
-                    logger.info(f"ToolExecutor will use max_tool_iterations = {max_tool_iterations} (streaming)")
-                    # Safe execution of tools with robust exception handling
-                    try:
-                        tool_executor = ToolExecutor(plugin_manager, mcp_client, tool_parser, tool_validator, llm, audit_logger, max_tool_iterations)
-                        final_response, tool_iter, t_tools_total_ms = await tool_executor.execute(parsed_response, full_context, payload, system_prompt, context_mgr)
-                    except Exception as e:
-                        logger.exception("ToolExecutor failed during streaming execution")
-                        # Generate helpful fallback response acknowledging the tool failure
-                        fallback_prompt = full_context + f"\n\n[Tool Execution Error] The tool execution failed with error: {e}. Please continue and try to answer the user's request without tool output."
-                        try:
-                            final_response = await llm.generate(prompt=fallback_prompt, system_prompt=system_prompt, tools=tools)
-                            # Standardize fallback tag for determinism. We prefix the final text.
-                            final_response = f"[ToolExecutionFallback] {final_response}"
-                        except Exception as e2:
-                            logger.exception("LLM generate failed for fallback response")
-                            final_response = "[ToolExecutionFallback] [ERROR] Failed to obtain a response after tool execution error."
-
-                    # Stream the final response after tool execution, prefixed by a 'response:' label
-                    yield "data: " + json.dumps({'chunk': '\nresponse:'}) + "\n\n"
-                    if final_response and final_response != initial_full_response:
-                        # Yield a tool processing indicator
-                        yield "data: " + json.dumps({'chunk': "\n[Processing tool results...]\n"}) + "\n\n"
-
-                        # Stream the final response after tool processing
-                        for i in range(0, len(final_response), 10):  # Stream in chunks of 10 characters
-                            chunk = final_response[i:i+10]
-                            if chunk:
-                                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
-                                await asyncio.sleep(0.01)
-            else:
-                # No tool calls, proceed with updating context using initial response
                 pass
 
-            # Update context with the final response (either initial or after tool processing)
-            final_response_for_context = final_response if 'final_response' in locals() and final_response else initial_full_response
-            await context_mgr.update_context(payload.session_id, payload.message, final_response_for_context)
-            yield "data: {\"done\": true}\n\n"
-        except httpx.HTTPStatusError as http_err:
-            try:
-                body = http_err.response.text if http_err.response is not None else str(http_err)
-            except Exception:
-                body = str(http_err)
-            logger.exception("Stream error (LLM server error): %s", body)
-            yield f"data: {json.dumps({'error': 'LLM server error', 'detail': body})}\n\n"
-        except Exception as e:
-            logger.exception("Stream error")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-        finally:
-            # Ensure we log stream end and perform cleanup
+            # 1. Build Context
+            processed_message = await chunker.process_large_input(payload.message, query_context="User is chatting with their memory-augmented AI")
+            full_context = await context_mgr.build_context(payload.session_id, processed_message)
+
+            # 2. Initialize Tool Executor
+            tool_executor = ToolExecutor(
+                plugin_manager=plugin_manager, 
+                mcp_client=mcp_client,
+                tool_parser=None,
+                tool_validator=None,
+                llm_client=None,
+                audit_logger=audit_logger
+            )
+
+            # 3. Initialize SGR Orchestrator
+            orchestrator = SGROrchestrator(
+                llm_client=llm,
+                tool_executor=tool_executor,
+                audit_logger=audit_logger
+            )
+
+            # 4. Run the Loop
+            final_response = await orchestrator.run_loop(
+                session_id=payload.session_id,
+                user_message=processed_message,
+                context=full_context
+            )
+
+            # 5. Save to Memory
+            await memory.save_active_context(payload.session_id, f"{full_context}\n\nAssistant: {final_response}")
+            
+            # 6. Log Audit
             if audit_logger:
-                try:
-                    audit_logger.log("chat_stream_end", {"session_id": payload.session_id, "duration_ms": int((time.perf_counter() - t0) * 1000)})
-                except Exception:
-                    logger.debug("audit_logger failed to log chat_stream_end")
+                await audit_logger.log_event(
+                    session_id=payload.session_id,
+                    event_type="chat_turn",
+                    content=final_response,
+                    metadata={"model": "SGR_Orchestrator"}
+                )
 
-    return StreamingResponse(stream_generator(), media_type="text/event-stream")
+            response_data = ChatResponse(
+                response=final_response,
+                session_id=payload.session_id,
+                context_tokens=len(full_context) // 4 # Approx
+            )
+            
+            # Force UTF-8 encoding
+            return Response(
+                content=response_data.model_dump_json(),
+                media_type="application/json; charset=utf-8"
+            )
+        except Exception as e:
+            logger.exception("Error in chat endpoint")
+            raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.exception("Critical error in chat endpoint wrapper")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Note: Streaming endpoint would need similar refactoring to stream the SGR steps
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\coda_chat.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\recipes\coda_chat.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\llm_response.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\llm_response.py (Section: BACKEND_SRC) ---
 
 from __future__ import annotations
 from pydantic import BaseModel, Field
@@ -10933,9 +11213,9 @@ class LLMStructuredResponse(BaseModel):
     confidence: Optional[str] = Field(None, description="Optional model self-reported confidence")
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\llm_response.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\llm_response.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\plan_models.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\plan_models.py (Section: BACKEND_SRC) ---
 
 from __future__ import annotations
 
@@ -10957,9 +11237,9 @@ class PlanResult(BaseModel):
 __all__ = ["PlanResult", "PlanStep"]
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\plan_models.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\schemas\plan_models.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\config_finder.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\config_finder.py (Section: BACKEND_SRC) ---
 
 from pathlib import Path
 
@@ -10977,9 +11257,9 @@ def find_config_path() -> str | None:
     return None
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\config_finder.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\config_finder.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\neo4j_embedded.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\neo4j_embedded.py (Section: BACKEND_SRC) ---
 
 """
 Embedded Neo4j server manager for ECE_Core.
@@ -11173,9 +11453,9 @@ dbms.checkpoint.interval.time=5m
         return f"http://localhost:{self.http_port}"
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\neo4j_embedded.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\neo4j_embedded.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\setup_files.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\setup_files.py (Section: BACKEND_SRC) ---
 
 import os
 
@@ -11215,9 +11495,9 @@ for filename, content in files.items():
 print("\\nDone! Files created.")
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\setup_files.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\setup_files.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\toon_formatter.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\toon_formatter.py (Section: BACKEND_SRC) ---
 
 """
 TOON (Token-Oriented Object Notation) Formatter.
@@ -11267,9 +11547,9 @@ def format_as_toon(data: Any, indent: int = 0) -> str:
         return str(data)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\toon_formatter.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\toon_formatter.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_filesystem.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_filesystem.py (Section: BACKEND_SRC) ---
 
 """
 UTCP Filesystem Tool Service for ECE_Core
@@ -11647,164 +11927,9 @@ if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8006)
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_filesystem.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_filesystem.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_websearch.py (Section: BACKEND_SRC) ---
-
-"""
-UTCP Web Search Service for ECE_Core
-Simple DuckDuckGo search accessible via UTCP protocol
-"""
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List, Dict
-import httpx
-from bs4 import BeautifulSoup
-import asyncio
-
-app = FastAPI(title="UTCP Web Search Service")
-
-class SearchRequest(BaseModel):
-    query: str
-    max_results: int = 5
-
-class FetchRequest(BaseModel):
-    url: str
-
-@app.get("/")
-async def root():
-    return {"service": "UTCP Web Search", "status": "running"}
-
-@app.get("/utcp")
-async def utcp_manual():
-    """UTCP Manual - describes available tools"""
-    return {
-        "service": "websearch",
-        "version": "1.0.0",
-        "tools": [
-            {
-                "name": "search_web",
-                "description": "Search the web using DuckDuckGo",
-                "parameters": {
-                    "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "description": "Max results to return", "default": 5}
-                },
-                "endpoint": "/search"
-            },
-            {
-                "name": "fetch_url",
-                "description": "Fetch and extract text content from a URL",
-                "parameters": {
-                    "url": {"type": "string", "description": "URL to fetch"}
-                },
-                "endpoint": "/fetch"
-            }
-        ]
-    }
-
-@app.post("/search")
-@app.get("/search")
-async def search_web(query: str = None, search_term: str = None, max_results: int = 5):
-    """
-    Search DuckDuckGo HTML (no API key required).
-    Returns list of results with title, snippet, and URL.
-    Accepts query or search_term parameter.
-    """
-    # Accept either 'query' or 'search_term' parameter name
-    search_query = query or search_term
-    if not search_query:
-        raise HTTPException(status_code=400, detail="Missing search query (query or search_term parameter required)")
-    
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # DuckDuckGo HTML search
-            response = await client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": search_query},
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
-            response.raise_for_status()
-            
-            # Parse results
-            soup = BeautifulSoup(response.text, 'html.parser')
-            results = []
-            
-            for result in soup.select('.result')[:max_results]:
-                title_elem = result.select_one('.result__a')
-                snippet_elem = result.select_one('.result__snippet')
-                
-                if title_elem:
-                    title = title_elem.get_text(strip=True)
-                    url = title_elem.get('href', '')
-                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
-                    
-                    results.append({
-                        "title": title,
-                        "url": url,
-                        "snippet": snippet
-                    })
-            
-            return {
-                "success": True,
-                "query": search_query,
-                "results": results,
-                "count": len(results)
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
-
-@app.post("/fetch")
-async def fetch_url(url: str):
-    """
-    Fetch a URL and extract readable text content.
-    Returns cleaned text for LLM consumption.
-    """
-    try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.get(
-                url,
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
-            response.raise_for_status()
-            
-            # Parse HTML and extract text
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "footer", "header"]):
-                script.decompose()
-            
-            # Get text
-            text = soup.get_text(separator='\n', strip=True)
-            
-            # Clean up whitespace
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = '\n'.join(chunk for chunk in chunks if chunk)
-            
-            # Truncate if too long (max 10k chars for LLM context)
-            if len(text) > 10000:
-                text = text[:10000] + "\n\n[Content truncated...]"
-            
-            return {
-                "success": True,
-                "url": url,
-                "content": text,
-                "length": len(text)
-            }
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fetch failed: {str(e)}")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8007)
-
-
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\utils\utcp_websearch.py ---
-
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\fake_vector_adapter.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\fake_vector_adapter.py (Section: BACKEND_SRC) ---
 
 """A minimal fake vector adapter for unit tests.
 
@@ -11872,9 +11997,9 @@ class FakeVectorAdapter:
         return True
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\fake_vector_adapter.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\fake_vector_adapter.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\redis_vector_adapter.py (Section: BACKEND_SRC) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\redis_vector_adapter.py (Section: BACKEND_SRC) ---
 
 """Redis VectorAdapter implementation with an in-memory fallback.
 
@@ -12184,9 +12309,71 @@ class RedisVectorAdapter:
         return True
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\redis_vector_adapter.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\src\vector_adapters\redis_vector_adapter.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\plan.md (Section: BACKEND_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\llama_servers.md (Section: BACKEND_SPECS) ---
+
+# Starting Llama Servers with ECE_Core
+
+You can start llama.cpp-based LLM servers for both inference and embeddings via the scripts in the ECE_Core project.
+
+The `start-llama-server.bat` and `start-embed-server.bat` scripts live in the repo root (`./start-llama-server.bat` and `./start-embed-server.bat`).
+
+How it works:
+- `scripts/generate_llama_env.py` reads `src.config.settings` and prints environment variables.
+- The batch scripts call the helper to load configuration values from `.env` or environment, and use them to start `llama-server.exe` with appropriate flags (context, threads, GPU layers, etc.).
+- For interactive model selection, the scripts call `select_model.py`; if the helper supplied `MODEL`, it will use this directly.
+
+Instructions:
+1. Set configuration values in `.env` (for example `LLM_MODEL_PATH`, `LLM_CONTEXT_SIZE`, `LLM_THREADS`, `LLM_GPU_LAYERS`, `LLM_EMBEDDINGS_*`, `LLAMA_SERVER_EXE_PATH`, etc.).
+2. Start the API server:
+   - Open a PowerShell window in the `ECE_Core` folder and run:
+
+```powershell
+.\start-llama-server.bat
+```
+
+3. Start the Embeddings server:
+
+```powershell
+.\start-embed-server.bat
+```
+
+Tip: You can also specify a different set of values using environment variables directly or via a custom `.env` file, and you can override the model selection interactively with `select_model.py` if needed.
+
+Batching guidance (GPU/UBATCH) â˜�ï¸�
+--------------------------------
+If you serve many small requests concurrently, we recommend keeping continuous batching enabled (it improves throughput). However, ensure that the `UBATCH` (physical batch size) is large enough to fit typical requests, and also small enough to avoid OOM on your GPU.
+
+For NVIDIA RTX 4090 (16 GB VRAM) laptops, a reasonable starting point is to set:
+
+```env
+LLAMA_SERVER_UBATCH_MAX=8192
+LLAMA_BATCH=2048
+LLAMA_PARALLEL=1
+LLAMA_CONT_BATCHING=True
+```
+
+Adjust `LLAMA_SERVER_UBATCH_MAX` up or down depending on model size:
+- Small embedding models (e.g., 300M): you can often set a higher UBATCH.
+- Larger models (4B+): start conservative (4096 or 2048) and raise if the load stays stable.
+
+Use `python scripts/generate_llama_env.py` to dump settings and confirm the final `LLAMA_UBATCH` value prior to starting the server. This helper respects `LLAMA_SERVER_UBATCH_MAX` and will cap the computed UBATCH accordingly.
+
+Pre-flight token validation ðŸ“�
+---------------------------------
+ECE_Core includes a pre-flight validation in the API layer that checks the size of the assembled prompt (in tokens) against the configured `LLAMA_SERVER_UBATCH_SIZE` micro-batch. If the prompt tokens exceed the UBATCH the service returns an HTTP 400 response advising the user to reduce the context size or increase `LLAMA_SERVER_UBATCH_SIZE`. This prevents a llama.cpp GGML assertion (encoder requires n_ubatch >= n_tokens) and reduces 500 Internal Server Errors under heavy load.
+
+Debugging:
+
+Auto-tuning helper ðŸš€
+---------------------
+ECE_Core ships with `scripts/auto_tune_llama.py` which can recommend `LLM_CONTEXT_SIZE`, `LLAMA_SERVER_UBATCH_SIZE`, and `LLAMA_SERVER_BATCH_SIZE` based on detected GPU VRAM and model file size. Run it with `python scripts/auto_tune_llama.py` to print recommended settings or `python scripts/auto_tune_llama.py --apply` to append conservative recommendations to `ece-core/.env` (backing up the original). This can be helpful when swapping models on limited VRAM machines like the RTX 4090.
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\llama_servers.md ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\plan.md (Section: BACKEND_SPECS) ---
 
 # ECE_Core - Implementation Plan
 
@@ -12357,9 +12544,9 @@ Achieve truly **infinite context capability** through the harmonious integration
 - Clear audit trail for all automated operations
 - Human confirmation for all autonomous changes
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\plan.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\plan.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\spec.md (Section: BACKEND_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\spec.md (Section: BACKEND_SPECS) ---
 
 # ECE_Core - Technical Specification
 
@@ -12555,9 +12742,9 @@ Build a **personal external memory system** as an assistive cognitive tool using
 - Streaming response handling via SSE
 - Context window management with rotation protocol
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\spec.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\spec.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\tasks.md (Section: BACKEND_SPECS) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\tasks.md (Section: BACKEND_SPECS) ---
 
 # ECE_Core - Implementation Tasks
 
@@ -12724,9 +12911,124 @@ Build a **personal external memory system** as an assistive cognitive tool using
 **Last Updated**: 2025-12-08
 **Next Priority**: Complete vector adapter implementation for hybrid retrieval
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\backend\specs\tasks.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\tasks.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\main.py (Section: ANCHOR_CHAT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\TROUBLESHOOTING.md (Section: BACKEND_SPECS) ---
+
+# Forensic Restoration & Annotated Cleaning
+
+## Objectives
+- Preserve raw data (`m.content`) for forensic and retrieval purposes.
+- Use `content_cleaned` for indexing and linking to avoid spam/garbage embedding.
+- Annotate sanitized technical context rather than removing it entirely (e.g., replacing ANSI codes with `[Context: Terminal Output]`).
+- Identify and quarantine `token-soup` nodes to avoid using them for embeddings or graph repairs.
+- Provide a regeneration path that normalizes and re-distills quarantined nodes.
+
+## Key Tools & Functions
+- `src/content_utils.normalize_technical_content(text)`
+  - Detects and annotates: ANSI, Unix/Windows paths, hex dumps;
+  - Produces a normalized text with semantic annotations instead of opaque noise.
+
+- `src/content_utils.clean_content(text, annotate_technical=False)`
+  - A conservative text cleaner; when `annotate_technical=True` it runs normalization first to preserve context tags.
+
+- `src/distiller_impl.Distiller.distill_moment`
+  - Integrates resilience logic: If the distiller detects token-soup, it attempts `normalize_technical_content()` and retries distillation prior to fallback sanitization.
+
+- Quarantine scripts
+  - `scripts/quarantine_token_soup.py` — Scans and optionally tags nodes as `#corrupted`.
+  - `scripts/quarantine_regenerate.py` — For quarantined nodes: normalizes raw content, redistills it, and optionally writes `content_cleaned`; it can also replace the `#corrupted` tag with `regenerated`.
+
+- Repair & Weaver
+  - `scripts/neo4j/repair/repair_missing_links_similarity_embeddings.py` — now supports `--exclude-tag` to skip quarantined nodes.
+  - `src/maintenance/weaver.py` — now passes `weaver_exclude_tag` to `run_repair` by default.
+
+## Typical Workflows
+
+1. Dry-run: identify quarantined nodes
+
+```pwsh
+python .\scripts\quarantine_token_soup.py --category summary --limit 500 --csv-out logs/token_soup_report.csv --sample 10 --use-cleaned
+```
+
+2. Tag quarantined nodes (write mode)
+
+```pwsh
+python .\scripts\quarantine_token_soup.py --category summary --limit 500 --write --csv-out logs/token_soup_report.csv --sample 10 --use-cleaned
+```
+
+3. Re-generate summaries for quarantined nodes
+
+```pwsh
+python .\scripts\quarantine_regenerate.py --tag '#corrupted' --limit 200 --csv-out logs/regenerate_report.csv --write
+```
+
+4. Run the weaver (repair) excluding corrupted nodes
+
+```pwsh
+python .\scripts\neo4j\repair\repair_missing_links_similarity_embeddings.py --dry-run --csv-out logs/weaver_review_chunked.csv --exclude-tag '#corrupted' --limit 200 --candidate-limit 100 --top-n 3 --export-top 25
+```
+
+## Rollback & Auditability
+- CSV logs are produced for every step to review proposed repairs and regeneration results.
+- Relationships created by the Weaver include `r.auto_commit_*` fields enabling rollback via existing scripts.
+
+## Future Directions
+- Integrate regeneration automatically within the Distiller or as a scheduled job under the Archivist.
+- Add a quarantine UI or a triage CLI to quickly inspect and approve re-distilled nodes.
+- Improve chunk-weighted averaging for embeddings and add more E2E tests for the regeneration process.
+
+## Summary
+This design preserves both the raw, forensic truth and the usable, sanitized indexable text. We now have a robust path to identify token-soup failures, protect the graph's signal, and reprocess nodes to recover valid summaries with contextual tags.
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\TROUBLESHOOTING.md ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\vscode_integration.md (Section: BACKEND_SPECS) ---
+
+# VSCode Integration
+
+## Configure VSCode (example for 'Custom OpenAI endpoint')
+- Open `Settings` → `Extensions` → `Chat` or the settings for the Chat provider you use
+- Add a custom endpoint with URL: `http://localhost:8000/v1/chat/completions`
+- Model: `ece-core`
+- If API key is required, set a secret with key `Authorization` value `Bearer <API_KEY>` for the provider
+- Set `stream` to `true` where the provider supports it
+
+## Quick test with curl
+
+### Normal (non-streaming)
+```powershell
+$body = @{
+    model = 'ece-core'
+    messages = @(
+        @{ role = 'system'; content = 'You are a helpful assistant for VSCode.' },
+        @{ role = 'user'; content = 'List the top-level files in the repository' }
+    )
+} | ConvertTo-Json -Depth 4
+
+Invoke-RestMethod -Method Post -Uri 'http://localhost:8000/v1/chat/completions' -Body $body -ContentType 'application/json' -Headers @{ Authorization = 'Bearer <API_KEY_HERE>' }
+```
+
+### Streaming (SSE)
+```powershell
+$body = @{
+    model = 'ece-core'
+    messages = @(
+        @{ role = 'system'; content = 'You are a helpful assistant for VSCode.' },
+        @{ role = 'user'; content = 'Summarize the repository' }
+    )
+    stream = $true
+} | ConvertTo-Json -Depth 4
+
+# Using curl you can receive SSE chunks as they arrive:
+curl -N -H "Authorization: Bearer <API_KEY_HERE>" -H "Content-Type: application/json" -X POST "http://localhost:8000/v1/chat/completions" -d $body
+```
+
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\backend\specs\vscode_integration.md ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\main.py (Section: ANCHOR_CHAT) ---
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, VerticalScroll
@@ -12861,65 +13163,54 @@ class AnchorChatApp(App):
         await history.mount(ai_bubble)
         history.scroll_end(animate=False)
 
-        # Trigger background streaming task
-        self.stream_response(message, ai_bubble)
+        # Trigger background response task
+        self.get_response(message, ai_bubble)
 
     @work(exclusive=True)
-    async def stream_response(self, message: str, bubble: ChatBubble) -> None:
-        """Stream response from ECE Core and update the bubble."""
+    async def get_response(self, message: str, bubble: ChatBubble) -> None:
+        """Get response from ECE Core and update the bubble."""
         session_id = "anchor-tui-session"
-        full_response = ""
         
         try:
+            # Update bubble to show thinking state
+            self.call_from_thread(bubble.update_content, "ü§î Thinking... (SGR Planning)")
+            
             async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream(
-                    "POST", 
-                    f"{ECE_URL}/chat/stream", 
+                response = await client.post(
+                    f"{ECE_URL}/chat/", 
                     json={"session_id": session_id, "message": message}
-                ) as response:
-                    
-                    if response.status_code != 200:
-                        bubble.update_content(f"‚ùå Error: HTTP {response.status_code}")
-                        return
+                )
+                
+                if response.status_code != 200:
+                    self.call_from_thread(bubble.update_content, f"‚ùå Error: HTTP {response.status_code}\n{response.text}")
+                    return
 
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            data_str = line[6:]
-                            try:
-                                data = json.loads(data_str)
-                                chunk = data.get("chunk", "")
+                data = response.json()
+                final_response = data.get("response", "")
+                
+                # Update UI on the main thread
+                self.call_from_thread(bubble.update_content, final_response)
+                self.call_from_thread(self.query_one("#chat-history").scroll_end, animate=False)
                                 
-                                # Filter out raw protocol tags if you don't want to see them
-                                if chunk in ["thinking:", "response:"]:
-                                    continue
-                                    
-                                full_response += chunk
-                                # Update UI on the main thread
-                                self.call_from_thread(bubble.update_content, full_response)
-                                
-                                # Auto-scroll to keep latest text visible
-                                self.call_from_thread(self.query_one("#chat-history").scroll_end, animate=False)
-                                
-                            except json.JSONDecodeError:
-                                pass
         except Exception as e:
             self.call_from_thread(bubble.update_content, f"‚ùå Connection Error: {e}")
+
 
 if __name__ == "__main__":
     app = AnchorChatApp()
     app.run()
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\main.py ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\main.py ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\requirements.txt (Section: ANCHOR_CHAT) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\requirements.txt (Section: ANCHOR_CHAT) ---
 
 textual>=0.70.0
 httpx>=0.27.0
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\requirements.txt ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\anchor-chat\requirements.txt ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\background.js (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\background.js (Section: EXTENSION) ---
 
 // background.js - Coda Chrome Extension Background Script
 
@@ -13187,234 +13478,112 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 console.log("Coda: Background script loaded");
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\background.js ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\background.js ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\content.js (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\content.js (Section: EXTENSION) ---
 
 // content.js - Coda Chrome Extension Content Script
+// "The Eyes" of the Context Engine
 
-// Check if we're in the main frame (not an iframe)
-if (window.self === window.top) {
+(function() {
+    // Prevent multiple injections
+    if (window.hasRun) return;
+    window.hasRun = true;
+
     console.log("Coda: Content script loaded on:", window.location.href);
-    
-    // Function to capture page content using DOM parsing first
-    async function capturePageContent() {
-        console.log("Coda: Attempting to capture page content...");
-        
-        // Try DOM-based parsing first
-        const domContent = extractDOMContent();
-        
-        // If DOM content seems insufficient, fall back to OCR
-        if (isContentInsufficient(domContent)) {
-            console.log("Coda: DOM content insufficient, attempting OCR via Vision Sidecar...");
-            return await captureViaOCR();
-        }
-        
-        return {
-            method: "dom",
-            content: domContent,
-            title: document.title,
-            url: window.location.href,
-            timestamp: new Date().toISOString()
-        };
-    }
-    
-    // Extract content using DOM parsing
-    function extractDOMContent() {
-        // Remove script and style elements
-        const scripts = document.querySelectorAll('script, style, noscript');
-        scripts.forEach(el => el.remove());
-        
-        // Extract main content
-        const mainContent = document.querySelector('main') ||
-                           document.querySelector('article') ||
-                           document.querySelector('.content') ||
-                           document.querySelector('#content') ||
-                           document.body;
-        
-        if (!mainContent) {
-            return document.body.innerText;
-        }
-        
-        // Remove common clutter elements
-        const clutterSelectors = [
-            '.advertisement', '.ad', '.sidebar', '.nav', '.header', 
-            '.footer', '.cookie-consent', '.popup'
+
+    /**
+     * Extracts the main content from the page, removing clutter.
+     * This is a simplified "Readability" implementation.
+     */
+    function extractPageContent() {
+        // 1. Clone the body to avoid modifying the actual page
+        const clone = document.body.cloneNode(true);
+
+        // 2. Remove non-content elements (scripts, styles, ads, navs)
+        const selectorsToRemove = [
+            'script', 'style', 'noscript', 'iframe', 'svg',
+            'header', 'footer', 'nav', 'aside',
+            '.ad', '.ads', '.advertisement',
+            '[role="banner"]', '[role="navigation"]', '[role="contentinfo"]',
+            '#sidebar', '.sidebar', '#comments', '.comments'
         ];
-        clutterSelectors.forEach(selector => {
-            const elements = mainContent.querySelectorAll(selector);
+
+        selectorsToRemove.forEach(selector => {
+            const elements = clone.querySelectorAll(selector);
             elements.forEach(el => el.remove());
         });
-        
-        // Extract text preserving structure
-        let content = '';
+
+        // 3. Extract text from what remains
+        // We use a TreeWalker to get text nodes and join them with newlines
+        let textContent = "";
         const walker = document.createTreeWalker(
-            mainContent,
+            clone,
             NodeFilter.SHOW_TEXT,
             {
                 acceptNode: function(node) {
-                    const parent = node.parentElement;
-                    if (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') {
-                        return NodeFilter.FILTER_REJECT;
-                    }
-                    if (node.textContent.trim().length > 0) {
-                        return NodeFilter.FILTER_ACCEPT;
-                    }
-                    return NodeFilter.FILTER_REJECT;
+                    // Filter out empty or whitespace-only nodes
+                    if (!node.textContent.trim()) return NodeFilter.FILTER_REJECT;
+                    // Filter out hidden nodes (simple check)
+                    if (node.parentElement && node.parentElement.offsetParent === null) return NodeFilter.FILTER_REJECT;
+                    return NodeFilter.FILTER_ACCEPT;
                 }
             }
         );
-        
+
         let node;
         while (node = walker.nextNode()) {
-            content += node.textContent.trim() + ' ';
+            textContent += node.textContent.trim() + "\n";
         }
-        
-        return content.substring(0, 10000); // Limit content to 10k chars
+
+        // 4. Clean up multiple newlines
+        textContent = textContent.replace(/\n{3,}/g, "\n\n");
+
+        return textContent.trim();
     }
-    
-    // Check if content is sufficient for processing
-    function isContentInsufficient(content) {
-        // If content is very short or contains generic error messages
-        if (!content || content.length < 200) {
-            return true;
-        }
-        
-        const genericPatterns = [
-            /page not found/i,
-            /error/i,
-            /loading/i,
-            /please enable javascript/i,
-            /this page requires/i
-        ];
-        
-        return genericPatterns.some(pattern => pattern.test(content));
-    }
-    
-    // Capture screenshot and send to OCR service
-    async function captureViaOCR() {
-        try {
-            console.log("Coda: Capturing screenshot for OCR...");
-            
-            // Capture screenshot using Chrome API
-            const screenshotDataUrl = await new Promise((resolve, reject) => {
-                chrome.runtime.sendMessage({
-                    action: "captureVisibleTab"
-                }, function(response) {
-                    if (chrome.runtime.lastError) {
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(response.screenshot);
-                    }
-                });
-            });
-            
-            // Remove data URL prefix to get base64 string
-            const base64Image = screenshotDataUrl.split(',')[1];
-            
-            console.log("Coda: Sending screenshot to Vision Sidecar...");
-            
-            // Send to OCR service
-            const ocrResult = await fetch('http://localhost:8082/ocr', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    image_base64: base64Image
-                })
-            });
-            
-            if (!ocrResult.ok) {
-                throw new Error(`OCR service error: ${ocrResult.status}`);
-            }
-            
-            const ocrData = await ocrResult.json();
-            
-            console.log("Coda: OCR processing complete, received:", ocrData.text.substring(0, 200) + "...");
-            
-            return {
-                method: "ocr",
-                content: ocrData.text,
-                title: document.title,
-                url: window.location.href,
-                timestamp: new Date().toISOString(),
-                ocr_raw: ocrData.raw_output
-            };
-            
-        } catch (error) {
-            console.error("Coda: OCR capture failed:", error);
-            // Fallback to DOM content if OCR fails
-            return {
-                method: "dom_fallback",
-                content: document.body.innerText.substring(0, 10000),
-                title: document.title,
-                url: window.location.href,
-                timestamp: new Date().toISOString()
-            };
-        }
-    }
-    
-    // Listen for capture requests from background script
+
+    /**
+     * Message Listener
+     * Handles requests from sidepanel.js or background.js
+     */
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.action === "capturePage") {
-            capturePageContent().then(data => {
-                sendResponse({ success: true, data: data });
-            }).catch(error => {
-                console.error("Coda: Capture failed:", error);
-                sendResponse({ 
-                    success: false, 
-                    error: error.message,
-                    data: {
-                        method: "error",
-                        content: "",
-                        title: document.title,
-                        url: window.location.href,
-                        timestamp: new Date().toISOString()
-                    }
+        if (request.action === "GET_PAGE_CONTENT") {
+            console.log("Coda: Received GET_PAGE_CONTENT request");
+            try {
+                const content = extractPageContent();
+                const title = document.title;
+                const url = window.location.href;
+
+                console.log(`Coda: Extracted ${content.length} chars`);
+
+                if (!content || content.trim().length === 0) {
+                    throw new Error("Page content is empty or could not be extracted.");
+                }
+
+                sendResponse({
+                    success: true,
+                    content: content,
+                    title: title,
+                    url: url
                 });
-            });
-            // Keep message channel open for async response
-            return true;
+            } catch (error) {
+                console.error("Coda: Extraction failed", error);
+                sendResponse({
+                    success: false,
+                    error: error.message
+                });
+            }
         }
+        // Return true to indicate we might respond asynchronously (though we responded synchronously above)
+        return true;
     });
-    
-    // Inject a button to manually capture page for testing
-    function injectCaptureButton() {
-        const button = document.createElement('button');
-        button.id = 'coda-capture-btn';
-        button.textContent = 'Coda Capture';
-        button.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 10000;
-            background: #4F46E5;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-        `;
-        button.onclick = async () => {
-            const result = await capturePageContent();
-            console.log("Coda: Manual capture result:", result);
-            alert("Page captured! Check console for details.");
-        };
-        
-        document.body.appendChild(button);
-    }
-    
-    // Inject button if in development mode (optional)
-    // injectCaptureButton(); // Uncomment to enable manual capture button
-    
-    console.log("Coda: Content script ready");
-}
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\content.js ---
+})();
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\manifest.json (Section: EXTENSION) ---
+
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\content.js ---
+
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\manifest.json (Section: EXTENSION) ---
 
 {
   "manifest_version": 3,
@@ -13453,9 +13622,9 @@ if (window.self === window.top) {
 }
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\manifest.json ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\manifest.json ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\popup.html (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\popup.html (Section: EXTENSION) ---
 
 <!DOCTYPE html>
 <html>
@@ -13477,9 +13646,9 @@ if (window.self === window.top) {
 </html>
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\popup.html ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\popup.html ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\popup.js (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\popup.js (Section: EXTENSION) ---
 
 document.getElementById('connectBtn').addEventListener('click', async () => {
   const statusDiv = document.getElementById('status');
@@ -13504,9 +13673,9 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
 });
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\popup.js ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\popup.js ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\README.md (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\README.md (Section: EXTENSION) ---
 
 # Browser Extension (Bridge)
 
@@ -13543,13 +13712,14 @@ The Browser Extension is the "Bridge" between your browser and the Context-Engin
 ## Integration
 Connects to the ECE_Core backend via API endpoints for context-aware page reading and memory ingestion.
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\README.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\README.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.html (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.html (Section: EXTENSION) ---
 
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Coda Side Panel</title>
   <style>
     body {
@@ -13745,41 +13915,90 @@ Connects to the ECE_Core backend via API endpoints for context-aware page readin
     <textarea id="prompt" placeholder="Type a message..."></textarea>
     <button id="send">Send</button>
   </div>
+  
+  <details style="background-color: #252526; border-top: 1px solid #3e3e3e;">
+    <summary style="cursor: pointer; padding: 5px 15px; font-size: 11px; color: #888; user-select: none;">Debug Log</summary>
+    <div id="debug-log" style="font-family: monospace; font-size: 10px; max-height: 100px; overflow-y: auto; background: #000; color: #0f0; padding: 5px; margin: 0;"></div>
+  </details>
+
   <script src="sidepanel.js"></script>
 </body>
 </html>
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.html ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.html ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.js (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.js (Section: EXTENSION) ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Configuration ---
+    const API_BASE = "http://127.0.0.1:8000";
+    const SESSION_ID = "browser-session"; // Static session for the browser bridge
+
+    // --- Elements ---
     const chatContainer = document.getElementById('chat-container');
     const promptInput = document.getElementById('prompt');
     const sendButton = document.getElementById('send');
     const clearButton = document.getElementById('clear-btn');
     const saveMemoryButton = document.getElementById('save-memory-btn');
+    const includeContextToggle = document.getElementById('include-context');
+    const debugLog = document.getElementById('debug-log');
 
     let messageHistory = [];
 
-    // --- Persistence ---
+    // --- Helpers ---
+    function logDebug(msg) {
+        if (!debugLog) return;
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        entry.textContent = `[${timestamp}] ${msg}`;
+        debugLog.appendChild(entry);
+        debugLog.scrollTop = debugLog.scrollHeight;
+    }
+
+    function scrollToBottom() {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function formatMessage(text) {
+        if (!text) return "";
+        return text
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+            .replace(/`([^`]+)`/g, '<code class="inline">$1</code>')
+            .replace(/\n/g, '<br>');
+    }
+
+    function appendMessage(role, text, save = true) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role === 'user' ? 'user-message' : 'coda-message'}`;
+        if (role === 'system') {
+            msgDiv.style.fontStyle = 'italic';
+            msgDiv.style.color = '#888';
+            msgDiv.textContent = text;
+        } else {
+            msgDiv.innerHTML = formatMessage(text);
+        }
+        chatContainer.appendChild(msgDiv);
+        scrollToBottom();
+        return msgDiv;
+    }
+
+    // --- Core Logic ---
+
     function loadHistory() {
         chrome.storage.local.get("chat_history", (result) => {
             if (result.chat_history) {
                 messageHistory = result.chat_history;
-                // Render history
                 if (messageHistory.length === 0) {
-                    appendMessage('assistant', 'Hello. I am Coda. I am listening.', false);
+                    appendMessage('assistant', 'Hello. I am Coda. The Bridge is active.', false);
                 } else {
-                    messageHistory.forEach(msg => {
-                        appendMessage(msg.role, msg.content, false);
-                    });
+                    messageHistory.forEach(msg => appendMessage(msg.role, msg.content, false));
                 }
             } else {
-                // Default welcome message
-                appendMessage('assistant', 'Hello. I am Coda. I am listening.', false);
+                appendMessage('assistant', 'Hello. I am Coda. The Bridge is active.', false);
             }
+            scrollToBottom();
         });
     }
 
@@ -13787,290 +14006,265 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.local.set({ chat_history: messageHistory });
     }
 
-    clearButton.addEventListener('click', () => {
+    // --- Event Handlers ---
+
+    // 1. CLEAR MEMORY (Full Reset)
+    clearButton.addEventListener('click', async () => {
+        if (!confirm("Reset active memory context (Local & Server)?")) return;
+        
+        // Clear UI & Local
         chrome.storage.local.remove("chat_history");
         messageHistory = [];
         chatContainer.innerHTML = '';
-        appendMessage('assistant', 'Memory cleared.', false);
+        const loadingMsg = appendMessage('assistant', 'üßπ Wiping server context...', false);
+
+        // Clear Server
+        try {
+            const res = await fetch(`${API_BASE}/context/${SESSION_ID}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadingMsg.innerHTML = "‚úÖ <b>Context Cleared.</b> I have forgotten this session.";
+            } else {
+                loadingMsg.innerHTML = `‚ö†Ô∏è Local cleared, but Server returned ${res.status}`;
+            }
+        } catch (e) {
+            loadingMsg.innerHTML = `‚ùå Local cleared, but Server unreachable: ${e.message}`;
+        }
     });
 
-    // --- Ingestion Handler ---
+    // 1.5 SAVE MEMORY (Archivist)
     saveMemoryButton.addEventListener('click', async () => {
+        const originalText = saveMemoryButton.textContent;
         saveMemoryButton.disabled = true;
         saveMemoryButton.textContent = "Saving...";
-        
-        try {
-            // 1. Get active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (!tab) throw new Error("No active tab found");
+        logDebug("Save button clicked.");
 
-            // 2. Request page content from content script
-            const response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
-            
-            if (!response || !response.content) {
-                throw new Error("No content received from page");
+        try {
+            // 1. Get Page Content
+            logDebug("Attempting to read active tab...");
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab || !tab.id) throw new Error("No active tab");
+
+            // Safety check for restricted URLs
+            const currentUrl = tab.url || "";
+            logDebug(`Target URL: ${currentUrl}`);
+            if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("edge://") || currentUrl.startsWith("about:")) {
+                 throw new Error("Cannot save memory from restricted browser pages.");
             }
 
-            // 3. Send to Backend
-            const ingestRes = await fetch('http://localhost:8000/archivist/ingest', {
+            let response;
+            try {
+                response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
+                logDebug("Content script responded directly.");
+            } catch (err) {
+                // If connection fails, try injecting the script
+                console.log("Connection failed, attempting injection...", err);
+                logDebug("Connection failed, attempting injection...");
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tab.id },
+                        files: ['content.js']
+                    });
+                    logDebug("Script injection successful.");
+                    // Wait a bit for the script to initialize
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Retry
+                    response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
+                    logDebug("Content script responded after injection.");
+                } catch (injectionErr) {
+                    logDebug(`Injection failed: ${injectionErr.message}`);
+                    if (injectionErr.message.includes("Cannot access contents")) {
+                        throw new Error("‚ö†Ô∏è Restricted Page: Cannot read this tab (Browser Security)");
+                    }
+                    throw new Error("Failed to inject content script: " + injectionErr.message);
+                }
+            }
+
+            if (!response || !response.success) {
+                logDebug(`Extraction failed: ${response ? response.error : "No response"}`);
+                throw new Error(response ? (response.error || "Failed to read page") : "No response from page");
+            }
+
+            const content = response.content;
+            logDebug(`Content extraction length: ${content.length} chars`);
+            const url = tab.url || "unknown_source";
+            
+            // 2. Determine Type
+            let type = "web_page";
+            if (url && (url.includes("gemini.google.com") || url.includes("chatgpt.com") || url.includes("claude.ai"))) {
+                type = "gemini_chat"; // Generic "AI Chat" type, mapped in backend
+            }
+
+            // 3. Send to Archivist
+            logDebug("Sending payload to /archivist/ingest...");
+            const res = await fetch(`${API_BASE}/archivist/ingest`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer secret-token'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    content: response.content,
-                    type: response.type || "web_page",
-                    adapter: response.adapter || "Generic"
+                    content: content,
+                    type: type,
+                    adapter: "chrome_extension"
                 })
             });
 
-            if (!ingestRes.ok) {
-                const errText = await ingestRes.text();
-                throw new Error(`Server error: ${ingestRes.status} - ${errText}`);
-            }
+            logDebug(`Backend response status: ${res.status}`);
+            if (!res.ok) throw new Error(`Server error: ${res.status}`);
+            
+            const data = await res.json();
+            logDebug(`Archivist response: ${JSON.stringify(data)}`);
+            appendMessage('system', `‚úÖ Memory Ingested ID: ${data.memory_ids.join(", ")}`, false);
 
-            const result = await ingestRes.json();
-            appendMessage('assistant', `✅ **Memory Ingested**\nID: \`${result.memory_ids[0]}\`\nSource: ${response.adapter}`, false);
-
-        } catch (error) {
-            console.error("Ingestion failed:", error);
-            appendMessage('assistant', `❌ **Ingestion Failed**\n${error.message}`, false);
+        } catch (e) {
+            logDebug(`Error: ${e.message}`);
+            appendMessage('system', `‚ùå Save failed: ${e.message}`, false);
         } finally {
             saveMemoryButton.disabled = false;
-            saveMemoryButton.textContent = "Save to Memory";
+            saveMemoryButton.textContent = originalText;
         }
     });
 
-    // --- Markdown Parser ---
-    function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    function formatMessage(text) {
-        // 1. Escape HTML first to prevent XSS and rendering issues
-        let formatted = escapeHtml(text);
-
-        // 2. Code Blocks: ```lang ... ```
-        // We use a non-greedy match for content
-        formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-            const language = lang || 'text';
-            return `<pre><div class="code-header">${language}</div><code>${code}</code></pre>`;
-        });
-
-        // 3. Inline Code: `code`
-        formatted = formatted.replace(/`([^`]+)`/g, '<code class="inline">$1</code>');
-
-        // 4. Action Blocks: :::action ({...}) :::
-        // We want to hide the raw block and show a card instead.
-        // But wait, if we replace it here, it will be part of the innerHTML.
-        // We need to attach event listeners to the buttons.
-        // Since we are setting innerHTML repeatedly during stream, we can't easily attach listeners until the end?
-        // Or we can use onclick attributes (not recommended in extensions usually, but might work if inline scripts allowed? No, CSP).
-        // Better approach: Render a placeholder, and then after rendering, find the placeholder and hydrate it?
-        // Or just render a button with a data-code attribute and use a global event listener on the container.
-        
-        formatted = formatted.replace(/:::action\s*({.*?})\s*:::/g, (match, jsonStr) => {
-            try {
-                // Validate JSON
-                const action = JSON.parse(jsonStr);
-                // Encode code for attribute
-                const codeEncoded = encodeURIComponent(action.code);
-                return `
-                    <div class="action-card">
-                        <div class="action-header">Browser Action</div>
-                        <div class="action-code">${escapeHtml(action.code.slice(0, 100))}${action.code.length > 100 ? '...' : ''}</div>
-                        <button class="action-btn" data-code="${codeEncoded}">Run Script</button>
-                    </div>
-                `;
-            } catch (e) {
-                return `<div class="error">Invalid Action Block</div>`;
-            }
-        });
-
-        return formatted;
-    }
-
-    // --- Global Event Listener for Action Buttons ---
-    chatContainer.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('action-btn')) {
-            const btn = e.target;
-            const code = decodeURIComponent(btn.getAttribute('data-code'));
-            
-            btn.disabled = true;
-            btn.textContent = "Running...";
-            
-            try {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                if (!tab) throw new Error("No active tab");
-
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    func: (codeToRun) => {
-                        // Execute in MAIN world to access window variables, bypassing inline script CSP
-                        try {
-                            window.eval(codeToRun);
-                        } catch (e) {
-                            console.error("Coda Execution Error:", e);
-                            throw e;
-                        }
-                    },
-                    args: [code],
-                    world: 'MAIN'
-                });
-
-                btn.textContent = "Executed";
-                btn.style.backgroundColor = "#28a745";
-            } catch (err) {
-                console.error("Script execution failed", err);
-                btn.textContent = "Failed";
-                btn.style.backgroundColor = "#dc3545";
-                btn.disabled = false;
-            }
-        }
-    });
-
-    // --- UI Logic ---
-    function scrollToBottom() {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function appendMessage(role, text, save = true) {
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${role === 'user' ? 'user-message' : 'coda-message'}`;
-        
-        // If it's a system message (like "Reading page..."), style it differently
-        if (role === 'system') {
-            msgDiv.style.fontStyle = 'italic';
-            msgDiv.style.fontSize = '0.8em';
-            msgDiv.style.color = '#888';
-            msgDiv.textContent = text; // No markdown for system status
-        } else {
-            msgDiv.innerHTML = formatMessage(text);
-        }
-
-        chatContainer.appendChild(msgDiv);
-        scrollToBottom();
-
-        if (save && role !== 'system') {
-            // We don't save system status messages to history, but we do save user/assistant messages
-            // Note: The caller handles pushing to messageHistory array usually
-        }
-        return msgDiv;
-    }
-
+    // 2. SEND MESSAGE
     async function sendMessage() {
         const text = promptInput.value.trim();
         if (!text) return;
 
-        // UI Updates
+        // Lock UI
         promptInput.value = '';
-        appendMessage('user', text, false); // We push to history manually below
+        promptInput.style.height = '40px';
+        sendButton.disabled = true;
+        sendButton.textContent = "Sending...";
         
-        // Add to history
+        appendMessage('user', text, false);
         messageHistory.push({ role: "user", content: text });
         saveHistory();
 
-        const responseDiv = appendMessage('assistant', '', false); // Placeholder
+        const responseDiv = appendMessage('assistant', '<span class="blinking-cursor">‚ñå</span>', false);
         
-        // Check for context injection
-        const includeContext = document.getElementById('include-context').checked;
-        let contextMessage = null;
-
-        if (includeContext) {
+        // Context Injection
+        let finalMessage = text;
+        
+        // If "Read Page" is checked, grab context
+        if (includeContextToggle && includeContextToggle.checked) {
             try {
+                logDebug("Reading page for chat context...");
                 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
                 if (tab && tab.id) {
-                    const statusMsg = appendMessage('system', 'Reading page...', false);
-                    const response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
+                    // responseDiv.innerHTML = "<i>Reading page...</i>"; // Don't flicker UI
+                    let response;
+                    try {
+                        response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
+                    } catch (err) {
+                        logDebug("Injecting script for chat context...");
+                        await chrome.scripting.executeScript({
+                            target: { tabId: tab.id },
+                            files: ['content.js']
+                        });
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        response = await chrome.tabs.sendMessage(tab.id, { action: "GET_PAGE_CONTENT" });
+                    }
+                    
                     if (response && response.content) {
-                        contextMessage = { 
-                            role: "system", 
-                            content: "## ACTIVE BROWSER TAB CONTEXT\n\n" + response.content 
-                        };
-                        statusMsg.remove();
+                        logDebug(`Context read: ${response.content.length} chars`);
+                        const contextBlock = `\n\n[Active Browser Context]\nURL: ${tab.url}\nTitle: ${tab.title}\nContent:\n${response.content.slice(0, 8000)}`; // Limit size
+                        finalMessage += contextBlock;
+                    } else {
+                        logDebug("Context read failed or empty.");
                     }
                 }
             } catch (e) {
-                console.warn("Failed to read page context:", e);
+                logDebug(`Context error: ${e.message}`);
+                console.error("Failed to read page context:", e);
+            }
+        }
+                console.warn("Context read failed:", e);
             }
         }
 
-        // Prepare payload
-        let payloadMessages = [...messageHistory];
-        if (contextMessage) {
-            // Insert context before the latest user message
-            // payloadMessages is [..., user_msg]
-            // We want [..., context, user_msg]
-            payloadMessages.splice(payloadMessages.length - 1, 0, contextMessage);
-        }
+        // Request with Long Timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/chat/stream', {
+            const response = await fetch(`${API_BASE}/chat/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer secret-token'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session_id: "browser-session",
-                    message: text,
-                    messages: payloadMessages,
-                    stream: true
-                })
+                    session_id: SESSION_ID,
+                    message: finalMessage
+                }),
+                signal: controller.signal
             });
 
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
+            clearTimeout(timeoutId);
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder("utf-8");
-            let assistantMessage = "";
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.slice(6);
-                        if (dataStr === '[DONE]') continue;
-                        
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.chunk) {
-                                assistantMessage += data.chunk;
-                                // Live update with formatting
-                                responseDiv.innerHTML = formatMessage(assistantMessage);
-                            } else if (data.error) {
-                                responseDiv.innerHTML += `<br><span style="color:red">[Error: ${data.error}]</span>`;
-                            }
-                        } catch (e) {
-                            console.error("Failed to parse SSE data", e);
-                        }
-                        scrollToBottom();
-                    }
-                }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
             }
-            
-            // Final save
-            messageHistory.push({ role: "assistant", content: assistantMessage });
+
+            const data = await response.json();
+            let rawResponse = data.response;
+            let displayHtml = "";
+
+            // 1. Handle JSON Parsing Failures (Raw Text)
+            if (rawResponse.startsWith("[SGR Parsing Failed]")) {
+                const rawText = rawResponse.replace("[SGR Parsing Failed]", "").trim();
+                displayHtml = `
+                    <div style="border: 1px solid #ffcc00; background: #fffbe6; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                        <strong style="color: #d48806;">‚ö†Ô∏è Model Output Format Error</strong><br>
+                        <small>The model failed to produce valid JSON, but here is the raw output:</small>
+                    </div>
+                    ${formatMessage(rawText)}
+                `;
+            } 
+            // 2. Handle "Thinking" UI
+            else if (rawResponse.includes("thinking:")) {
+                // Expected format: "thinking: <trace>\n\n<response>"
+                // We use a regex to capture the thinking part and the rest
+                const match = rawResponse.match(/thinking:\s*([\s\S]*?)\n\n([\s\S]*)/);
+                
+                if (match) {
+                    const thinking = match[1];
+                    const finalAnswer = match[2];
+                    
+                    displayHtml = `
+                        <details style="margin-bottom: 10px; border-left: 2px solid #ccc; padding-left: 10px;">
+                            <summary style="cursor: pointer; color: #666; font-size: 0.9em;">üí≠ Reasoning Process</summary>
+                            <div style="margin-top: 5px; color: #555; font-size: 0.9em; white-space: pre-wrap;">${formatMessage(thinking)}</div>
+                        </details>
+                        ${formatMessage(finalAnswer)}
+                    `;
+                } else {
+                    // Fallback if regex fails but "thinking:" is present
+                    displayHtml = formatMessage(rawResponse);
+                }
+            } 
+            // 3. Standard Response
+            else {
+                displayHtml = formatMessage(rawResponse);
+            }
+
+            responseDiv.innerHTML = displayHtml;
+            messageHistory.push({ role: "assistant", content: rawResponse }); // Save raw for history
             saveHistory();
 
         } catch (error) {
-            responseDiv.innerHTML += `<br><span style="color:red">[Error: ${error.message}]</span>`;
+            if (error.name === 'AbortError') {
+                responseDiv.innerHTML = `<span style="color:red">‚è±Ô∏è Request timed out (180s). The local model is too slow.</span>`;
+            } else {
+                responseDiv.innerHTML = `<span style="color:red">‚ùå Error: ${error.message}</span>`;
+                if (error.message.includes("Failed to fetch")) {
+                    responseDiv.innerHTML += `<br><small>Check if ECE Backend is running on port 8000</small>`;
+                }
+            }
+        } finally {
+            sendButton.disabled = false;
+            sendButton.textContent = "Send";
+            promptInput.focus();
         }
     }
 
+    // --- Bindings ---
     sendButton.addEventListener('click', sendMessage);
-    promptInput.addEventListener('keypress', (e) => {
+    promptInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
@@ -14082,9 +14276,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.js ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\sidepanel.js ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\plan.md (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\plan.md (Section: EXTENSION) ---
 
 # Browser Extension Development Plan
 
@@ -14259,9 +14453,9 @@ Enable users to seamlessly capture valuable web content and conversations into t
 - Clear visual indicators for all automated operations
 - User confirmation for all memory storage operations
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\plan.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\plan.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\spec.md (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\spec.md (Section: EXTENSION) ---
 
 # Browser Extension (Coda Bridge) - Technical Specification
 
@@ -14423,9 +14617,9 @@ Each adapter implements:
 - **API Key Management**: Multiple Context-Engine instance support
 - **Profile Management**: Different profiles for different use cases
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\spec.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\spec.md ---
 
---- START OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\tasks.md (Section: EXTENSION) ---
+--- START OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\tasks.md (Section: EXTENSION) ---
 
 # Browser Extension - Task Tracker
 
@@ -14561,5 +14755,5 @@ Each adapter implements:
 **Next Priority**: Implementing smart tagging and batch capture
 **Last Updated**: 2025-12-08
 
---- END OF FILE: c:\Users\rsbiiw\Projects\Context-Engine\extension\specs\tasks.md ---
+--- END OF FILE: C:\Users\rsbiiw\Projects\Context-Engine\extension\specs\tasks.md ---
 

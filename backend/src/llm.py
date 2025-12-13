@@ -236,6 +236,104 @@ class LLMClient:
             return None
         return None
     
+    async def generate_response(self,
+                               messages: List[Dict[str, str]],
+                               max_tokens: Optional[int] = None,
+                               temperature: float = None,
+                               json_mode: bool = False) -> str:
+        """
+        Generate response from a list of messages.
+        Supports json_mode and auto-continuation for truncated responses.
+        """
+        temperature = temperature if temperature is not None else settings.llm_temperature
+        max_tokens = max_tokens or settings.llm_max_tokens
+        
+        if not self._model_detection_attempted:
+            await self.detect_model()
+            
+        formatted_input = self.chat_template.format_messages(messages)
+        
+        # Determine API endpoint and payload structure
+        is_legacy_completion = self.chat_template_name in ["qwen3", "qwen3-thinking", "gemma", "gemma2", "gemma3", "llama", "llama2", "llama3", "mistral", "phi3", "chatml"]
+        
+        if is_legacy_completion:
+             api_endpoint = f"{self.api_base}/completions"
+        else:
+            api_endpoint = f"{self.api_base}/chat/completions"
+            
+        full_response_content = ""
+        current_messages = messages.copy() # Keep track of conversation for chat completion mode
+        current_prompt = formatted_input # Keep track of prompt for legacy completion mode
+        
+        max_loops = 5
+        loop_count = 0
+        
+        while loop_count < max_loops:
+            loop_count += 1
+            
+            if is_legacy_completion:
+                payload = {
+                    "model": self._detected_model or self.model,
+                    "prompt": current_prompt,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": settings.llm_top_p
+                }
+            else:
+                payload = {
+                    "model": self._detected_model or self.model,
+                    "messages": current_messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": settings.llm_top_p
+                }
+                
+            if json_mode:
+                payload["response_format"] = {"type": "json_object"}
+                
+            if getattr(settings, 'llm_stop_tokens', None):
+                payload["stop"] = settings.llm_stop_tokens
+                
+            try:
+                response = await self.client.post(api_endpoint, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                content_chunk = ""
+                finish_reason = None
+                
+                if "choices" in result and len(result["choices"]) > 0:
+                    choice = result["choices"][0]
+                    finish_reason = choice.get("finish_reason")
+                    
+                    if "message" in choice and "content" in choice["message"]:
+                        content_chunk = choice["message"]["content"]
+                    elif "text" in choice:
+                        content_chunk = choice["text"]
+                
+                full_response_content += content_chunk
+                
+                if finish_reason == "length":
+                    print(f"🔄 Response truncated (length). Auto-continuing... (Loop {loop_count})")
+                    
+                    # Prepare for next loop
+                    if is_legacy_completion:
+                        # For legacy completion, we append the output to the prompt and continue
+                        current_prompt += content_chunk
+                    else:
+                        # For chat completion, we append the assistant's partial response and a user "continue" message
+                        current_messages.append({"role": "assistant", "content": content_chunk})
+                        current_messages.append({"role": "user", "content": "proceed"})
+                else:
+                    # Done
+                    break
+                    
+            except Exception as e:
+                print(f"Error in generate_response: {e}")
+                raise e
+                
+        return full_response_content
+
     async def generate(self,
                       prompt: str,
                       max_tokens: Optional[int] = None,
