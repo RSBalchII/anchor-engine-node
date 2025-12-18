@@ -1,4 +1,6 @@
-# Context-Engine: Infinite Context Pipeline
+> **⚠️ ARCHITECTURAL PIVOT:** This project now runs entirely in the browser (WASM/CozoDB). See `tools/` for the active application. The legacy Python/Neo4j backend has been moved to `archive/v1_python_backend/`.
+
+# External Context Engine (ECE) - Browser Native Edition: Infinite Context Pipeline
 
 > **Executive Cognitive Enhancement (ECE)** - A browser-native infinite context system that runs entirely in your browser with zero backend dependencies.
 
