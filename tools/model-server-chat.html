@@ -1419,11 +1419,28 @@ If context is insufficient, say so clearly.`;
             ui.log(`📥 Bridge Request: ${reqId.slice(0, 8)}...`, "info");
             try {
                 // OpenAI Compatibility Mapping
-                const messages = data.messages;
-                // Force stream to true for bridge efficiency
+                let messages = data.messages || [];
 
+                // Sanitize: Ensure System Prompt is FIRST (WebLLM strict requirement)
+                // 1. Extract all system messages
+                const systemMsgs = messages.filter(m => m.role === 'system');
+                const otherMsgs = messages.filter(m => m.role !== 'system');
+
+                // 2. Combine into single system prompt (or take last one if conflict)
+                let finalSystemMsg = null;
+                if (systemMsgs.length > 0) {
+                    // Start with default or first
+                    finalSystemMsg = { role: 'system', content: systemMsgs.map(m => m.content).join("\n\n") };
+                }
+
+                // 3. Reconstruct array
+                const cleanMessages = [];
+                if (finalSystemMsg) cleanMessages.push(finalSystemMsg);
+                cleanMessages.push(...otherMsgs);
+
+                // Force stream to true for bridge efficiency
                 const completion = await engine.chat.completions.create({
-                    messages,
+                    messages: cleanMessages,
                     stream: true,
                     temperature: data.temperature || 0.7,
                     max_tokens: data.max_tokens || 4096,
