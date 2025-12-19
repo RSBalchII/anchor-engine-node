@@ -731,40 +731,38 @@
                     ui.log(`🔄 Iteration ${iteration}/${this.maxIterations}...`, "warn");
 
                     try {
-                        const planPrompt = `You are a Reasoning Engine.
-User Query: "${userQuery}"
-Current Time: ${Date.now()}
+                        const planPrompt = `
+You are a Memory Retrieval Agent. Your ONLY job is to convert the User's question into a specific CozoDB query format.
 
-TASK: Generate a CozoDB Datalog query to find relevant memories in the 'memory' table.
-Schema: memory { id, timestamp, role, content, embedding } where timestamp is Unix MS.
+### RULES
+1. IGNORE timestamps.
+2. IGNORE complex logic.
+3. JUST find the most important KEYWORD in the user's input.
+4. Output JSON inside a markdown block.
 
-### COZO DB SYNTAX RULES (STRICT):
-1. Use standard Datalog. DO NOT use SQL (SELECT ...).
-2. Filter by adding conditions AFTER the relation selector, separated by commas.
-3. String matching: Use 'str_includes(content, "substring")'.
-4. Timestamp matching: 'timestamp > 1700000000'.
-
-### VALID EXAMPLES (COPY THESE PATTERNS):
-
-Goal: Find memories about "Blueberry".
-Query: ?[id, content, timestamp] := *memory{id, content, timestamp}, str_includes(content, "Blueberry")
-
-Goal: Find recent memories.
-Query: ?[id, content, timestamp] := *memory{id, content, timestamp}, timestamp > 1734500000000
-
-Goal: Find user messages about code.
-Query: ?[id, content] := *memory{id, content, role}, role = "user", str_includes(content, "code")
-
-### OUTPUT FORMAT:
-You MUST output strictly in this JSON format inside a markdown block:
+### TEMPLATE (COPY THIS EXACTLY)
+User: "What is the code?"
+Response:
 \`\`\`json
 {
-    "hypothesis": "Searching for X...",
-    "query": "?[id, content, timestamp] := *memory{id, content, timestamp}, str_includes(content, 'X')",
+    "hypothesis": "Searching for keyword 'code'",
+    "query": "?[id, content, timestamp] := *memory{id, content, timestamp}, str_includes(content, 'code')",
     "confidence": 0.5
 }
 \`\`\`
-Do not output anything else outside the thought trace.
+
+User: "Who is Jade?"
+Response:
+\`\`\`json
+{
+    "hypothesis": "Searching for keyword 'Jade'",
+    "query": "?[id, content, timestamp] := *memory{id, content, timestamp}, str_includes(content, 'Jade')",
+    "confidence": 0.5
+}
+\`\`\`
+
+### YOUR TURN
+User Input: "${userQuery}"
 `;
 
                         const reasoningUI = ui.appendReasoning(`Thinking: ${userQuery.substring(0, 30)}... (Iteration ${iteration})`);
