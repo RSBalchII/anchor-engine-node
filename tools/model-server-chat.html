@@ -1183,6 +1183,7 @@ If context is insufficient, say so clearly.`;
                 const snapdragonId = "snapdragon-" + simpleId;
 
                 // DeepSeek-R1-Distill Specific Override
+                let convOverride = {};
                 if (lowerId.includes('deepseek-r1-distill')) {
                     ui.log("⚙️ Applying 'qwen2' Chat Template Override for compatibility...", "info");
                     convOverride = { "conv_template": "qwen2" };
