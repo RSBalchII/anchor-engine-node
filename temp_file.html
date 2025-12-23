@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -631,13 +631,18 @@
                 this.maxIterations = 3;
             }
 
-            async findRelevantMemories(userText) {
+            async retrieveInitialContext(userText) {
+                ui.log("🔍 Reflex: Initiating Hybrid Retrieval...", "info");
+
                 // 1. GENERATE QUERY VECTOR (Semantic)
                 let vectorResults = [];
                 if (embedder) {
                     try {
                         const output = await embedder(userText, { pooling: 'mean', normalize: true });
                         const queryVec = Array.from(output.data);
+
+                        // CozoDB Vector Search (Brute Force L2 for accuracy on local sets)
+                        // Query: Find top 10 nearest neighbors where embedding exists
                         const vecQuery = `
                             ?[id, content, dist, timestamp] := *memory{id, content, embedding, timestamp},
                             !is_null(embedding),
@@ -648,14 +653,17 @@
                         const res = await this.db.run(vecQuery, JSON.stringify({ vec: queryVec }));
                         const parsed = ResponsePattern.match(res);
                         if (parsed.rows) vectorResults = parsed.rows.map(r => ({ id: r[0], content: r[1], dist: r[2], ts: r[3], source: 'semantic' }));
-                    } catch (e) { console.warn("Vector Search failed", e); }
+                        ui.log(`🧠 Semantic: Found ${vectorResults.length} concept matches.`, "info");
+                    } catch (e) {
+                        ui.log(`⚠️ Vector Search failed: ${e.message}`, "warn");
+                    }
                 }
 
                 // 2. GENERATE KEYWORD QUERY (Lexical)
                 let keywordResults = [];
                 const rawWords = userText.match(/[a-zA-Z0-9_\-]+/g) || [];
-                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where']);
-                const keywords = rawWords.map(w => w.replace(/^[-_]+|[-_]+$/g, '')).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where', 'did', 'does', 'do', 'can', 'could', 'would', 'should', 'will', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'a', 'an', 'tell', 'me', 'about']);
+                const keywords = rawWords.map(w => w.replace(/^[-_]+|[-_]+$/g, '')).filter(w => w.length > 2 && !stopWords.has(w.toLowerCase()));
 
                 if (keywords.length > 0) {
                     const conditions = keywords.map(w => `regex_matches(content, '(?i)${w}')`).join(' or ');
@@ -664,33 +672,44 @@
                         const res = await this.db.run(kwQuery, "{}");
                         const parsed = ResponsePattern.match(res);
                         if (parsed.rows) keywordResults = parsed.rows.map(r => ({ id: r[0], content: r[1], dist: 0, ts: r[2], source: 'lexical' }));
+                        ui.log(`📖 Lexical: Found ${keywordResults.length} keyword matches.`, "info");
                     } catch (e) { console.warn(e); }
                 }
 
                 // 3. MERGE & DEDUPLICATE
+                // Priority: Vector (Concepts) + Lexical (Specifics)
                 const combined = new Map();
+
+                // Add Vector Results first
                 vectorResults.forEach(item => combined.set(item.content, item));
+
+                // Add Lexical (only if not already present)
                 keywordResults.forEach(item => {
                     if (!combined.has(item.content)) combined.set(item.content, item);
                 });
 
-                // Return raw objects
-                return Array.from(combined.values()).slice(0, 10);
-            }
+                const finalItems = Array.from(combined.values());
 
-            async retrieveInitialContext(userText) {
-                ui.log("🔍 Reflex: Initiating Hybrid Retrieval...", "info");
+                if (finalItems.length === 0) return "";
 
-                const topItems = await this.findRelevantMemories(userText);
-                if (topItems.length === 0) return "";
+                // 4. FORMAT OUTPUT (Smart Window)
+                // Sort by relevance (Vector distance low is good, Lexical is 0 distance but prioritized by recency)
+                // Let's just take Top 10 mixed.
+                const topItems = finalItems.slice(0, 10);
 
                 const paths = [];
                 const clues = topItems.map((item, index) => {
                     const id = index + 1;
                     let title = "doc_" + id;
+                    if (item.content.length > 0) {
+                        const safeTitle = item.content.substring(0, 30).replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+                        if (safeTitle.length > 3) title = safeTitle;
+                    }
                     const path = `/knowledge/${item.source}/${title}`;
                     paths.push(path);
 
+                    // Smart Truncate: If it's a vector match, we might want more context. 
+                    // Current limit 300 chars to save tokens.
                     let snippet = item.content.substring(0, 300).replace(/\n/g, ' ');
                     if (item.content.length > 300) snippet += "...";
 
@@ -1027,38 +1046,11 @@
                 bridgeWs.onopen = () => { document.getElementById('bridge-status').innerText = "🟢 Connected"; ui.log("Bridge Online", "success"); };
                 bridgeWs.onmessage = async (e) => {
                     const msg = JSON.parse(e.data);
-
-                    // 1. CHAT Request
                     if (msg.type === 'chat') {
-                        ui.log(`Bridge Chat: ${msg.id}`, "info");
-                        try {
-                            const completion = await engine.chat.completions.create({
-                                messages: msg.data.messages,
-                                stream: true
-                            });
-                            for await (const chunk of completion) {
-                                bridgeWs.send(JSON.stringify({ id: msg.id, chunk }));
-                            }
-                            bridgeWs.send(JSON.stringify({ id: msg.id, done: true }));
-                        } catch (err) {
-                            bridgeWs.send(JSON.stringify({ id: msg.id, error: err.message }));
-                        }
-                    }
-                    // 2. MEMORY Query (Extension)
-                    else if (msg.type === 'memory_query') {
-                        ui.log(`Bridge Memory Search: "${msg.data.query}"`, "info");
-                        try {
-                            // Use the decoupled finder
-                            const results = await contextManager.findRelevantMemories(msg.data.query);
-
-                            // Return raw JSON array
-                            bridgeWs.send(JSON.stringify({
-                                id: msg.id,
-                                result: results
-                            }));
-                        } catch (err) {
-                            bridgeWs.send(JSON.stringify({ id: msg.id, error: err.message }));
-                        }
+                        ui.log(`Bridge Request: ${msg.id}`, "info");
+                        const completion = await engine.chat.completions.create({ messages: msg.data.messages, stream: true });
+                        for await (const chunk of completion) bridgeWs.send(JSON.stringify({ id: msg.id, chunk }));
+                        bridgeWs.send(JSON.stringify({ id: msg.id, done: true }));
                     }
                 };
             } else if (bridgeWs) { bridgeWs.close(); bridgeWs = null; document.getElementById('bridge-status').innerText = "Disconnected"; }

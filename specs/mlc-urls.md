@@ -23,7 +23,7 @@ Balanced performance for reasoning and chat. Requires 6GB+ VRAM.
 
 | Model ID | Details | WASM URL |
 | :--- | :--- | :--- |
-| `Qwen2.5-7B-Instruct-q4f16_1-MLC` | **Best All-Rounder.** Fast, smart, 32k context. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2.5-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen2.5-7B-Instruct-q4f16_1-MLC` | **Best All-Rounder.** Fast, smart, 32k context. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
 | `Llama-3.1-8B-Instruct-q4f32_1-MLC` | **Meta's Latest.** Strong reasoning. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
 | `Llama-3-8B-Instruct-q4f32_1-MLC` | Llama 3 Base. Reliable. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
 | `DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC` | **Reasoning Specialist.** | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` (Uses Qwen2 base) |
@@ -37,6 +37,52 @@ Fastest start times. Works on most laptops/integrated graphics.
 | `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` | **Ultra-Lite.** 1.5B params. Blazing fast. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
 | `SmolLM2-1.7B-Instruct-q4f16_1-MLC` | Efficient 1.7B model. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
 
+### 🌟 Gemma Models (Google)
+Lightweight and efficient models from Google.
+
+| Model ID | Details | WASM URL |
+| :--- | :--- | :--- |
+| `gemma-2-9b-it-q4f16_1-MLC` | **Gemma 2 9B.** High performance text generation. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-9b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `gemma-2-9b-it-q4f32_1-MLC` | **Gemma 2 9B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-9b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `gemma-2-2b-it-q4f16_1-MLC` | **Gemma 2 2B.** Lightweight option. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `gemma-2-2b-it-q4f32_1-MLC` | **Gemma 2 2B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `gemma-3-1b-it-q4f16_1-MLC` | **Gemma 3 1B.** Latest generation small model. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-3-1b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+
+### 👁️ Vision Models (Multimodal)
+Models that can process both text and images.
+
+| Model ID | Details | WASM URL |
+| :--- | :--- | :--- |
+| `Phi-3.5-vision-instruct-q4f16_1-MLC` | **Microsoft Phi Vision.** 4.2B params, multimodal. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm` |
+| `Phi-3.5-vision-instruct-q4f32_1-MLC` | **Microsoft Phi Vision.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm` |
+
+### 🚀 Larger Models (For High VRAM Systems)
+Models for systems with 12GB+ VRAM like RTX 4090.
+
+| Model ID | Details | WASM URL |
+| :--- | :--- | :--- |
+| `Llama-2-13b-chat-hf-q4f16_1-MLC` | **Llama 2 13B.** For high-end systems. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-8B-q4f16_1-MLC` | **Qwen 3 8B.** Latest generation. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-8B-q4f32_1-MLC` | **Qwen 3 8B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-4B-q4f16_1-MLC` | **Qwen 3 4B.** Balanced performance. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-4B-q4f32_1-MLC` | **Qwen 3 4B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+
+### 🚀 Smaller Models (For Low VRAM Systems)
+Models optimized for systems with limited VRAM like the XPS 13.
+
+| Model ID | Details | WASM URL |
+| :--- | :--- | :--- |
+| `Qwen2-0.5B-Instruct-q4f16_1-MLC` | **Ultra-Lightweight.** 0.5B params. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen2-0.5B-Instruct-q4f32_1-MLC` | **Ultra-Lightweight.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-0.6B-q4f16_1-MLC` | **Qwen 3 Tiny.** 0.6B params. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-0.6B-q4f32_1-MLC` | **Qwen 3 Tiny.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-1.7B-q4f16_1-MLC` | **Qwen 3 Small.** 1.7B params. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Qwen3-1.7B-q4f32_1-MLC` | **Qwen 3 Small.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `Llama-3.2-1B-Instruct-q4f16_1-MLC` | **Llama 3.2 1B.** Efficient small model. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Llama-3.2-1B-Instruct-q4f32_1-MLC` | **Llama 3.2 1B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+| `Llama-3.2-3B-Instruct-q4f16_1-MLC` | **Llama 3.2 3B.** Balanced small model. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm` |
+| `Llama-3.2-3B-Instruct-q4f32_1-MLC` | **Llama 3.2 3B.** Higher precision variant. | `https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm` |
+
 ---
 
 ## 2. Experimental / Pending (WASM Missing)
@@ -45,8 +91,9 @@ These models are listed in config but their WASM binaries are not currently host
 
 *   `Qwen2.5-14B-Instruct-q4f16_1-MLC` (404 Not Found)
 *   `DeepSeek-R1-Distill-Qwen-14B-q4f16_1-MLC` (404 Not Found)
-*   `Phi-3.5-vision-instruct-q4f16_1-MLC` (404 Not Found)
 *   `Qwen2-VL-7B-Instruct-q4f16_1-MLC` (404 Not Found)
+*   `gemma-3-2b-it-q4f16_1-MLC` (404 Not Found) - **Note: No Gemma 3 2B available, only 1B exists**
+*   `gemma-3-12b-it-q4f16_1-MLC` (404 Not Found) - **Note: No Gemma 3 12B available in current library**
 
 ---
 

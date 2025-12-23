@@ -460,6 +460,60 @@ async def serve_mobile_app():
     else:
         return HTMLResponse(content="<h1>Mobile App Not Found</h1><p>Ensure mobile-chat.html exists.</p>", status_code=404)
 
+@app.post("/memories/search")
+async def search_memories(request: Request):
+    """
+    Bridge endpoint for the Chrome Extension.
+    Accepts: { "query": "text from browser" }
+    Returns: [ { "id": "...", "content": "...", ... }, ... ]
+    """
+    if not workers["chat"]:
+        # Extension will handle 503 by falling back to local simulation,
+        # but we want to let it know the worker is missing.
+        raise HTTPException(status_code=503, detail="WebGPU Chat Worker not connected.")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    query = body.get("query", "").strip()
+    if not query:
+        return JSONResponse(content=[])
+
+    req_id = str(uuid.uuid4())
+    active_requests[req_id] = asyncio.Queue()
+
+    log(f"🔎 Memory Search: {req_id} - '{_clip(query, 50)}'")
+
+    # Forward to the Browser (model-server-chat.html)
+    try:
+        await workers["chat"].send_json({
+            "id": req_id,
+            "type": "memory_query",
+            "data": {"query": query}
+        })
+
+        # Wait for response (Timeout 5s - reflex queries must be fast)
+        response_msg = await asyncio.wait_for(active_requests[req_id].get(), timeout=5.0)
+
+        if response_msg.get("error"):
+            log(f"❌ Search Error {req_id}: {response_msg['error']}")
+            raise HTTPException(status_code=500, detail=response_msg["error"])
+
+        results = response_msg.get("result", [])
+        log(f"✅ Found {len(results)} memories for {req_id}")
+        return JSONResponse(content=results)
+
+    except asyncio.TimeoutError:
+        log(f"⏰ Search Timeout {req_id}")
+        del active_requests[req_id]
+        raise HTTPException(status_code=504, detail="Query timed out")
+    except Exception as e:
+        if req_id in active_requests:
+            del active_requests[req_id]
+        raise HTTPException(status_code=500, detail=str(e))
+
 from fastapi.responses import HTMLResponse
 
 if __name__ == "__main__":

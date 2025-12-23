@@ -271,7 +271,7 @@
         <h1>Root Mic 🎙️</h1>
         <div class="visualizer"><div class="bar-container" id="bars"></div></div>
         <button id="mic-btn"><div id="mic-icon">🎙️</div></button>
-        <button id="clarify-btn" disabled>Summarize & Clarify</button>
+        <button id="clarify-btn" disabled>Refine Text</button>
         <div id="status">Ready</div>
         <div id="output">...</div>
         <footer>Running Locally: Whisper-Tiny (Audio) + Qwen2.5-1.5B (Text)</footer>
@@ -356,14 +356,14 @@
             if (!state.output || state.output === '...' || state.output.length < 5) return;
             
             const originalText = state.output;
-            state.status = "Summarizing...";
-            state.output = originalText + "\n\n[Thinking...]";
+            state.status = "Refining...";
+            state.output = originalText + "\n\n[Refining...]";
 
             try {
                 const reply = await llmEngine.chat.completions.create({
                     messages: [
-                        { role: "system", content: "You are a helpful assistant. Provide a concise summary and clarification of the user's text. Focus on the core meaning and intent." },
-                        { role: "user", content: `Please summarize and clarify this text:\n\n"${originalText}"` }
+                        { role: "system", content: "You are a professional text editor. Your task is to refine the provided speech-to-text output into clear, coherent, and polished text suitable for reading or pasting. Fix grammar and flow, but keep the original meaning intact. Output ONLY the refined text." },
+                        { role: "user", content: `Refine this text:\n\n"${originalText}"` }
                     ],
                     temperature: 0.5,
                     max_tokens: 512,
@@ -376,7 +376,7 @@
                 if (document.hasFocus()) {
                     navigator.clipboard.writeText(summary);
                     const t = document.getElementById('copy-toast');
-                    t.innerText = "Summary Copied!";
+                    t.innerText = "Refined Text Copied!";
                     t.classList.add('show');
                     setTimeout(() => { 
                         t.classList.remove('show');
