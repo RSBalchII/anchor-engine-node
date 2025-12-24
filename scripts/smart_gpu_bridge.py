@@ -22,7 +22,12 @@ from pathlib import Path
 import hashlib
 
 # Import the PriorityGPUManager from the main bridge file
-from tools.webgpu_bridge import PriorityGPUManager, gpu_lock, log
+import sys
+import os
+# Add the tools directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'tools'))
+
+from webgpu_bridge import PriorityGPUManager, gpu_lock, log
 
 # Global variable to track file hashes for hot reload
 file_hashes = {}
@@ -38,12 +43,14 @@ def get_file_hash(filepath):
 
 def check_for_changes():
     """Check if any GPU-related files have changed"""
+    # Get the project root directory (two levels up from script location)
+    project_root = Path(__file__).parent.parent
     gpu_files = [
-        "tools/webgpu_bridge.py",
-        "tools/modules/sovereign.js",
-        "tools/model-server-chat.html",
-        "tools/root-mic.html",
-        "tools/root-dreamer.html"
+        str(project_root / "tools/webgpu_bridge.py"),
+        str(project_root / "tools/modules/sovereign.js"),
+        str(project_root / "tools/model-server-chat.html"),
+        str(project_root / "tools/root-mic.html"),
+        str(project_root / "tools/root-dreamer.html")
     ]
     
     changed = False
@@ -51,13 +58,15 @@ def check_for_changes():
         full_path = Path(file_path)
         if full_path.exists():
             current_hash = get_file_hash(full_path)
-            if file_path not in file_hashes:
-                file_hashes[file_path] = current_hash
-            elif file_hashes[file_path] != current_hash:
-                print(f"🔄 Detected change in {file_path}")
-                file_hashes[file_path] = current_hash
+            # Use the relative path as the key to keep the UI clean
+            relative_path = str(full_path.relative_to(Path(__file__).parent.parent))
+            if relative_path not in file_hashes:
+                file_hashes[relative_path] = current_hash
+            elif file_hashes[relative_path] != current_hash:
+                print(f"🔄 Detected change in {relative_path}")
+                file_hashes[relative_path] = current_hash
                 changed = True
-    
+
     return changed
 
 def hot_reload_bridge():

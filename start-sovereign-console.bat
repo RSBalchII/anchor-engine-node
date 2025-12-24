@@ -10,13 +10,16 @@ for /f "tokens=*" %%a in ('python -c "import socket; s = socket.socket(socket.AF
 echo http://%IP%:8000/
 echo.
 
-cd tools
-
 echo Launching WebGPU Bridge (API Backend)...
 set BRIDGE_PORT=8080
 set BRIDGE_TOKEN=sovereign-secret
-start "WebGPU Bridge" cmd /k python webgpu_bridge.py
+start "WebGPU Bridge" cmd /k "cd /d "%~dp0" && python tools/webgpu_bridge.py"
 
-echo Launching File Server...
-python -m http.server 8000
-pause
+echo Launching File Server from tools directory...
+start "File Server" cmd /k "cd /d "%~dp0\tools" && python -m http.server 8000"
+
+echo.
+echo Servers started in separate windows.
+echo Open http://localhost:8000 in your browser to access the interface.
+echo Press any key to exit...
+pause >nul
