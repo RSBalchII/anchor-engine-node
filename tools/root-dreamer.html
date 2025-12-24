@@ -149,7 +149,8 @@
     <header>
         <h1>Root Dreamer (Subconscious)</h1>
         <div class="controls">
-            <button id="btn-toggle" class="active">Wake Up</button>
+            <button id="btn-reset" class="stop" style="margin-right: 10px;">Reset Engine</button>
+            <button id="btn-toggle">Wake Up</button>
         </div>
     </header>
 
@@ -181,8 +182,17 @@
     <div id="log-raw" class="log-container"></div>
 
     <script type="module">
-        import { SovereignLogger, createStore, getWebGPUConfig, initCozo } from './modules/sovereign.js';
+        import { SovereignLogger, createStore, getWebGPUConfig, initCozo, GPUController } from './modules/sovereign.js';
         import { CreateWebWorkerMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        // Load hot reload functionality in development
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            import('./modules/gpu-hot-reloader.js').then(() => {
+                console.log('🔄 GPU Hot Reloader loaded for development');
+            }).catch(err => {
+                console.warn('⚠️ GPU Hot Reloader not available:', err);
+            });
+        }
 
         const logger = new SovereignLogger('Dreamer');
         const MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f32_1-MLC";
@@ -200,6 +210,7 @@
         const elSynapses = document.getElementById('stat-synapses');
         const elModel = document.getElementById('stat-model');
         const elToggle = document.getElementById('btn-toggle');
+        const elReset = document.getElementById('btn-reset');
         
         const logs = {
             main: document.getElementById('log-main'),
@@ -213,37 +224,27 @@
             t.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
                 document.querySelectorAll('.log-container').forEach(x => x.classList.remove('active'));
-                
                 t.classList.add('active');
                 document.getElementById(t.dataset.target).classList.add('active');
             });
         });
 
-        // Logging UI Helper
+        // Logging Helper
         function appendLog(targetId, msg, type = 'info') {
             const container = logs[targetId];
+            if (!container) return;
             const div = document.createElement('div');
-            
-            // Special styling based on type
             if (type === 'thought') div.className = 'log-thought';
             else if (type === 'json') div.className = 'log-json';
             else if (type === 'raw') div.className = 'log-raw';
             else div.className = `log-entry log-${type}`;
-
-            // Timestamp for main stream only usually, but good for all
             const ts = `[${new Date().toLocaleTimeString()}] `;
-            
-            if (type === 'thought' || type === 'json' || type === 'raw') {
-                div.textContent = msg; // Raw content for these
-            } else {
-                div.textContent = ts + msg;
-            }
-            
+            div.textContent = (type === 'thought' || type === 'json' || type === 'raw') ? msg : ts + msg;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
 
-        // Subscribe to state
+        // State Subscription
         store.subscribe((prop, val) => {
             if (prop === 'processedCount') elProcessed.textContent = val;
             if (prop === 'synapseCount') elSynapses.textContent = val;
@@ -254,238 +255,190 @@
             }
         });
 
-        // Initialize Cozo
         let db;
-        
         async function runQuery(query, params = "{}", immutable = false) {
             if (!db) throw new Error("Database not initialized");
             const res = await db.run(query, params, immutable);
             let parsed = res;
             if (typeof res === 'string') {
-                try { parsed = JSON.parse(res); } catch (e) { 
-                    logger.warn("Failed to parse Cozo response: " + res);
-                }
+                try { parsed = JSON.parse(res); } catch (e) { logger.warn("Failed to parse Cozo response"); }
             }
             if (parsed && parsed.ok === false) throw new Error(parsed.message);
             return parsed;
         }
 
-        async function init() {
+        async function loadModel() {
+            appendLog('main', `Loading Model: ${MODEL_ID}...`);
+            const worker = new Worker('./modules/llm-worker.js', { type: 'module' });
+
             try {
-                logger.info("Initializing Root Dreamer...");
-                appendLog('main', "Initializing CozoDB...");
-                const CozoDb = await initCozo();
-                
-                try {
-                    db = await CozoDb.new_from_indexed_db('coda_memory', 'cozo_store', () => {});
-                    appendLog('main', "Connected to Persistent Brain (coda_memory).", 'success');
-                } catch (e) {
-                    logger.warn(`Persistence failed, falling back to RAM: ${e.message}`);
-                    db = CozoDb.new(); 
-                    appendLog('main', "Connected to Transient Brain (In-Memory).", 'warn');
-                }
-                
-                appendLog('main', "DEBUG: Creating memory table...", 'info');
-                // Ensure tables exist (idempotent)
-                try {
-                    await runQuery(`
-                        :create memory {
-                            id: String =>
-                            timestamp: Int,
-                            role: String,
-                            content: String,
-                            source: String,
-                            embedding: <F32; 384>?
-                        }
-                    `);
-                } catch (e) {
-                    if (!e.message.includes('conflicts with an existing one')) throw e;
-                    appendLog('main', "Memory table already exists.", 'info');
-                }
-                
-                appendLog('main', "DEBUG: Creating relationships table...", 'info');
-                try {
-                    await runQuery(`
-                        :create relationships {
-                            source_id: String,
-                            target_id: String,
-                            type: String =>
-                            weight: Float
-                        }
-                    `);
-                } catch (e) {
-                    if (!e.message.includes('conflicts with an existing one')) throw e;
-                    appendLog('main', "Relationships table already exists.", 'info');
-                }
+                await GPUController.withModelLoadLock("Dreamer-Init", async () => {
+                    // Use a more reliable model URL for the Dreamer
+                    const config = {
+                        model_list: [{
+                            model: "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/main/",
+                            model_id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+                            model_lib: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+                            vram_required_MB: 2000,
+                            low_resource_required: true
+                        }]
+                    };
 
-                appendLog('main', "CozoDB Ready.");
-                
-                // Initialize LLM
-                appendLog('main', `Loading Model: ${MODEL_ID}...`);
-                const worker = new Worker('./modules/llm-worker.js', { type: 'module' });
-                window.engine = await CreateWebWorkerMLCEngine(worker, MODEL_ID, {
-                    initProgressCallback: (report) => {
-                        elModel.textContent = report.text;
-                        if (report.progress === 1) store.state.modelReady = true;
-                    }
+                    window.engine = await CreateWebWorkerMLCEngine(worker, "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", {
+                        appConfig: config,
+                        initProgressCallback: (report) => {
+                            elModel.textContent = report.text;
+                            if (report.progress === 1) store.state.modelReady = true;
+                        }
+                    });
                 });
-
-                appendLog('main', "Model Loaded. Ready to dream.");
+                appendLog('main', "Model Loaded. Ready to dream.", 'success');
                 store.state.modelReady = true;
+            } catch (error) {
+                appendLog('main', `Model Load Error: ${error.message}`, 'error');
 
-            } catch (e) {
-                logger.error(e.message);
-                appendLog('main', `Initialization Error: ${e.message}`, 'error');
+                // Try to check GPU status for more information
+                try {
+                    const status = await GPUController.checkStatus();
+                    if (status && status.locked) {
+                        appendLog('main', `GPU currently locked by: ${status.owner || 'unknown'}`, 'warn');
+                        if (status.queued && status.queued.length > 0) {
+                            appendLog('main', `Queue: ${status.queued.join(', ')}`, 'warn');
+                        }
+                    }
+                } catch (statusErr) {
+                    appendLog('main', `Could not get GPU status: ${statusErr.message}`, 'warn');
+                }
+
+                // Retry after a delay
+                setTimeout(() => {
+                    appendLog('main', "Retrying model load in 5 seconds...", 'info');
+                    loadModel();
+                }, 5000);
             }
         }
 
-        // The Dream Loop
+        async function init() {
+            try {
+                appendLog('main', "Initializing CozoDB...");
+                const CozoDb = await initCozo();
+                try {
+                    db = await CozoDb.new_from_indexed_db('coda_memory', 'cozo_store', () => {});
+                    appendLog('main', "Connected to Persistent Brain.", 'success');
+                } catch (e) {
+                    db = CozoDb.new();
+                    appendLog('main', "Connected to Transient Brain.", 'warn');
+                }
+                
+                // Tables - Idempotent Creation
+                try {
+                    await runQuery(":create memory { id: String => timestamp: Int, role: String, content: String, source: String, embedding: <F32; 384>? }");
+                } catch (e) {
+                    if (!e.message.includes('conflicts')) throw e; // Ignore if exists
+                }
+
+                try {
+                    await runQuery(":create relationships { source_id: String, target_id: String, type: String => weight: Float }");
+                } catch (e) {
+                    if (!e.message.includes('conflicts')) throw e;
+                }
+                
+                await loadModel();
+            } catch (e) {
+                const msg = e.message || String(e);
+                appendLog('main', `Initialization Error: ${msg}`, 'error');
+            }
+        }
+
         let isLoopRunning = false;
         async function dreamLoop() {
             if (isLoopRunning || !store.state.isDreaming) return;
-            if (!store.state.modelReady) {
+            if (!store.state.modelReady || !window.engine) {
                 await new Promise(r => setTimeout(r, 1000));
                 return dreamLoop();
             }
 
             isLoopRunning = true;
             try {
-                // 1. Select Orphan
-                const query = `
-                    ?[id, content] := *memory{id, content}, 
-                    not *relationships{source_id: id}
-                    :limit 1
-                `;
-                
+                const query = `?[id, content] := *memory{id, content}, not *relationships{source_id: id} :limit 1`;
                 const result = await runQuery(query);
 
                 if (!result.rows || result.rows.length === 0) {
                     appendLog('main', "No orphans found. Resting...", 'info');
-                    await new Promise(r => setTimeout(r, 2000)); 
+                    await new Promise(r => setTimeout(r, 5000));
                     isLoopRunning = false;
                     if (store.state.isDreaming) dreamLoop();
                     return;
                 }
 
                 const [id, content] = result.rows[0];
-                if (!content) throw new Error(`Memory ${id} has no content.`);
-                
                 appendLog('main', `Dreaming on memory: ${id}...`);
-                
-                // Truncate content
                 const safeContent = content.length > 3000 ? content.substring(0, 3000) + "..." : content;
                 
-                // 2. Deep Analysis Prompt
-                const prompt = `
-You are the Subconscious. Deeply analyze this memory to find hidden patterns, abstract themes, and architectural implications.
-Don't just look at surface keywords. Dig deeper.
+                const prompt = `Analyze this memory. Output Step 1: Thoughts (monologue) and Step 2: JSON array of concepts. Use <thought> and <json> tags. Memory: ${safeContent}`;
 
-Step 1: THOUGHTS. Discuss with yourself potential connections. Explore ambiguities. Ask "Why is this here?" and "What does this imply?".
-Step 2: JSON Extract 2-5 strongest concepts as a JSON array.
-
-Format your response exactly like this:
-<thought>
-[Your internal monologue and deep analysis here]
-</thought>
-<json>
-[{"target": "ConceptName", "type": "relates_to", "weight": 0.9}]
-</json>
-
-Memory:
-${safeContent}
-                `.trim();
-
-                // Log Raw Request
-                appendLog('raw', `>>> PROMPT:
-${prompt}
-
-`, 'raw');
-
-                const response = await window.engine.chat.completions.create({
-                    messages: [{ role: "user", content: prompt }],
-                    temperature: 0.3, // Slightly higher for creativity in thoughts
-                    max_tokens: 1024
-                });
-                
-                const rawReply = response.choices[0].message.content;
-                appendLog('raw', `<<< REPLY:
-${rawReply}
------------------------------------
-`, 'raw');
-
-                // 3. Parse Output
-                const thoughtMatch = rawReply.match(/<thought>([\s\S]*?)<\/thought>/);
-                const jsonMatch = rawReply.match(/<json>([\s\S]*?)<\/json>/);
-
-                // Log Thoughts
-                if (thoughtMatch && thoughtMatch[1]) {
-                    appendLog('thoughts', `[Memory: ${id}]
-${thoughtMatch[1].trim()}`, 'thought');
-                } else {
-                    appendLog('thoughts', `[Memory: ${id}] (No internal monologue generated)`, 'warn');
-                }
-
-                // Parse JSON
-                let relationships = [];
-                try {
-                    let jsonStr = jsonMatch ? jsonMatch[1] : rawReply; // Fallback to raw if tags missing
-                    // Cleanup markdown
-                    jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-                    relationships = JSON.parse(jsonStr);
+                await GPUController.withLock("Dreamer-Think", async () => {
+                    const response = await window.engine.chat.completions.create({
+                        messages: [{ role: "user", content: prompt }],
+                        temperature: 0.3,
+                        max_tokens: 1024
+                    });
                     
-                    if (!Array.isArray(relationships)) throw new Error("Not an array");
-                    
-                    appendLog('synapses', `[Memory: ${id}] Synthesized:
-${JSON.stringify(relationships, null, 2)}`, 'json');
+                    const rawReply = response.choices[0].message.content;
+                    const thoughtMatch = rawReply.match(/<thought>([\s\S]*?)<\/thought>/);
+                    const jsonMatch = rawReply.match(/<json>([\s\S]*?)<\/json>/);
 
-                } catch (parseErr) {
-                    appendLog('main', `Failed to parse dream JSON: ${parseErr.message}`, 'warn');
-                    // Mark processed to avoid loop
-                    relationships = [{ target: id, type: "self_processed", weight: 0.1 }];
-                }
-
-                // 4. Store
-                const rows = relationships.map(r => [id, r.target, r.type || 'relates_to', r.weight || 0.5]);
-                
-                if (rows.length > 0) {
-                    const insertQuery = `
-                        ?[src, tgt, type, w] <- $rows
-                        :put relationships {source_id: src, target_id: tgt, type: type, weight: w}
-                    `;
+                    if (thoughtMatch) appendLog('thoughts', `[${id}] ${thoughtMatch[1].trim()}`, 'thought');
                     
-                    const insertRes = await runQuery(insertQuery, JSON.stringify({ rows }));
-                    if (insertRes.ok !== false) {
+                    let relationships = [];
+                    try {
+                        let jsonStr = jsonMatch ? jsonMatch[1] : rawReply;
+                        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const start = jsonStr.indexOf('[');
+                        const end = jsonStr.lastIndexOf(']');
+                        if (start !== -1 && end !== -1) {
+                            relationships = JSON.parse(jsonStr.substring(start, end + 1));
+                            appendLog('synapses', `[${id}] Synthesized ${relationships.length} links.`, 'json');
+                        }
+                    } catch (pe) {
+                        relationships = [{ target: "failed_parse", type: "system_flag", weight: 0.0 }];
+                    }
+
+                    const rows = relationships.map(r => [String(id), String(r.target || "unknown"), String(r.type || 'relates_to'), parseFloat(r.weight || 0.5)]);
+                    if (rows.length > 0) {
+                        await runQuery(`?[src, tgt, type, w] <- $rows :put relationships {source_id: src, target_id: tgt, type: type, weight: w}`, JSON.stringify({ rows }));
                         store.state.processedCount++;
                         store.state.synapseCount += rows.length;
-                        appendLog('main', `Synthesized ${rows.length} connections.`, 'success');
                     }
-                }
-                
-                // Short pause
+                });
                 await new Promise(r => setTimeout(r, 2000));
-                
             } catch (err) {
-                appendLog('main', `Dream Error: ${err.message}`, 'error');
+                const msg = err.message || String(err);
+                appendLog('main', `Dream Error: ${msg}`, 'error');
+                if (msg.includes("Model not loaded") || msg.includes("Tokenizer")) {
+                    store.state.modelReady = false;
+                    await loadModel();
+                }
                 await new Promise(r => setTimeout(r, 5000));
             } finally {
                 isLoopRunning = false;
             }
-            
-            // Re-trigger loop
             if (store.state.isDreaming) dreamLoop();
         }
 
-        // Toggle
         elToggle.addEventListener('click', () => {
             store.state.isDreaming = !store.state.isDreaming;
-            if (store.state.isDreaming) {
-                dreamLoop();
-            }
+            if (store.state.isDreaming) dreamLoop();
+        });
+        
+        elReset.addEventListener('click', async () => {
+            store.state.isDreaming = false;
+            store.state.modelReady = false;
+            appendLog('main', "🛑 Resetting Engine...", 'warn');
+            await loadModel();
         });
 
-        // Start
         init();
-
     </script>
 </body>
 </html>

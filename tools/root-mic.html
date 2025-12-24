@@ -280,9 +280,18 @@
     <script type="module">
         import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.14.0';
         import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-        
+
         // THE NEW KERNEL
-        import { SovereignLogger, createStore, getWebGPUConfig } from './modules/sovereign.js';
+        import { SovereignLogger, createStore, getWebGPUConfig, GPUController } from './modules/sovereign.js';
+
+        // Load hot reload functionality in development
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            import('./modules/gpu-hot-reloader.js').then(() => {
+                console.log('🔄 GPU Hot Reloader loaded for development');
+            }).catch(err => {
+                console.warn('⚠️ GPU Hot Reloader not available:', err);
+            });
+        }
 
         const logger = new SovereignLogger('Root-Mic');
         
@@ -320,7 +329,7 @@
             }
         });
 
-        let whisperer = null;
+        let whisperWorker = null;
         let llmEngine = null;
         let mediaRecorder = null;
         let audioChunks = [];
@@ -332,11 +341,19 @@
 
         async function init() {
             try {
-                // 1. Whisper Init
-                state.loadingText = "Step 1/2: Downloading Whisper (Ears)...";
-                env.allowLocalModels = false;
-                whisperer = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', { device: 'wasm' });
-                logger.success("Whisper Loaded");
+                // 1. Whisper Init (Worker)
+                state.loadingText = "Step 1/2: Initializing Whisper Worker...";
+                whisperWorker = new Worker('./modules/whisper-worker.js', { type: 'module' });
+                
+                // Wait for worker init
+                await new Promise((resolve, reject) => {
+                    whisperWorker.onmessage = (e) => {
+                        if (e.data.type === 'init_done') resolve();
+                        if (e.data.type === 'error') reject(new Error(e.data.error));
+                    };
+                    whisperWorker.postMessage({ type: 'init' });
+                });
+                logger.success("Whisper Worker Ready");
 
                 // 2. LLM Init (Using Kernel)
                 state.loadingText = "Step 2/2: Config Qwen2.5 (Brain)...";
@@ -395,34 +412,60 @@
             const modelId = "mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
             const snapdragonId = "snapdragon-mic-qwen";
 
-            // KERNEL CALL: Get safe GPU config
-            const gpuConfig = await getWebGPUConfig('lite');
-            
-            if (gpuConfig.isConstrained) {
-                logger.warn(`Clamping Buffer to ${Math.round(gpuConfig.maxBufferSize/1024/1024)}MB for Mobile/XPS compatibility.`);
-            }
+            // 0. THE BLOCKER (Model Load Lock) - Serialize model loading
+            logger.info("Requesting Model Load Lock...");
 
-            // Create device explicitly with limits
-            const device = await gpuConfig.adapter.requestDevice(gpuConfig.deviceConfig);
+            try {
+                await GPUController.withModelLoadLock("Root-Mic", async () => {
+                    logger.success("Model Load Lock Acquired.");
 
-            const appConfig = {
-                model_list: [{
-                    model: "https://huggingface.co/" + modelId + "/resolve/main/",
-                    model_id: snapdragonId,
-                    model_lib: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                    vram_required_MB: 2000,
-                    low_resource_required: true,
-                    buffer_size_required_bytes: gpuConfig.maxBufferSize
-                }]
-            };
+                    // KERNEL CALL: Get safe GPU config
+                    const gpuConfig = await getWebGPUConfig('lite');
 
-            llmEngine = await webllm.CreateMLCEngine(snapdragonId, {
-                appConfig,
-                device, 
-                initProgressCallback: (report) => {
-                    state.loadingText = `Loading Brain: ${Math.round(report.progress * 100)}%`;
+                    if (gpuConfig.isConstrained) {
+                        logger.warn(`Clamping Buffer to ${Math.round(gpuConfig.maxBufferSize/1024/1024)}MB for Mobile/XPS compatibility.`);
+                    }
+
+                    // Create device explicitly with limits
+                    const device = await gpuConfig.adapter.requestDevice(gpuConfig.deviceConfig);
+
+                    const appConfig = {
+                        model_list: [{
+                            model: "https://huggingface.co/" + modelId + "/resolve/main/",
+                            model_id: snapdragonId,
+                            model_lib: "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+                            vram_required_MB: 2000,
+                            low_resource_required: true,
+                            buffer_size_required_bytes: gpuConfig.maxBufferSize
+                        }]
+                    };
+
+                    llmEngine = await webllm.CreateMLCEngine(snapdragonId, {
+                        appConfig,
+                        device,
+                        initProgressCallback: (report) => {
+                            state.loadingText = `Loading Brain: ${Math.round(report.progress * 100)}%`;
+                        }
+                    });
+                });
+            } catch (error) {
+                state.loadingText = `Model Load Error: ${error.message}`;
+
+                // Try to check GPU status for more information
+                try {
+                    const status = await GPUController.checkStatus();
+                    if (status && status.locked) {
+                        logger.warn(`GPU currently locked by: ${status.owner || 'unknown'}`);
+                        if (status.queued && status.queued.length > 0) {
+                            logger.warn(`Queue: ${status.queued.join(', ')}`);
+                        }
+                    }
+                } catch (statusErr) {
+                    logger.warn(`Could not get GPU status: ${statusErr.message}`);
                 }
-            });
+
+                throw error;
+            }
         }
 
         function initVisualizer() {
@@ -530,49 +573,59 @@
 
             state.status = "Transcribing...";
             
-            // Enable chunking for long-form audio (>30s)
-            const result = await whisperer(audioData, { 
-                language: 'english',
-                chunk_length_s: 30,
-                stride_length_s: 5
-            });
-            let rawText = result.text.trim();
-            
-            // Hallucination Filter (Aggressive)
-            const hallucinations = [
-                '[Music]', '[BLANK_AUDIO]', 'Computed', '*sigh*', '*breathing*', 
-                'Applause', 'Thank you', 'Subtitles', 'Amara.org', 'Copyright', 
-                '©', 'Caption', 'Sovereign' 
-            ];
-            
-            hallucinations.forEach(h => { 
-                // Case-insensitive check
-                const regex = new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-                rawText = rawText.replace(regex, '').trim();
-            });
+            // 0. THE BLOCKER (GPU Lock)
+            await GPUController.withLock("Root-Mic-Process", async () => {
+                // Offload to Worker
+                const rawText = await new Promise((resolve, reject) => {
+                    const reqId = Date.now();
+                    const handler = (e) => {
+                        if (e.data.id === reqId) {
+                            whisperWorker.removeEventListener('message', handler);
+                            if (e.data.type === 'transcribe_result') resolve(e.data.text);
+                            else reject(new Error(e.data.error));
+                        }
+                    };
+                    whisperWorker.addEventListener('message', handler);
+                    whisperWorker.postMessage({ type: 'transcribe', data: audioData, id: reqId });
+                });
 
-            // Filter single punctuation or very short junk
-            if (/^[.,?!;:]+$/.test(rawText) || rawText.length < 2) rawText = "";
+                // Hallucination Filter (Aggressive)
+                let cleanedText = rawText.trim();
+                const hallucinations = [
+                    '[Music]', '[BLANK_AUDIO]', 'Computed', '*sigh*', '*breathing*', 
+                    'Applause', 'Thank you', 'Subtitles', 'Amara.org', 'Copyright', 
+                    '©', 'Caption', 'Sovereign' 
+                ];
+                
+                hallucinations.forEach(h => { 
+                    const regex = new RegExp(h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+                    cleanedText = cleanedText.replace(regex, '').trim();
+                });
 
-            if (!rawText || rawText.length < 1) {
-                state.status = "Heard nothing";
-                return;
-            }
+                // Filter single punctuation or very short junk
+                if (/^[.,?!;:]+$/.test(cleanedText) || cleanedText.length < 2) cleanedText = "";
 
-            state.output = `Raw: "${rawText}"\n\nCleaning...`;
-            state.status = "Refining...";
+                if (!cleanedText || cleanedText.length < 1) {
+                    state.status = "Heard nothing";
+                    return;
+                }
 
-            const reply = await llmEngine.chat.completions.create({
-                messages: [
-                    { role: "system", content: "You are a verbatim transcription corrector. Your ONLY task is to fix grammar, spelling, and punctuation. Do NOT answer questions. Do NOT add commentary. Output ONLY the corrected text." },
-                    { role: "user", content: `Correct this text: "${rawText}"` }
-                ],
-                temperature: 0.3,
-                max_tokens: 512,
-            });
+                state.output = `Raw: "${cleanedText}"\n\nCleaning...`;
+                state.status = "Refining...";
 
-            const cleanText = reply.choices[0].message.content;
-            state.output = cleanText;
+                const reply = await llmEngine.chat.completions.create({
+                    messages: [
+                        { role: "system", content: "You are a verbatim transcription corrector. Your ONLY task is to fix grammar, spelling, and punctuation. Do NOT answer questions. Do NOT add commentary. Output ONLY the corrected text." },
+                        { role: "user", content: `Correct this text: "${cleanedText}"` }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 512,
+                });
+
+                const finalText = reply.choices[0].message.content;
+                state.output = finalText;
+            }); // End Lock
+
             state.status = "Ready";
             
             // Auto Copy (Handle focus requirement)

@@ -111,3 +111,185 @@ export async function initCozo(wasmUrl = '../cozo_lib_wasm_bg.wasm') {
     await initWasm(wasmUrl);
     return CozoDb;
 }
+
+// --- 5. THE BLOCKER (GPU Mutex) ---
+class GPUController {
+    static get BRIDGE_URL() { return 'http://localhost:8080'; }
+
+    // Separate locks for different operations
+    static modelLoadPromise = null;  // Promise to serialize model loading
+    static activeModelLoaders = new Set();  // Track active model loaders
+
+    // Enhanced GPU lock with retry logic and better error handling
+    static async acquireLock(agentId, timeout = 120000) { // Increased default timeout to 120 seconds
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            try {
+                // This request will HANG until the lock is available (Queue)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                const res = await fetch(`${this.BRIDGE_URL}/v1/gpu/lock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer sovereign-secret'
+                    },
+                    body: JSON.stringify({ id: agentId }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    const data = await res.json();
+                    return { success: true, token: data.token };
+                }
+
+                // Handle specific error codes
+                if (res.status === 503) {
+                    const errorData = await res.json();
+                    return { success: false, error: errorData.msg || `Queue Timeout (${res.status})` };
+                }
+
+                return { success: false, error: `GPU Lock Failed (${res.status})` };
+            } catch (e) {
+                if (e.name === 'AbortError') {
+                    return { success: false, error: 'Lock acquisition timeout' };
+                }
+
+                console.warn("Bridge unreachable (No Lock)", e);
+
+                // If bridge is down, try direct WebGPU access as fallback
+                if (e.message.includes('fetch') || e.message.includes('network')) {
+                    console.warn("Bridge offline, attempting direct WebGPU access...");
+                    return { success: true, token: "direct-webgpu-fallback" };
+                }
+
+                return { success: false, error: e.message };
+            }
+
+            // Small delay before retry to avoid excessive polling
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        return { success: false, error: `Lock acquisition timeout after ${timeout}ms` };
+    }
+
+    static async releaseLock(agentId) {
+        try {
+            await fetch(`${this.BRIDGE_URL}/v1/gpu/unlock`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer sovereign-secret'
+                },
+                body: JSON.stringify({ id: agentId }),
+                keepalive: true // Critical: Ensure request survives tab close
+            });
+        } catch (e) {
+            console.warn("Failed to release lock", e);
+            // Don't throw error on release failure to avoid blocking cleanup
+        }
+    }
+
+    // Enhanced withLock with better error handling and retry logic
+    static async withLock(agentId, taskFn, timeout = 120000) {
+        const lock = await this.acquireLock(agentId, timeout);
+        if (!lock.success) {
+            console.error(`GPU lock acquisition failed for ${agentId}: ${lock.error}`);
+            throw new Error(`Could not acquire GPU lock: ${lock.error}`);
+        }
+
+        let taskResult;
+        let taskError;
+
+        try {
+            taskResult = await taskFn();
+        } catch (e) {
+            taskError = e;
+        } finally {
+            // Always try to release the lock, even if the task fails
+            await this.releaseLock(agentId);
+        }
+
+        if (taskError) {
+            throw taskError;
+        }
+
+        return taskResult;
+    }
+
+    // NEW: Serialize model loading to prevent multiple models loading simultaneously
+    static async withModelLoadLock(agentId, taskFn, timeout = 300000) { // 5-minute timeout for model loading
+        // Create a promise chain to serialize model loading at the application level
+        // This ensures only one model loading operation happens at a time across all components
+        const previousLoad = this.modelLoadPromise;
+
+        // Create a new promise that waits for the previous one to complete
+        this.modelLoadPromise = (async () => {
+            if (previousLoad) {
+                try {
+                    await previousLoad;
+                } catch (e) {
+                    console.warn("Previous model load failed, continuing:", e);
+                }
+            }
+
+            // Mark this loader as active
+            this.activeModelLoaders.add(agentId);
+
+            try {
+                console.log(`[${agentId}] Starting sequential model loading (Queue: ${this.activeModelLoaders.size - 1} waiting)`);
+                // The task function itself will handle GPU lock acquisition as needed
+                const result = await taskFn();
+                console.log(`[${agentId}] Sequential model loading completed`);
+                return result;
+            } finally {
+                // Remove from active loaders
+                this.activeModelLoaders.delete(agentId);
+            }
+        })();
+
+        try {
+            return await this.modelLoadPromise;
+        } catch (error) {
+            // Clean up on error
+            this.activeModelLoaders.delete(agentId);
+            throw error;
+        }
+    }
+
+    // Get status of model loading queue
+    static getModelLoadStatus() {
+        return {
+            queueSize: this.activeModelLoaders.size,
+            activeLoaders: Array.from(this.activeModelLoaders),
+            hasPendingLoad: this.modelLoadPromise !== null,
+            modelLoadQueueInfo: `Model Load Queue: ${this.activeModelLoaders.size} active, ${this.modelLoadPromise ? 'loading' : 'idle'}`
+        };
+    }
+
+    // New: Check GPU status to help with debugging
+    static async checkStatus() {
+        try {
+            const res = await fetch(`${this.BRIDGE_URL}/v1/gpu/status`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer sovereign-secret'
+                }
+            });
+
+            if (res.ok) {
+                return await res.json();
+            }
+            return { error: `Status check failed (${res.status})` };
+        } catch (e) {
+            return { error: e.message };
+        }
+    }
+}
+
+// Ensure explicit export if previous style failed in some browsers
+export { GPUController };

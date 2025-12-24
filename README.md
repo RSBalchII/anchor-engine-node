@@ -25,12 +25,12 @@ The system runs entirely in `tools/` using WebAssembly (WASM).
 ```mermaid
 graph TD
     User -->|Input| HTML[model-server-chat.html]
-    
+
     subgraph Browser_Memory ["Two Birds, One Stone"]
         HTML -->|Store/Retrieve| Cozo["CozoDB WASM"]
         Cozo -->|Persist| IDB["IndexedDB/OPFS"]
     end
-    
+
     subgraph Cognitive_Engine
         HTML -->|Context + Prompt| WebLLM["DeepSeek-R1 (WASM)"]
         WebLLM -->|Reasoning Trace| HTML
@@ -44,12 +44,39 @@ graph TD
 
 ---
 
+## 🔥 Hot Reload System
+
+The system includes a comprehensive hot reload mechanism for GPU management and development:
+
+*   **Automatic Reload**: Changes to GPU-related files trigger automatic reloads
+*   **Browser Integration**: Hot reload functionality built into all components
+*   **No Service Restart**: Updates occur without restarting services
+*   **Stale Lock Prevention**: Automatic cleanup during reloads
+
+### Getting Started with Hot Reload
+1. Use the enhanced startup script: `start-sovereign-console-hotreload.bat`
+2. Monitor changes in real-time with the GPU manager: `python scripts/gpu_manager.py`
+3. Manual reload triggers available in browser console: `window.triggerGPUHotReload()`
+
+## 🔄 Model Loading Serialization
+
+The system now includes model loading serialization to prevent GPU overload:
+
+*   **Sequential Loading**: Models load one at a time to prevent GPU resource contention
+*   **Queue Management**: Proper queuing of model loading requests
+*   **Resource Protection**: Prevents multiple models from loading simultaneously
+*   **Improved Stability**: Reduces GPU memory allocation conflicts during startup
+*   **Model URL Fixes**: Corrected model URLs to use reliable endpoints
+
+---
+
 ## 📚 Documentation
 
 *   **Architecture**: [specs/spec.md](specs/spec.md)
 *   **Roadmap**: [specs/plan.md](specs/plan.md)
 *   **Memory Schema**: [specs/architecture/memory-layer.spec.md](specs/architecture/memory-layer.spec.md)
 *   **WASM Layer**: [specs/architecture/sovereign-wasm.spec.md](specs/architecture/sovereign-wasm.spec.md)
+*   **Hot Reload System**: [HOT_RELOAD_SYSTEM.md](HOT_RELOAD_SYSTEM.md)
 
 ---
 

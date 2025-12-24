@@ -376,11 +376,15 @@
                         </optgroup>
 
                         <optgroup label="🚀 High Performance (Small)">
+                            <option value="mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen 2.5 1.5B (Instruct) [Lite Choice]</option>
+                            <option value="mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2 1.7B (Instruct)</option>
+                            <option value="mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (Instruct)</option>
+                            <option value="mlc-ai/Qwen3-0.6B-q4f16_1-MLC">Qwen 3 0.6B (Base) [Micro]</option>
+                        </optgroup>
 
                         <optgroup label="🧪 Experimental / Other">
                             <option value="mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 3B</option>
                             <option value="mlc-ai/gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B</option>
-                            <!-- <option value="mlc-ai/gemma-3-2b-it-q4f16_1-MLC">Gemma 3 2B</option> REMOVED: Model not available in current MLC library -->
                             <option value="mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama 1.1B</option>
                         </optgroup>
 
@@ -419,6 +423,9 @@
                     <button id="debug-gpu-btn"
                         style="width: 100%; padding: 6px; background: #555; border:none; margin-top: 5px; font-size: 11px;">❓
                         Debug GPU</button>
+                    <button id="force-unlock-btn"
+                        style="width: 100%; padding: 6px; background: #da3633; border:none; margin-top: 5px; font-size: 11px; color: white;">🔓
+                        Force Unlock GPU</button>
                 </div>
             </details>
 
@@ -470,7 +477,16 @@
 
     <script type="module">
         // --- IMPORTS ---
-        import { SovereignLogger, createStore, getWebGPUConfig, initCozo } from './modules/sovereign.js';
+        import { SovereignLogger, createStore, getWebGPUConfig, initCozo, GPUController } from './modules/sovereign.js';
+
+        // Load hot reload functionality in development
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+            import('./modules/gpu-hot-reloader.js').then(() => {
+                console.log('🔄 GPU Hot Reloader loaded for development');
+            }).catch(err => {
+                console.warn('⚠️ GPU Hot Reloader not available:', err);
+            });
+        }
         import { CozoDb } from './cozo_lib_wasm.js';
         import { loadAllFromIndexedDb, writeToIndexedDb } from './indexeddb.js';
         import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0';
@@ -631,6 +647,7 @@
                 this.maxIterations = 3;
             }
 
+            // NEW: Pure retrieval logic (returns raw data objects)
             async findRelevantMemories(userText) {
                 // 1. GENERATE QUERY VECTOR (Semantic)
                 let vectorResults = [];
@@ -638,6 +655,7 @@
                     try {
                         const output = await embedder(userText, { pooling: 'mean', normalize: true });
                         const queryVec = Array.from(output.data);
+                        // Query: Find top 10 nearest neighbors
                         const vecQuery = `
                             ?[id, content, dist, timestamp] := *memory{id, content, embedding, timestamp},
                             !is_null(embedding),
@@ -654,9 +672,9 @@
                 // 2. GENERATE KEYWORD QUERY (Lexical)
                 let keywordResults = [];
                 const rawWords = userText.match(/[a-zA-Z0-9_\-]+/g) || [];
-                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where']);
+                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where', 'tell', 'me', 'about']);
                 const keywords = rawWords.map(w => w.replace(/^[-_]+|[-_]+$/g, '')).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
-
+                
                 if (keywords.length > 0) {
                     const conditions = keywords.map(w => `regex_matches(content, '(?i)${w}')`).join(' or ');
                     const kwQuery = `?[id, content, timestamp] := *memory{id, content, timestamp}, ${conditions} :sort -timestamp :limit 10`;
@@ -669,18 +687,19 @@
 
                 // 3. MERGE & DEDUPLICATE
                 const combined = new Map();
+                // Add Semantic first
                 vectorResults.forEach(item => combined.set(item.content, item));
+                // Add Lexical (only if unique)
                 keywordResults.forEach(item => {
                     if (!combined.has(item.content)) combined.set(item.content, item);
                 });
-
-                // Return raw objects
+                
+                // Return top 10 unique items
                 return Array.from(combined.values()).slice(0, 10);
             }
 
+            // EXISTING: Formats the data for the R1 Reasoning Loop
             async retrieveInitialContext(userText) {
-                ui.log("🔍 Reflex: Initiating Hybrid Retrieval...", "info");
-
                 const topItems = await this.findRelevantMemories(userText);
                 if (topItems.length === 0) return "";
 
@@ -688,20 +707,26 @@
                 const clues = topItems.map((item, index) => {
                     const id = index + 1;
                     let title = "doc_" + id;
+                    // Simple title extraction
+                    if (item.content.length > 0) {
+                        const safeTitle = item.content.substring(0, 30).replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+                        if (safeTitle.length > 3) title = safeTitle;
+                    }
                     const path = `/knowledge/${item.source}/${title}`;
                     paths.push(path);
 
                     let snippet = item.content.substring(0, 300).replace(/\n/g, ' ');
                     if (item.content.length > 300) snippet += "...";
 
-                    return `[CLUE #${id}] [Path: ${path}] [Source: ${item.source.toUpperCase()}]\nSnippet: "${snippet}"`;
+                    return `[CLUE #${id}] [Path: ${path}] [Source: ${item.source || 'unknown'}]\nSnippet: "${snippet}"`;
                 });
-
+                
                 ui.log(`✅ Hybrid Retrieval: ${topItems.length} active clues.`, "success");
                 const treeMap = `[CURRENT REALITY MAP]\n` + paths.map(p => `- ${p}`).join('\n');
                 return `${treeMap}\n\n[CONTEXT CLUES]\n${clues.join('\n\n')}`;
             }
 
+            // ... (Keep buildVirtualPrompt and executeR1Loop exactly as they were in combined_text.txt source 1976-1996)
             buildVirtualPrompt(systemPrompt, retrievedMemories, chatHistory, userText) {
                 const now = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
                 const physicsInstruction = `
@@ -717,17 +742,14 @@
                 let iteration = 0;
                 let currentContext = await this.retrieveInitialContext(userText);
                 if (currentContext) ui.appendContext("Reflex Retrieval", currentContext);
-
                 while (iteration < this.maxIterations) {
                     iteration++;
                     const fullPrompt = this.buildVirtualPrompt(
-                        "You are Root Coda, a Sovereign Agent.\n" +
-                        "PROTOCOL: Trust clues. Answer directly. No refusals.",
+                        "You are Root Coda, a Sovereign Agent.\nPROTOCOL: Trust clues. Answer directly. No refusals.",
                         currentContext,
                         history.slice(-5),
                         userText
                     );
-
                     ui.log(`🧠 Reasoning (Iter ${iteration})...`, "info");
                     let reply = "";
                     try {
@@ -738,11 +760,12 @@
                         });
                         reply = response.choices[0].message.content.trim();
                     } catch (genErr) {
-                        if (genErr.message.includes("disposed")) return { context: currentContext, finalAnswer: "⚠️ System Crash: GPU Driver lost." };
+                        const errMsg = genErr?.message || String(genErr);
+                        if (errMsg.includes("disposed")) return { context: currentContext, finalAnswer: "⚠️ System Crash: GPU Driver lost." };
                         throw genErr;
                     }
 
-                    if (!reply) reply = ""; // Safety guard
+                    if (!reply) reply = ""; 
 
                     if (reply.includes("NEED_CONTEXT:")) {
                         const searchTerm = reply.split("NEED_CONTEXT:")[1].trim();
@@ -789,60 +812,64 @@
                 let messages = [];
                 let context = "";
 
-                // If Image: Bypass R1 Loop (Vision models typically don't do R1 reasoning yet or complex context mixing)
-                // We use a direct shot for now.
-                if (imageBase64) {
-                     messages = [
-                        { role: "system", content: "You are a helpful assistant. Analyze the user's image and text." },
-                        {
-                            role: "user",
-                            content: [
-                                { type: "text", text: text || "What is in this image?" },
-                                { type: "image_url", image_url: { url: imageBase64 } }
-                            ]
-                        }
-                    ];
-                    ui.log("👁️ Processing Visual Data...", "warn");
-                } else {
-                    // Standard Text Path (R1 Loop)
-                    const r1Result = await contextManager.executeR1Loop(text, []);
-                    context = r1Result.context;
-                    const finalAnswer = r1Result.finalAnswer;
+                // Wrap GPU-heavy ops in lock
+                await GPUController.withLock("Root-Console-Chat", async () => {
+                    // If Image: Bypass R1 Loop (Vision models typically don't do R1 reasoning yet or complex context mixing)
+                    // We use a direct shot for now.
+                    if (imageBase64) {
+                         messages = [
+                            { role: "system", content: "You are a helpful assistant. Analyze the user's image and text." },
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: text || "What is in this image?" },
+                                    { type: "image_url", image_url: { url: imageBase64 } }
+                                ]
+                            }
+                        ];
+                        ui.log("👁️ Processing Visual Data...", "warn");
+                    } else {
+                        // Standard Text Path (R1 Loop)
+                        const r1Result = await contextManager.executeR1Loop(text, []);
+                        context = r1Result.context;
+                        const finalAnswer = r1Result.finalAnswer;
 
-                    if (finalAnswer && finalAnswer.includes("System Crash")) return ui.log("🛑 Execution halted (GPU Crash).", "error");
+                        if (finalAnswer && finalAnswer.includes("System Crash")) return ui.log("🛑 Execution halted (GPU Crash).", "error");
 
-                    ui.log("🧪 Synthesizing...", "warn");
-                    const sysPrompt = `You are a helpful assistant with access to retrieved context. Use it to answer the user's question.\n\nCONTEXT:\n${context || "(No relevant context)"}`;
-                    messages = [{ role: "system", content: sysPrompt }, { role: "user", content: text }];
-                }
+                        ui.log("🧪 Synthesizing...", "warn");
+                        const sysPrompt = `You are a helpful assistant with access to retrieved context. Use it to answer the user's question.\n\nCONTEXT:\n${context || "(No relevant context)"}`;
+                        messages = [{ role: "system", content: sysPrompt }, { role: "user", content: text }];
+                    }
 
-                const msgHandle = ui.append("assistant", "");
+                    const msgHandle = ui.append("assistant", "");
 
-                const stream = await engine.chat.completions.create({
-                    messages: messages,
-                    max_tokens: 1024,
-                    temperature: 0.7,
-                    stream: true
-                });
+                    const stream = await engine.chat.completions.create({
+                        messages: messages,
+                        max_tokens: 1024,
+                        temperature: 0.7,
+                        stream: true
+                    });
 
-                let fullAnswer = "";
-                for await (const chunk of stream) {
-                    const delta = chunk.choices[0]?.delta?.content || "";
-                    fullAnswer += delta;
-                    msgHandle.update(fullAnswer);
-                }
+                    let fullAnswer = "";
+                    for await (const chunk of stream) {
+                        const delta = chunk.choices[0]?.delta?.content || "";
+                        fullAnswer += delta;
+                        msgHandle.update(fullAnswer);
+                    }
 
-                // Cleanup - Clear the image from VisionController
-                if (imageBase64 && vision) {
-                    vision.clear();
-                }
+                    // Cleanup - Clear the image from VisionController
+                    if (imageBase64 && vision) {
+                        vision.clear();
+                    }
 
-                if (state.autoSave) await saveTurn("assistant", fullAnswer);
-                ui.log("✅ Response generated.", "success");
+                    if (state.autoSave) await saveTurn("assistant", fullAnswer);
+                    ui.log("✅ Response generated.", "success");
+                }); // End Lock
 
             } catch (e) {
-                ui.log(`Error: ${e.message}`, "error");
-                ui.append("assistant", `**Error:** ${e.message}`);
+                const msg = e.message || String(e) || "Unknown Error";
+                ui.log(`Error: ${msg}`, "error");
+                ui.append("assistant", `**Error:** ${msg}`);
             } finally {
                 input.disabled = false;
                 document.getElementById('send-btn').disabled = false;
@@ -860,73 +887,81 @@
             document.getElementById('load-model-btn').disabled = true;
 
             try {
-                ui.log(`Initializing Engine (${selectedModelId})...`, "info");
+                // 0. THE BLOCKER (Model Load Lock) - Serialize model loading
+                ui.log("⏳ Queueing for Model Load (Sequential)...", "info");
 
-                // --- KERNEL: Hardware Config ---
-                const hwProfile = document.getElementById('hw-profile').value;
-                const gpuConfig = await getWebGPUConfig(hwProfile);
+                await GPUController.withModelLoadLock("Root-Console-Init", async () => {
+                    ui.log(`Initializing Engine (${selectedModelId})...`, "info");
 
-                if (gpuConfig.isConstrained) {
-                    ui.log(`⚠️ Clamping WebGPU buffer to ${Math.round(gpuConfig.maxBufferSize / 1024 / 1024)}MB`, "warn");
-                } else {
-                    ui.log(`✅ GPU Configured: ${Math.round(gpuConfig.maxBufferSize / 1024 / 1024)}MB Buffer`, "success");
-                }
+                    // --- KERNEL: Hardware Config ---
+                    const hwProfile = document.getElementById('hw-profile').value;
+                    const gpuConfig = await getWebGPUConfig(hwProfile);
 
-                // --- Config Generation ---
-                // (Simplified Logic for cleaner file)
-                const libBase = "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/";
-                let modelLib = null;
-                const lowerId = selectedModelId.toLowerCase();
-                let qTag = "q4f16_1"; // Default
-
-                // Mapper
-                // SOTA / New
-                if (lowerId.includes('deepseek-r1') && lowerId.includes('7b')) modelLib = libBase + `Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('deepseek-r1') && lowerId.includes('14b')) modelLib = libBase + `Qwen2.5-14B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('qwen3-4b')) modelLib = libBase + `Qwen3-4B-${qTag}-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('qwen3-8b')) modelLib = libBase + `Qwen3-8B-${qTag}-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('qwen2.5-7b')) modelLib = libBase + `Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('qwen2.5-14b')) modelLib = libBase + `Qwen2.5-14B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('phi-3.5-mini')) modelLib = libBase + `Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                
-                // Vision Models
-                else if (lowerId.includes('phi-3.5-vision')) modelLib = libBase + `Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm`;
-
-                // Small / Efficient
-                else if (lowerId.includes('smollm2-1.7b')) modelLib = libBase + `SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('smollm2-360m')) modelLib = libBase + `SmolLM2-360M-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('tinyllama-1.1b')) modelLib = libBase + `TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm`;
-                
-                // Fallbacks
-                else if (lowerId.includes('qwen2.5-1.5b')) modelLib = libBase + `Qwen2-1.5B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
-                else if (lowerId.includes('qwen2.5-7b')) modelLib = libBase + `Qwen2-7B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
-
-                if (!modelLib) modelLib = libBase + `Qwen2.5-3B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`; // Safe Fallback 3B
-
-                let appConfig = {
-                    useIndexedDBCache: true,
-                    model_list: [{
-                        model: "https://huggingface.co/" + modelInput + "/resolve/main/",
-                        model_id: selectedModelId,
-                        model_lib: modelLib,
-                        vram_required_MB: 2000,
-                        low_resource_required: true,
-                        buffer_size_required_bytes: gpuConfig.maxBufferSize,
-                    }]
-                };
-
-                // Create the Worker
-                const worker = new Worker('./modules/llm-worker.js', { type: 'module' });
-
-                // Initialize Engine via Worker
-                engine = await CreateWebWorkerMLCEngine(
-                    worker,
-                    selectedModelId,
-                    {
-                        appConfig, // Passing the VRAM/Buffer limits we calculated
-                        initProgressCallback: (rep) => ui.updateProgress(rep.progress, rep.text)
+                    if (gpuConfig.isConstrained) {
+                        ui.log(`⚠️ Clamping WebGPU buffer to ${Math.round(gpuConfig.maxBufferSize / 1024 / 1024)}MB`, "warn");
+                    } else {
+                        ui.log(`✅ GPU Configured: ${Math.round(gpuConfig.maxBufferSize / 1024 / 1024)}MB Buffer`, "success");
                     }
-                );
+
+                    // --- Config Generation ---
+                    // (Simplified Logic for cleaner file)
+                    const libBase = "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/"; // Fixed URL
+                    let modelLib = null;
+                    const lowerId = selectedModelId.toLowerCase();
+                    let qTag = "q4f16_1"; // Default
+
+                    // Mapper
+                    // SOTA / New
+                    if (lowerId.includes('deepseek-r1') && lowerId.includes('7b')) modelLib = libBase + `Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('deepseek-r1') && lowerId.includes('14b')) modelLib = libBase + `Qwen2.5-14B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen3-4b')) modelLib = libBase + `Qwen3-4B-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen3-8b')) modelLib = libBase + `Qwen3-8B-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen2.5-7b')) modelLib = libBase + `Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen2.5-14b')) modelLib = libBase + `Qwen2.5-14B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('phi-3.5-mini')) modelLib = libBase + `Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+
+                    // Vision Models
+                    else if (lowerId.includes('phi-3.5-vision')) modelLib = libBase + `Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm`;
+
+                    // Small / Efficient
+                    else if (lowerId.includes('qwen3-0.6b')) modelLib = libBase + `Qwen3-0.6B-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('llama-3.2-1b')) modelLib = libBase + `Llama-3.2-1B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen2.5-1.5b')) modelLib = libBase + `Qwen2-1.5B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('smollm2-1.7b')) modelLib = libBase + `SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('smollm2-360m')) modelLib = libBase + `SmolLM2-360M-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('tinyllama-1.1b')) modelLib = libBase + `TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm`;
+
+                    // Fallbacks
+                    else if (lowerId.includes('qwen2.5-1.5b')) modelLib = libBase + `Qwen2-1.5B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+                    else if (lowerId.includes('qwen2.5-7b')) modelLib = libBase + `Qwen2-7B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`;
+
+                    if (!modelLib) modelLib = libBase + `Qwen2.5-3B-Instruct-${qTag}-ctx4k_cs1k-webgpu.wasm`; // Safe Fallback 3B
+
+                    let appConfig = {
+                        useIndexedDBCache: true,
+                        model_list: [{
+                            model: "https://huggingface.co/" + modelInput + "/resolve/main/",
+                            model_id: selectedModelId,
+                            model_lib: modelLib,
+                            vram_required_MB: 2000,
+                            low_resource_required: true,
+                            buffer_size_required_bytes: gpuConfig.maxBufferSize,
+                        }]
+                    };
+
+                    // Create the Worker
+                    const worker = new Worker('./modules/llm-worker.js', { type: 'module' });
+
+                    // Initialize Engine via Worker
+                    engine = await CreateWebWorkerMLCEngine(
+                        worker,
+                        selectedModelId,
+                        {
+                            appConfig, // Passing the VRAM/Buffer limits we calculated
+                            initProgressCallback: (rep) => ui.updateProgress(rep.progress, rep.text)
+                        }
+                    );
+                }); // Uses the default 5-minute timeout for model loading
 
                 ui.log("🎉 Root Console Online", "success");
                 contextManager = new ContextManager(engine, db);
@@ -1020,21 +1055,93 @@
 
         // --- BRIDGE LOGIC ---
         let bridgeWs = null;
+        
+        // GPU Status Check and Force Unlock Handler
+        async function checkGPUStatus() {
+            try {
+                const res = await fetch("http://localhost:8080/v1/gpu/status", {
+                    method: "GET",
+                    headers: { "Authorization": "Bearer sovereign-secret" }
+                });
+
+                if (res.ok) {
+                    const status = await res.json();
+                    ui.log(`GPU Status: ${status.locked ? `LOCKED by ${status.owner}` : 'FREE'}. Queue: ${status.queue_depth} items.`, "info");
+                    if (status.queued && status.queued.length > 0) {
+                        ui.log(`Queued: ${status.queued.join(', ')}`, "info");
+                    }
+
+                    // Check model loading status
+                    const modelLoadStatus = GPUController.getModelLoadStatus();
+                    if (modelLoadStatus.hasPendingLoad || modelLoadStatus.queueSize > 0) {
+                        ui.log(`Model Load Status: Queue: ${modelLoadStatus.queueSize}, Active: ${modelLoadStatus.activeLoaders.join(', ')}`, "info");
+                    }
+
+                    return status;
+                } else {
+                    ui.log(`Status check failed: ${res.status}`, "warn");
+                    return null;
+                }
+            } catch (e) {
+                ui.log(`Status check error: ${e.message}`, "warn");
+                return null;
+            }
+        }
+
+        document.getElementById('debug-gpu-btn').addEventListener('click', async () => {
+            await checkGPUStatus();
+        });
+
+        document.getElementById('force-unlock-btn').addEventListener('click', async () => {
+            if (!confirm("⚠️ Force Unlock GPU?\nOnly do this if the system is stuck waiting for a lock.")) return;
+
+            try {
+                ui.log("Sending Force Unlock signal...", "warn");
+
+                // First try the standard reset
+                let res = await fetch("http://localhost:8080/v1/gpu/reset", {
+                    method: "POST",
+                    headers: { "Authorization": "Bearer sovereign-secret" }
+                });
+
+                if (res.ok) {
+                    ui.log("🔓 GPU Lock Force Released (Standard).", "success");
+                } else {
+                    ui.log(`Standard unlock failed: ${res.status}. Trying emergency release...`, "warn");
+
+                    // If standard unlock failed, try the emergency endpoint
+                    res = await fetch("http://localhost:8080/v1/gpu/force-release-all", {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer sovereign-secret" }
+                    });
+
+                    if (res.ok) {
+                        ui.log("🔓 GPU Locks Force Released (Emergency).", "success");
+                    } else {
+                        ui.log(`Emergency unlock failed: ${res.status}`, "error");
+                    }
+                }
+            } catch (e) {
+                ui.log(`Unlock Error: ${e.message}`, "error");
+            }
+        });
+
         window.toggleBridge = function (enabled) {
             if (enabled) {
                 if (!engine) { alert("Load model first!"); document.getElementById('enable-bridge-toggle').checked = false; return; }
                 bridgeWs = new WebSocket("ws://localhost:8080/ws/chat");
                 bridgeWs.onopen = () => { document.getElementById('bridge-status').innerText = "🟢 Connected"; ui.log("Bridge Online", "success"); };
+                // [Replace the existing bridgeWs.onmessage handler with this]
                 bridgeWs.onmessage = async (e) => {
                     const msg = JSON.parse(e.data);
-
-                    // 1. CHAT Request
+                    
+                    // 1. STANDARD CHAT REQUEST (e.g. from VS Code)
                     if (msg.type === 'chat') {
                         ui.log(`Bridge Chat: ${msg.id}`, "info");
                         try {
-                            const completion = await engine.chat.completions.create({
-                                messages: msg.data.messages,
-                                stream: true
+                            const completion = await engine.chat.completions.create({ 
+                                messages: msg.data.messages, 
+                                stream: true 
                             });
                             for await (const chunk of completion) {
                                 bridgeWs.send(JSON.stringify({ id: msg.id, chunk }));
@@ -1043,21 +1150,25 @@
                         } catch (err) {
                             bridgeWs.send(JSON.stringify({ id: msg.id, error: err.message }));
                         }
-                    }
-                    // 2. MEMORY Query (Extension)
+                    } 
+                    
+                    // 2. MEMORY SEARCH REQUEST (From Chrome Extension)
                     else if (msg.type === 'memory_query') {
-                        ui.log(`Bridge Memory Search: "${msg.data.query}"`, "info");
+                        const queryText = msg.data.query;
+                        ui.log(`🔎 Bridge Memory Search: "${queryText}"`, "info");
                         try {
-                            // Use the decoupled finder
-                            const results = await contextManager.findRelevantMemories(msg.data.query);
-
-                            // Return raw JSON array
-                            bridgeWs.send(JSON.stringify({
-                                id: msg.id,
-                                result: results
+                            // Use the new decoupled method
+                            const results = await contextManager.findRelevantMemories(queryText);
+                            
+                            // Send pure JSON back to the bridge
+                            bridgeWs.send(JSON.stringify({ 
+                                id: msg.id, 
+                                result: results 
                             }));
+                            ui.log(`✅ Returned ${results.length} memories`, "success");
                         } catch (err) {
                             bridgeWs.send(JSON.stringify({ id: msg.id, error: err.message }));
+                            ui.log(`❌ Search Failed: ${err.message}`, "error");
                         }
                     }
                 };

@@ -25,9 +25,12 @@ async function queryMemoriesFromCozoDB(userInput) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-    const response = await fetch('http://localhost:8000/memories/search', {
+    const response = await fetch('http://localhost:8080/memories/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sovereign-secret'
+      },
       body: JSON.stringify({ query: userInput }),
       signal: controller.signal
     });

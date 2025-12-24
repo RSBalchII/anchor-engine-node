@@ -13,6 +13,8 @@ echo.
 cd tools
 
 echo Launching WebGPU Bridge (API Backend)...
+set BRIDGE_PORT=8080
+set BRIDGE_TOKEN=sovereign-secret
 start "WebGPU Bridge" cmd /k python webgpu_bridge.py
 
 echo Launching File Server...

@@ -22,6 +22,7 @@
 
 ### `backend/`, `tools/`, `extension/`, `scripts/`
 - **README.md** — Single sentence. Answer: "What does this directory do?"
+- **CHANGELOG.md** — Granular version history for this specific module.
 - **CONFIGURATION.md** — Only if env setup is non-obvious (backend only)
 - **No additional .md files** in directory root (see Rule 3)
 

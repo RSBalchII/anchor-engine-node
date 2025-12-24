@@ -30,6 +30,158 @@ workers: Dict[str, WebSocket] = {
 # Map: request_id -> asyncio.Queue
 active_requests: Dict[str, asyncio.Queue] = {}
 
+import heapq
+
+# --- GPU Priority Manager (The Traffic Cop) ---
+class PriorityGPUManager:
+    def __init__(self):
+        self.current_owner: str = None
+        self.locked_at: float = 0
+        self.lock_token: str = None
+        # Queue stores: (priority, timestamp, event, requester_id)
+        # Using a list + sort is sufficient for small N (waiters < 10)
+        self.queue = []
+        # Track request start times to prevent starvation
+        self.request_start_times = {}
+
+    def _get_priority(self, requester_id: str) -> int:
+        rid = requester_id.lower()
+        if "mic" in rid: return 0        # 🚨 PRIORITY 1: Voice
+        if "console" in rid: return 10   # 💬 PRIORITY 2: Chat
+        if "chat" in rid: return 10
+        if "dream" in rid: return 20     # 💤 PRIORITY 3: Dreaming
+        return 15                        # Default
+
+    async def acquire(self, requester_id: str, timeout: float = 120.0) -> tuple[bool, str]:
+        """
+        Waits for the lock based on PRIORITY with improved timeout handling.
+        """
+        priority = self._get_priority(requester_id)
+
+        # Track when this request started to prevent starvation
+        self.request_start_times[requester_id] = time.time()
+
+        # 1. Fast Path: If free, take it immediately
+        if self.current_owner is None:
+            self._take_lock(requester_id)
+            if requester_id in self.request_start_times:
+                del self.request_start_times[requester_id]
+            return True, self.lock_token
+
+        # 2. Slow Path: Queue up
+        event = asyncio.Event()
+        # Tuple: (Priority, Time, Event, ID) -> Sorts by Priority asc, then Time asc
+        entry = (priority, time.time(), event, requester_id)
+        self.queue.append(entry)
+        self.queue.sort(key=lambda x: (x[0], x[1])) # Strict sorting
+
+        log(f"⏳ {requester_id} QUEUED (Priority {priority}). Pos: {self.queue.index(entry)+1}/{len(self.queue)}")
+
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            if requester_id in self.request_start_times:
+                del self.request_start_times[requester_id]
+            return True, self.lock_token
+        except asyncio.TimeoutError:
+            if entry in self.queue:
+                self.queue.remove(entry)
+                if requester_id in self.request_start_times:
+                    del self.request_start_times[requester_id]
+            log(f"💀 Timeout dropping {requester_id}")
+            return False, None
+
+    def release(self, requester_id: str, force: bool = False):
+        if self.current_owner != requester_id and not force:
+            return False
+
+        duration = int(time.time() - self.locked_at)
+        log(f"🔓 RELEASED by {requester_id} (Held {duration}s)")
+
+        self.current_owner = None
+        self.locked_at = 0
+        self.lock_token = None
+
+        # 3. Wake the Next Highest Priority
+        if self.queue:
+            # Pop index 0 (Lowest Priority Number = Highest Importance)
+            prio, ts, event, next_id = self.queue.pop(0)
+            if next_id in self.request_start_times:
+                del self.request_start_times[next_id]
+            self._take_lock(next_id)
+            event.set() # Wake up the waiting coroutine
+        else:
+            # Clear any remaining request start times if queue is empty
+            self.request_start_times.clear()
+
+        return True
+
+    def _take_lock(self, requester_id):
+        self.current_owner = requester_id
+        self.locked_at = time.time()
+        self.lock_token = str(uuid.uuid4())
+        log(f"🔒 LOCKED by {requester_id}")
+
+    def get_status(self):
+        return {
+            "locked": self.current_owner is not None,
+            "owner": self.current_owner,
+            "queue_depth": len(self.queue),
+            "queued": [x[3] for x in self.queue], # List queued IDs
+            "request_start_times": {req_id: start_time for req_id, start_time in self.request_start_times.items()}
+        }
+
+    def force_release_all(self):
+        """Emergency method to clear all locks and queues"""
+        self.current_owner = None
+        self.locked_at = 0
+        self.lock_token = None
+        # Cancel all waiting events
+        for _, _, event, req_id in self.queue:
+            event.set()  # Wake up all waiting coroutines
+        self.queue.clear()
+        self.request_start_times.clear()
+        log("⚠️  ALL GPU LOCKS FORCE RELEASED")
+
+gpu_lock = PriorityGPUManager()
+
+@app.post("/v1/gpu/lock")
+async def acquire_gpu_lock(request: Request):
+    body = await request.json()
+    requester = body.get("id", "unknown")
+    # Default wait time: 60s
+    success, token = await gpu_lock.acquire(requester, timeout=60.0)
+    
+    if success:
+        return {"status": "acquired", "token": token}
+    else:
+        return JSONResponse(
+            status_code=503, 
+            content={"status": "timeout", "msg": "GPU Queue Timeout"}
+        )
+
+@app.post("/v1/gpu/unlock")
+async def release_gpu_lock(request: Request):
+    body = await request.json()
+    requester = body.get("id", "unknown")
+    gpu_lock.release(requester)
+    return {"status": "released"}
+
+# Auto-release watchdog (Optional, for now handled by timeouts)
+@app.post("/v1/gpu/reset")
+async def reset_gpu_lock():
+    gpu_lock.release("admin", force=True)
+    return {"status": "reset"}
+
+@app.post("/v1/gpu/force-release-all")
+async def force_release_all_gpu_locks():
+    """Emergency endpoint to clear all GPU locks and queues"""
+    gpu_lock.force_release_all()
+    return {"status": "all_gpu_locks_force_released"}
+
+@app.get("/v1/gpu/status")
+async def gpu_status():
+    return gpu_lock.get_status()
+
 # --- Logging / observability ---
 # Keep a ring buffer of recent bridge logs for the HTML log viewer.
 _LOG_MAX_LINES = int(os.getenv("BRIDGE_LOG_MAX_LINES", "5000"))
@@ -430,7 +582,7 @@ if not AUTH_TOKEN:
 @app.middleware("http")
 async def verify_token(request: Request, call_next):
     # Allow OPTIONS (CORS preflight) and the mobile UI page itself
-    if request.method == "OPTIONS" or request.url.path in ["/mobile", "/favicon.ico", "/logs"]:
+    if request.method == "OPTIONS" or request.url.path in ["/mobile", "/favicon.ico", "/logs", "/health", "/audit/server-logs"]:
         return await call_next(request)
     
     # Allow local loopback without token (optional, but convenient for localhost dev)
@@ -445,6 +597,13 @@ async def verify_token(request: Request, call_next):
         return JSONResponse(status_code=401, content={"error": "Unauthorized. Invalid Token."})
 
     return await call_next(request)
+
+@app.get("/health")
+async def health_check():
+    """
+    Simple health check for extensions and external tools.
+    """
+    return {"status": "ok", "service": "webgpu-bridge"}
 
 @app.get("/mobile")
 async def serve_mobile_app():
@@ -464,49 +623,50 @@ async def serve_mobile_app():
 async def search_memories(request: Request):
     """
     Bridge endpoint for the Chrome Extension.
-    Accepts: { "query": "text from browser" }
-    Returns: [ { "id": "...", "content": "...", ... }, ... ]
+    Input: { "query": "User is typing about..." }
+    Output: JSON array of relevant local memories.
     """
+    # 1. Check if the Brain is connected
     if not workers["chat"]:
-        # Extension will handle 503 by falling back to local simulation,
-        # but we want to let it know the worker is missing.
-        raise HTTPException(status_code=503, detail="WebGPU Chat Worker not connected.")
-
+        raise HTTPException(status_code=503, detail="WebGPU Chat Worker not connected. Open tools/model-server-chat.html")
+    
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
-
+        
     query = body.get("query", "").strip()
     if not query:
         return JSONResponse(content=[])
 
+    # 2. Create a Request ID to track this specific query
     req_id = str(uuid.uuid4())
     active_requests[req_id] = asyncio.Queue()
+    
+    # 3. Log the "Thought"
+    log(f"🔎 Bridge Memory Search: {req_id} - '{_clip(query, 50)}'")
 
-    log(f"🔎 Memory Search: {req_id} - '{_clip(query, 50)}'")
-
-    # Forward to the Browser (model-server-chat.html)
     try:
+        # 4. Forward the signal to the Browser (Root Console) via WebSocket
         await workers["chat"].send_json({
             "id": req_id,
-            "type": "memory_query",
+            "type": "memory_query", 
             "data": {"query": query}
         })
-
-        # Wait for response (Timeout 5s - reflex queries must be fast)
-        response_msg = await asyncio.wait_for(active_requests[req_id].get(), timeout=5.0)
-
+        
+        # 5. Wait for the Brain to return the Context (Timeout: 3s for speed)
+        response_msg = await asyncio.wait_for(active_requests[req_id].get(), timeout=3.0)
+        
         if response_msg.get("error"):
             log(f"❌ Search Error {req_id}: {response_msg['error']}")
             raise HTTPException(status_code=500, detail=response_msg["error"])
-
+        
         results = response_msg.get("result", [])
-        log(f"✅ Found {len(results)} memories for {req_id}")
+        log(f"✅ Served {len(results)} memories to Extension")
         return JSONResponse(content=results)
 
     except asyncio.TimeoutError:
-        log(f"⏰ Search Timeout {req_id}")
+        log(f"⏰ Search Timeout {req_id} - Browser didn't respond in 3s")
         del active_requests[req_id]
         raise HTTPException(status_code=504, detail="Query timed out")
     except Exception as e:

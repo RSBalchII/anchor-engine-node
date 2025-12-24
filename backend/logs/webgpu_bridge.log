@@ -1,0 +1,309 @@
+2025-12-23T22:00:49.066017 - 🔒 LOCKED by Root-Console-Init
+2025-12-23T22:00:57.912324 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/1
+2025-12-23T22:01:18.694082 - 🔓 RELEASED by Root-Console-Init (Held 29s)
+2025-12-23T22:01:18.698229 - 🔒 LOCKED by Root-Mic
+2025-12-23T22:11:20.289728 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 1/1
+2025-12-23T22:12:20.324015 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:16:09.810906 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T22:16:49.856817 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:17:09.871459 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:17:49.860914 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:26:52.682948 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T22:27:15.639485 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:27:18.615001 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/3
+2025-12-23T22:27:42.160422 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/4
+2025-12-23T22:27:52.699195 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:28:15.682544 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:28:18.631557 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:28:42.171585 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:28:44.023318 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 1/1
+2025-12-23T22:28:53.078680 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:29:44.033198 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:29:53.095971 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:30:03.429064 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/1
+2025-12-23T22:30:16.596955 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/2
+2025-12-23T22:30:35.497972 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 3/3
+2025-12-23T22:31:03.441308 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:31:16.606804 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:31:26.916330 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:31:34.483858 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/3
+2025-12-23T22:31:35.506699 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:32:21.029327 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/3
+2025-12-23T22:32:26.924365 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:32:34.528475 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:33:21.046031 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:33:54.498975 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/1
+2025-12-23T22:34:02.762775 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:34:16.894140 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 2/3
+2025-12-23T22:34:20.997640 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 4/4
+2025-12-23T22:34:54.507207 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:35:02.776765 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:35:16.900423 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:35:21.005996 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:35:23.689382 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T22:35:31.624064 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:35:34.733588 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/3
+2025-12-23T22:36:00.735700 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/4
+2025-12-23T22:36:23.700013 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:36:31.630178 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:36:34.749075 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:37:00.751657 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T22:58:01.907093 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T22:58:03.388448 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/2
+2025-12-23T22:58:10.120175 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/3
+2025-12-23T22:59:01.926391 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T22:59:03.403421 - 💀 Timeout dropping Root-Mic
+2025-12-23T22:59:07.486228 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T22:59:10.131479 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T23:00:07.492038 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:00:13.796469 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:01:13.813686 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:01:19.553646 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:01:24.479039 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 1/2
+2025-12-23T23:02:19.594202 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:02:24.499114 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T23:02:25.510961 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:03:25.515329 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:03:31.804324 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:04:31.815189 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:04:55.487008 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:04:59.506824 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/2
+2025-12-23T23:05:30.041163 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/3
+2025-12-23T23:05:55.495994 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:05:59.520364 - 💀 Timeout dropping Root-Mic
+2025-12-23T23:06:01.516816 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T23:06:18.337655 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/3
+2025-12-23T23:06:30.063363 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T23:07:01.534884 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:07:07.478559 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 2/2
+2025-12-23T23:07:18.341790 - 💀 Timeout dropping Root-Mic
+2025-12-23T23:08:07.490890 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:08:13.786429 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:09:13.799028 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:09:19.798797 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:10:19.805844 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:10:25.799607 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:11:25.805428 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:11:31.781444 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:12:31.796512 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:12:37.484681 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:13:37.495083 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:13:43.783123 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:14:43.796698 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:14:49.478296 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:15:49.483936 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:16:01.607365 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:17:01.626151 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:17:07.470141 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:18:07.487351 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:18:13.478778 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:19:13.491328 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:19:19.778616 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:20:19.789803 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:20:25.791896 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:56:50.186408 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:57:43.096462 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-23T23:57:51.902727 - ⏳ Root-Mic QUEUED (Priority 0). Pos: 1/2
+2025-12-23T23:58:43.110493 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:58:48.400779 - ⏳ Root-Console-Init QUEUED (Priority 10). Pos: 2/2
+2025-12-23T23:58:48.780365 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 3/3
+2025-12-23T23:58:51.907937 - 💀 Timeout dropping Root-Mic
+2025-12-23T23:59:48.410085 - 💀 Timeout dropping Root-Console-Init
+2025-12-23T23:59:48.789879 - 💀 Timeout dropping Dreamer-Init
+2025-12-23T23:59:54.481069 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:00:54.491500 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:01:00.789383 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:02:00.810094 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:02:06.807757 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:03:06.813452 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:03:12.783436 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:04:12.789817 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:04:18.780064 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:05:18.788560 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:05:24.781483 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:06:24.795782 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:06:30.778878 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:07:30.785658 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:07:36.476700 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:08:36.487954 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:08:42.773634 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:09:42.791534 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:09:48.779921 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:10:48.795727 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:10:54.776284 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:11:54.786169 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:12:00.780644 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:13:00.791087 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:13:06.771901 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:14:06.778592 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:14:12.794892 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:15:12.805455 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:15:18.776637 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:16:18.792771 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:16:24.799678 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:17:24.804580 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:17:30.792745 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:18:30.807365 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:18:36.471918 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:19:36.485450 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:19:42.793264 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:20:42.802634 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:20:48.800055 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:21:48.809749 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:21:54.775340 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:22:54.787653 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:23:00.799749 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:24:00.849248 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:24:06.800185 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:25:06.806179 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:25:12.799730 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:26:12.803433 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:26:18.810768 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:27:18.830777 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:27:24.809952 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:28:24.817737 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:28:30.798943 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:29:30.811721 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:29:36.482404 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:30:36.502823 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:30:42.795287 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:31:42.813385 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:31:48.814543 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:32:48.829831 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:32:54.811106 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:33:54.829220 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:34:00.808587 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:35:00.825387 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:35:06.815454 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:36:06.819903 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:36:12.816709 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:37:12.820889 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:37:18.801314 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:38:18.816985 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:38:24.807285 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:39:24.820172 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:39:30.795865 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:40:30.809321 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:40:36.492386 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:41:36.505787 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:41:42.804646 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:42:42.818821 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:42:48.501703 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:43:48.512796 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:43:54.818321 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:44:54.832997 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:45:00.792044 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:46:00.796012 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:46:06.817228 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:47:06.826066 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:47:12.816683 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:48:12.822775 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:48:18.811646 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:49:18.830593 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:49:24.812645 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:50:24.822322 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:50:30.820540 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:51:30.833420 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:51:36.519258 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:52:36.537419 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:52:42.820658 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:53:42.832666 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:53:48.844370 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:54:48.856319 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:54:54.823914 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:55:54.838040 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:56:00.824064 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:57:00.840106 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:57:06.818546 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:58:06.836843 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T00:58:12.820055 - ⏳ Dreamer-Init QUEUED (Priority 20). Pos: 1/1
+2025-12-24T00:59:12.824118 - 💀 Timeout dropping Dreamer-Init
+2025-12-24T06:13:41.833559 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:13:43.338663 - ⏳ Root-Mic-model-load QUEUED (Priority 0). Pos: 1/2
+2025-12-24T06:13:48.220670 - ⏳ Root-Console-Init-model-load QUEUED (Priority 10). Pos: 2/3
+2025-12-24T06:14:41.854761 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:14:43.348721 - 💀 Timeout dropping Root-Mic-model-load
+2025-12-24T06:14:47.395486 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 2/2
+2025-12-24T06:14:48.233821 - 💀 Timeout dropping Root-Console-Init-model-load
+2025-12-24T06:15:47.397668 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:15:53.706874 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:16:53.717956 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:16:59.690489 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:17:59.701709 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:18:05.691566 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:19:05.705622 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:19:11.391243 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:20:11.395987 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:20:17.700789 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:21:17.714084 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:21:23.397140 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:22:23.401344 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:22:29.397504 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:23:29.404027 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:23:35.387949 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:24:35.400703 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:24:41.697689 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:25:41.700972 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:25:47.704621 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:26:47.714528 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:26:53.693458 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:27:53.695662 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:27:59.707066 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:28:59.714670 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:29:05.687337 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:30:05.702319 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T06:30:11.702780 - ⏳ Dreamer-Init-model-load QUEUED (Priority 20). Pos: 1/1
+2025-12-24T06:31:11.719775 - 💀 Timeout dropping Dreamer-Init-model-load
+2025-12-24T08:17:01.727464 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:18:01.805214 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:18:08.356490 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:19:08.368565 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:19:15.895214 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:20:15.905682 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:20:22.683265 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:21:22.692563 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:21:29.666867 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:22:29.677230 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:22:36.402875 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:23:36.414922 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:23:43.662796 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:24:43.680911 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:24:50.705222 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:25:50.712077 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:25:57.671911 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:26:57.684119 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:27:04.685417 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:28:04.704379 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:28:11.686458 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:29:11.701536 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:29:18.677458 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:30:18.695075 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:30:25.699240 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:31:25.702925 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:31:32.676385 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:32:32.687128 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:32:39.665924 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:33:39.679022 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:33:46.672182 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:34:46.690492 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:34:53.682378 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:35:53.696968 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:36:00.657290 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:37:00.708359 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:37:07.732843 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:38:07.737144 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:38:14.663211 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:39:14.678249 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:39:21.712400 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:40:21.715592 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:40:28.666326 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:41:28.680989 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:41:35.367624 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:42:35.378212 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:42:42.657586 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:43:42.666492 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:43:49.658875 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:44:49.662036 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:44:56.666639 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1
+2025-12-24T08:45:56.672186 - 💀 Timeout dropping Dreamer-Think
+2025-12-24T08:46:03.660220 - ⏳ Dreamer-Think QUEUED (Priority 20). Pos: 1/1

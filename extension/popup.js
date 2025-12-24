@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
-        const res = await fetch('http://localhost:8000/health', {
+        const res = await fetch('http://localhost:8080/health', {
             signal: controller.signal,
             mode: 'cors', // Explicitly set CORS mode
             credentials: 'omit' // Don't send credentials
