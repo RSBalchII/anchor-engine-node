@@ -58,10 +58,14 @@ export class VisionController {
         fileInput.id = 'vision-file-input';
         document.body.appendChild(fileInput);
 
-        // If the drop zone is clicked, it can trigger file selection
-        this.dropZone.addEventListener('click', () => {
-            fileInput.click();
-        });
+        // Add a separate button click handler for file selection (instead of clicking the entire drop zone)
+        const uploadButton = document.getElementById('image-upload-btn');
+        if (uploadButton) {
+            uploadButton.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent any default behavior
+                fileInput.click();
+            });
+        }
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files[0]) {

@@ -15,7 +15,7 @@
 
 ## Phase 2.5: Root Refactor (Completed)
 - [x] **Kernel Implementation**: Created `sovereign.js` (Unified Logger, State, Hardware).
-- [x] **The Ears**: Refactored `sovereign-mic.html` to Root Architecture.
+- [x] **The Ears**: Refactored `root-mic.html` to Root Architecture.
 - [x] **The Stomach**: Refactored `sovereign-db-builder.html` to Root Architecture.
 - [x] **The Brain**: Refactored `model-server-chat.html` to Root Architecture (Graph-R1 preservation).
 

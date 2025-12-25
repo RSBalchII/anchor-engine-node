@@ -4,7 +4,7 @@
 
 ### Completed - Root Refactor ✅
 - [x] **Kernel**: Implement `tools/modules/sovereign.js`.
-- [x] **Mic**: Refactor `sovereign-mic.html` to use Kernel.
+- [x] **Mic**: Refactor `root-mic.html` to use Kernel.
 - [x] **Builder**: Refactor `sovereign-db-builder.html` to use Kernel.
 - [x] **Console**: Refactor `model-server-chat.html` to use Kernel (Graph-R1).
 - [x] **Docs**: Update all specs to reflect Root Architecture.

@@ -418,7 +418,7 @@
 
             isLoopRunning = true;
             try {
-                // Find memories that don't have relationships (orphan memories)
+                // Find memories that don't have relationships (orphan memories) - using proper negation syntax
                 const query = `?[id, content] := *memory{id: id, content: content}, not *relationships{source_id: id} :limit 1`;
                 const result = await runQuery(query);
 

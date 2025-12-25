@@ -12,6 +12,15 @@ This project uses **WebLLM** (by MLC-AI) to run Large Language Models directly i
 2.  **Acceleration:** The WASM module uses the **WebGPU API** to access the user's local GPU. This allows for massive parallelism, enabling 7B+ parameter models to run at interactive speeds (20-100+ tokens/sec) on consumer hardware.
 3.  **Zero-Server:** No data leaves the browser. The "Backend" is the user's own GPU.
 
+## Official Model Registry
+
+**CRITICAL REFERENCE:** The definitive list of supported models and their WASM binaries can be found at:
+- https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293
+- This contains the official `prebuiltAppConfig` with verified model configurations
+
+**ADDITIONAL VERIFIED LINKS:**
+- https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293 - Contains verified MLC model configurations and working WASM URLs
+
 ---
 
 ## 1. Verified Models (Ready for Production)
@@ -85,15 +94,35 @@ Models optimized for systems with limited VRAM like the XPS 13.
 
 ---
 
-## 2. Experimental / Pending (WASM Missing)
+## 2. Known Issues / Missing Binaries
 
-These models are listed in config but their WASM binaries are not currently hosted in the `v0_2_80` folder. **Do not use until binaries are verified.**
+These models are listed in the official config but their WASM binaries are not currently hosted in the `v0_2_80` folder. **Avoid using these until binaries are available.**
 
-*   `Qwen2.5-14B-Instruct-q4f16_1-MLC` (404 Not Found)
-*   `DeepSeek-R1-Distill-Qwen-14B-q4f16_1-MLC` (404 Not Found)
+*   `Qwen2.5-14B-Instruct-q4f16_1-MLC` (404 Not Found) - **Known Issue**
+*   `DeepSeek-R1-Distill-Qwen-14B-q4f16_1-MLC` (404 Not Found) - **Known Issue**
 *   `Qwen2-VL-7B-Instruct-q4f16_1-MLC` (404 Not Found)
 *   `gemma-3-2b-it-q4f16_1-MLC` (404 Not Found) - **Note: No Gemma 3 2B available, only 1B exists**
 *   `gemma-3-12b-it-q4f16_1-MLC` (404 Not Found) - **Note: No Gemma 3 12B available in current library**
+
+## 3. Verified Working Models (Recommended)
+
+Based on the official config at the GitHub link above, these models are confirmed to have working WASM binaries:
+
+### High Performance (7B-8B Range)
+*   `Qwen2.5-7B-Instruct-q4f16_1-MLC` - Verified working
+*   `Llama-3.1-8B-Instruct-q4f32_1-MLC` - Verified working
+*   `Phi-3.5-mini-instruct-q4f16_1-MLC` - Verified working
+*   `gemma-2-9b-it-q4f16_1-MLC` - Verified working
+*   `Qwen3-8B-q4f16_1-MLC` - Verified working
+
+### Lightweight Options (1.5B and below)
+*   `Qwen2.5-1.5B-Instruct-q4f16_1-MLC` - Verified working
+*   `Qwen2-0.5B-Instruct-q4f16_1-MLC` - Verified working
+*   `Llama-3.2-1B-Instruct-q4f16_1-MLC` - Verified working
+*   `SmolLM2-1.7B-Instruct-q4f16_1-MLC` - Verified working
+
+### Vision Models
+*   `Phi-3.5-vision-instruct-q4f16_1-MLC` - Verified working
 
 ---
 

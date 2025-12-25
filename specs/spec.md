@@ -34,7 +34,7 @@ The system has evolved into **Root Coda**, a pure [WASM (WebAssembly)](https://w
 ### 4. The Interfaces (Root Tools)
 - **Root Console** (`model-server-chat.html`): The **Brain**. Runs Graph-R1 in a **Web Worker** (`llm-worker.js`) to prevent UI freezing during inference.
 - **Root Builder** (`sovereign-db-builder.html`): The **Stomach**. Ingests files/logs into the Graph.
-- **Root Mic** (`sovereign-mic.html`): The **Ears**. Whisper-Tiny (WASM) + LLM cleanup.
+- **Root Mic** (`root-mic.html`): The **Ears**. Whisper-Tiny (WASM) + LLM cleanup.
 - **Log Viewer** (`log-viewer.html`): The **Nerves**. System-wide diagnostics.
 - **Root Dreamer** (`tools/root-dreamer.html`): The **Subconscious**. Background optimization and association.
 
