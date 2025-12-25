@@ -672,6 +672,9 @@
 
             // NEW: Pure retrieval logic (returns raw data objects)
             async findRelevantMemories(userText) {
+                // Initialize combined results map for deduplication
+                const combined = new Map();
+
                 // 1. GENERATE QUERY VECTOR (Semantic)
                 let vectorResults = [];
                 if (embedder) {
@@ -680,7 +683,7 @@
                         const queryVec = Array.from(output.data);
                         // Query: Find top 10 nearest neighbors
                         const vecQuery = `
-                            ?[id, content, dist, timestamp] := *memory{id, content, embedding, timestamp},
+                            ?[id, content, dist, timestamp] := *memory{id: id, content: content, embedding: embedding, timestamp: timestamp},
                             !is_null(embedding),
                             dist = vec_l2(embedding, $vec)
                             :sort dist
@@ -688,35 +691,56 @@
                         `;
                         const res = await this.db.run(vecQuery, JSON.stringify({ vec: queryVec }));
                         const parsed = ResponsePattern.match(res);
-                        if (parsed.rows) vectorResults = parsed.rows.map(r => ({ id: r[0], content: r[1], dist: r[2], ts: r[3], source: 'semantic' }));
+                        if (parsed.rows) {
+                            parsed.rows.forEach(r => {
+                                const item = { id: r[0], content: r[1], dist: r[2], ts: r[3], source: 'semantic' };
+                                combined.set(item.content, item); // Add semantic results first
+                            });
+                        }
                     } catch (e) { console.warn("Vector Search failed", e); }
                 }
 
-                // 2. GENERATE KEYWORD QUERY (Lexical)
-                let keywordResults = [];
+                // 2. GENERATE KEYWORD QUERY (Lexical) - OPTIMIZED
                 const rawWords = userText.match(/[a-zA-Z0-9_\-]+/g) || [];
-                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where', 'tell', 'me', 'about']);
-                const keywords = rawWords.map(w => w.replace(/^[-_]+|[-_]+$/g, '')).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
-                
+                const stopWords = new Set(['the', 'and', 'is', 'in', 'at', 'of', 'on', 'for', 'to', 'it', 'this', 'that', 'what', 'who', 'how', 'why', 'when', 'where', 'tell', 'me', 'about', 'could', 'would']);
+
+                // Score words: Capitalized or Numbers get higher priority
+                const scoredWords = rawWords.map(w => {
+                    let score = 0;
+                    const clean = w.replace(/^[-_]+|[-_]+$/g, '');
+                    if (clean.length <= 3 && !/^\d+$/.test(clean)) return null; // Skip short words unless numbers
+                    if (stopWords.has(clean.toLowerCase())) return null;
+
+                    // Priority Scoring
+                    if (/^[A-Z]/.test(clean)) score += 2; // Capitalized (Proper Noun)
+                    if (/^\d+$/.test(clean)) score += 3;  // Numbers (Dates/Years)
+
+                    return { word: clean, score };
+                }).filter(w => w);
+
+                // Sort by score (descending) and take top 5
+                scoredWords.sort((a, b) => b.score - a.score);
+                const keywords = scoredWords.slice(0, 5).map(w => w.word);
+
                 if (keywords.length > 0) {
-                    const conditions = keywords.map(w => `regex_matches(content, '(?i)${w}')`).join(' or ');
-                    const kwQuery = `?[id, content, timestamp] := *memory{id, content, timestamp}, ${conditions} :sort -timestamp :limit 10`;
-                    try {
-                        const res = await this.db.run(kwQuery, "{}");
-                        const parsed = ResponsePattern.match(res);
-                        if (parsed.rows) keywordResults = parsed.rows.map(r => ({ id: r[0], content: r[1], dist: 0, ts: r[2], source: 'lexical' }));
-                    } catch (e) { console.warn(e); }
+                    // Process top 5 keywords for better accuracy
+                    for (const keyword of keywords) {
+                        const kwQuery = `?[id, content, timestamp] := *memory{id: id, content: content, timestamp: timestamp}, regex_matches(content, '(?i)${keyword}') :sort -timestamp :limit 5`;
+                        try {
+                            const res = await this.db.run(kwQuery, "{}");
+                            const parsed = ResponsePattern.match(res);
+                            if (parsed.rows) {
+                                parsed.rows.forEach(r => {
+                                    const item = { id: r[0], content: r[1], dist: 0, ts: r[2], source: 'lexical' };
+                                    if (!combined.has(item.content)) {
+                                        combined.set(item.content, item); // Add only if not already present (deduplicate)
+                                    }
+                                });
+                            }
+                        } catch (e) { console.warn(`Keyword search failed for '${keyword}':`, e); }
+                    }
                 }
 
-                // 3. MERGE & DEDUPLICATE
-                const combined = new Map();
-                // Add Semantic first
-                vectorResults.forEach(item => combined.set(item.content, item));
-                // Add Lexical (only if unique)
-                keywordResults.forEach(item => {
-                    if (!combined.has(item.content)) combined.set(item.content, item);
-                });
-                
                 // Return top 10 unique items
                 return Array.from(combined.values()).slice(0, 10);
             }
@@ -885,7 +909,28 @@
                         vision.clear();
                     }
 
-                    if (state.autoSave) await saveTurn("assistant", fullAnswer);
+                    // --- NEW CODE START: Thought Separation ---
+                    let finalContent = fullAnswer;
+                    let thoughtContent = null;
+
+                    // Regex to capture DeepSeek/Reasoning  blocks<think> blocks<think> blocks
+                    const thinkMatch = fullAnswer.match(/<think>([\s\S]*?)<\/think>/);
+
+                    if (thinkMatch) {
+                        thoughtContent = thinkMatch[1].trim();
+                        // Remove the thought block from the "assistant" memory to keep it clean
+                        finalContent = fullAnswer.replace(/<think>[\s\S]*?<\/think>/, "").trim();
+                    }
+
+                    if (state.autoSave) {
+                        // 1. Save the Thought (Path)
+                        if (thoughtContent) {
+                            await saveTurn("thought", thoughtContent);
+                        }
+                        // 2. Save the Answer (Result)
+                        // We explicitly save the cleaned content as the assistant's official reply
+                        await saveTurn("assistant", finalContent);
+                    }
                     ui.log("✅ Response generated.", "success");
                 }); // End Lock
 
@@ -977,6 +1022,13 @@
 
                     let appConfig = {
                         useIndexedDBCache: true,
+                        // Performance optimization parameters for faster inference
+                        prefill_chunk_size: 2048,        // Larger chunks for better throughput during prompt processing
+                        max_num_sequence: 32,            // Max concurrent sequences
+                        max_total_sequence_length: 8192, // Total sequence length capacity
+                        sliding_window_size: -1,         // Disable sliding window for better performance
+                        attention_sink_size: 0,          // No attention sinks needed
+
                         model_list: [{
                             model: "https://huggingface.co/" + modelInput + "/resolve/main/",
                             model_id: selectedModelId,
@@ -984,6 +1036,13 @@
                             vram_required_MB: 2000,
                             low_resource_required: true,
                             buffer_size_required_bytes: gpuConfig.maxBufferSize,
+
+                            // Model-specific overrides for performance
+                            overrides: {
+                                context_window_size: gpuConfig.isConstrained ? 2048 : 4096, // Clamp context for constrained devices
+                                sliding_window_size: -1,  // Disable sliding window
+                                attention_sink_size: 0,   // No attention sinks
+                            }
                         }]
                     };
 
