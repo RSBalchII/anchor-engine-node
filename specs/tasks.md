@@ -24,7 +24,7 @@
 - [x] **Memory Writing**: Implement `saveTurn` to persist chat to CozoDB.
 - [x] **User Control**: Add "Auto-Save" toggle to System Controls.
 - [x] **Temporal Grounding**: Inject System Time into `buildVirtualPrompt`.
-- [ ] **Multimodal**: Add Drag-and-Drop Image support to Console.
+- [x] **Multimodal**: Add Drag-and-Drop Image support to Console.
 
 ### Active Development - Expansion
 - [ ] **Agentic Tools**: Port Verifier/Distiller logic to `tools/modules/agents.js`.
