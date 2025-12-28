@@ -6,7 +6,8 @@ import os
 import time
 from collections import deque
 from fastapi import FastAPI, WebSocket, Request, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any
 
@@ -675,6 +676,51 @@ async def search_memories(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi.responses import HTMLResponse
+
+
+# --- NEURAL SHELL PROTOCOL (The Hands) ---
+import subprocess
+
+@app.post("/v1/shell/exec")
+async def shell_exec(request: Request):
+    """
+    Executes a shell command on the host machine.
+    Security: Protected by Bearer Token.
+    """
+    # 1. Verify Auth (Handled by Middleware)
+    
+    try:
+        body = await request.json()
+        cmd = body.get("cmd", "")
+        
+        if not cmd:
+            return JSONResponse(status_code=400, content={"error": "No command provided"})
+
+        log(f"💻 SHELL EXEC: {cmd}")
+
+        # 2. Execute via Subprocess (PowerShell/CMD compatible)
+        # timeout=30 prevents hanging processes
+        proc = subprocess.run(
+            cmd, 
+            shell=True, 
+            capture_output=True, 
+            text=True, 
+            input="", # EOF to stdin: prevents hanging on interactive commands like 'powershell'
+            timeout=30
+        )
+
+        return {
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+            "code": proc.returncode,
+            "cmd": cmd
+        }
+
+    except subprocess.TimeoutExpired:
+        return JSONResponse(status_code=408, content={"error": "Command timed out (30s limit)"})
+    except Exception as e:
+        log(f"❌ Shell Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 if __name__ == "__main__":
     host = os.getenv("BRIDGE_HOST", "0.0.0.0")

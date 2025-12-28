@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Large model files
+models/
+
 backend/archive/db/
 
 archive/

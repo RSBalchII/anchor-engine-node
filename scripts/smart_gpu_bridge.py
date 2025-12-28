@@ -20,6 +20,15 @@ import importlib
 import sys
 from pathlib import Path
 import hashlib
+import requests
+from fastapi.staticfiles import StaticFiles
+from download_models import download_model
+
+# Configuration
+MODELS_DIR = Path("models").resolve()
+MODELS_DIR.mkdir(exist_ok=True)
+download_status = {}
+
 
 # Import the PriorityGPUManager from the main bridge file
 import sys
@@ -32,6 +41,11 @@ from webgpu_bridge import PriorityGPUManager, gpu_lock, log
 # Global variable to track file hashes for hot reload
 file_hashes = {}
 reload_lock = threading.Lock()
+
+# Global state for shell persistence
+SHELL_STATE = {
+    "cwd": os.getcwd()
+}
 
 def get_file_hash(filepath):
     """Calculate MD5 hash of a file"""
@@ -98,16 +112,163 @@ class FileWatcherThread(threading.Thread):
                 hot_reload_bridge()
             time.sleep(2)  # Check every 2 seconds
 
+import subprocess
+
 def create_app():
     """Create and configure the FastAPI application"""
     app = FastAPI(title="WebGPU Bridge - Hot Reload Enabled")
+    
+    # ... (existing middleware)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # --- Neural Shell Protocol (The Hands) ---
+    @app.post("/v1/shell/exec")
+    async def shell_exec(request: Request):
+        try:
+            body = await request.json()
+            cmd = body.get("cmd", "")
+            
+            if not cmd:
+                return JSONResponse(status_code=400, content={"error": "No command provided"})
+
+            log(f"💻 SHELL EXEC: {cmd} (in {SHELL_STATE['cwd']})")
+
+            # Handle 'cd' manually since subprocess is ephemeral
+            if cmd.strip().lower().startswith("cd "):
+                target_dir = cmd.strip().split(" ", 1)[1].strip().strip('"')
+                # Handle absolute vs relative paths
+                new_path = os.path.abspath(os.path.join(SHELL_STATE['cwd'], target_dir))
+                
+                if os.path.exists(new_path) and os.path.isdir(new_path):
+                    SHELL_STATE['cwd'] = new_path
+                    return {
+                        "stdout": f"Changed directory to: {new_path}",
+                        "stderr": "",
+                        "code": 0,
+                        "cmd": cmd
+                    }
+                else:
+                    return {
+                        "stdout": "",
+                        "stderr": f"The system cannot find the path specified: {new_path}",
+                        "code": 1,
+                        "cmd": cmd
+                    }
+
+            # Run the command with persistence
+            # Input="" prevents hanging on interactive commands
+            if os.name == 'nt':
+                full_cmd = f'powershell -Command "{cmd}"'
+            else:
+                full_cmd = cmd
+
+            proc = subprocess.run(
+                full_cmd, 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                input="", 
+                cwd=SHELL_STATE['cwd'], 
+                timeout=30
+            )
+
+            return {
+                "stdout": proc.stdout,
+                "stderr": proc.stderr,
+                "code": proc.returncode,
+                "cmd": cmd
+            }
+        except subprocess.TimeoutExpired:
+            log(f"❌ Shell Timeout: {cmd}")
+            return JSONResponse(status_code=408, content={"error": "Command timed out (30s limit)"})
+        except Exception as e:
+            log(f"❌ Shell Error: {e}")
+            return JSONResponse(status_code=500, content={"error": str(e)})
+
+    # --- Model Management (On-Demand Download) ---
+    # Custom StaticFiles class to prevent cache headers that trigger browser Cache API
+    class NoCacheStaticFiles(StaticFiles):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        async def __call__(self, scope, receive, send):
+            # Call the parent implementation
+            from starlette.staticfiles import StaticFiles
+            # We need to set no-cache headers to prevent browser from using Cache API
+            async def send_wrapper(message):
+                if message['type'] == 'http.response.start':
+                    # Add no-cache headers to prevent browser from using Cache API
+                    headers = message.get('headers', [])
+                    headers.extend([
+                        (b"Cache-Control", b"no-store, no-cache, must-revalidate, proxy-revalidate"),
+                        (b"Pragma", b"no-cache"),
+                        (b"Expires", b"0"),
+                    ])
+                    message['headers'] = headers
+                await send(message)
+
+            await super().__call__(scope, receive, send_wrapper)
+
+    app.mount("/models", NoCacheStaticFiles(directory="models"), name="models")
+
+    def download_model_task(model_id: str, repo_url: str):
+        """Background task to download model files using shared module"""
+        try:
+            download_status[model_id] = {"status": "downloading", "progress": "0%", "file": "starting..."}
+            
+            def progress_callback(msg, p):
+                download_status[model_id].update({
+                    "progress": f"{int(p*100)}%",
+                    "file": msg
+                })
+
+            download_model(model_id, repo_url=repo_url, base_dir=MODELS_DIR, progress_callback=progress_callback)
+            
+            download_status[model_id] = {"status": "done", "progress": "100%", "file": "ready"}
+            log(f"✅ Model {model_id} Ready")
+            
+        except Exception as e:
+            log(f"❌ Download Failed: {e}")
+            download_status[model_id] = {"status": "error", "error": str(e)}
+
+    @app.post("/v1/models/pull")
+    async def pull_model(request: Request):
+        body = await request.json()
+        model_id = body.get("model_id")
+        url = body.get("url") # e.g. https://huggingface.co/mlc-ai/Qwen...
+        
+        if not model_id or not url:
+            raise HTTPException(status_code=400, detail="Missing model_id or url")
+
+        # Strip prefix if present in ID for directory name
+        if "/" in model_id:
+             model_id = model_id.split("/")[-1]
+
+        if model_id in download_status and download_status[model_id]["status"] == "downloading":
+            return {"status": "already_downloading"}
+        
+        # Check if already exists on disk
+        if (MODELS_DIR / model_id / "ndarray-cache.json").exists():
+             download_status[model_id] = {"status": "done", "progress": "100%", "file": "cached"}
+             return {"status": "cached"}
+
+        threading.Thread(target=download_model_task, args=(model_id, url)).start()
+        return {"status": "started", "id": model_id}
+
+    @app.get("/v1/models/pull/status")
+    async def pull_status(id: str):
+        if "/" in id: id = id.split("/")[-1]
+        return download_status.get(id, {"status": "unknown"})
+
+
+    # Add the hot reload endpoint
+    @app.post("/v1/hot-reload")
+    async def hot_reload_endpoint(request: Request):
+        """Endpoint to manually trigger hot reload"""
+        hot_reload_bridge()
+        return {"status": "hot_reload_triggered"}
+
+    # MOVED CORS MIDDLEWARE TO END TO WRAP EVERYTHING
+
 
     # Store active WebSocket connections
     workers: Dict[str, WebSocket] = {
@@ -164,6 +325,31 @@ def create_app():
         """Endpoint to manually trigger hot reload"""
         hot_reload_bridge()
         return {"status": "hot_reload_triggered"}
+
+    # --- Hot Reload File Monitoring Endpoint ---
+    @app.get("/file-mod-time")
+    async def get_file_mod_time(path: str):
+        """
+        Returns the modification time of a file relative to project root.
+        Used by tools/modules/gpu-hot-reloader.js to detect changes.
+        """
+        try:
+            # Security: Prevent directory traversal
+            if ".." in path or path.startswith("/") or "\\" in path:
+                raise HTTPException(status_code=400, detail="Invalid path")
+            
+            # Resolve against project root
+            project_root = Path(__file__).parent.parent
+            file_path = project_root / path
+            
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
+                
+            return {"mtime": file_path.stat().st_mtime}
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
     # --- Logging / observability ---
     _LOG_MAX_LINES = int(os.getenv("BRIDGE_LOG_MAX_LINES", "5000"))
@@ -427,14 +613,28 @@ def create_app():
 
     @app.middleware("http")
     async def verify_token(request: Request, call_next):
-        if request.method == "OPTIONS" or request.url.path in ["/mobile", "/favicon.ico", "/logs", "/health", "/audit/server-logs"]:
+        # DEBUG LOGGING - ACTIVE
+        print(f"🔍 Middleware Check: {request.method} {request.url.path}") 
+        
+        # Check both with and without leading slash just to be safe
+        path = request.url.path
+        if request.method == "OPTIONS" or path.startswith("/models") or path.startswith("/v1/models") or path.startswith("models/") or path in ["/mobile", "/favicon.ico", "/logs", "/health", "/audit/server-logs", "/file-mod-time"]:
             return await call_next(request)
 
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer ") or auth_header.split(" ")[1] != AUTH_TOKEN:
-            return JSONResponse(status_code=401, content={"error": "Unauthorized. Invalid Token."})
+            print(f"❌ Blocked Request: {request.method} {request.url.path}")
+            return JSONResponse(status_code=401, content={"error": f"Unauthorized. Invalid Token. Path seen: {request.url.path}"})
 
         return await call_next(request)
+
+    # ADD CORS LAST (So it is the OUTERMOST middleware and handles all responses including 401s)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health")
     async def health_check():

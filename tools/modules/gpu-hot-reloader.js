@@ -25,7 +25,7 @@ class GPUHotReloader {
     // Start monitoring for changes
     startMonitoring() {
         if (this.monitorInterval) return;
-        
+
         console.log("🔄 GPU Hot Reloader: Starting monitoring...");
         this.monitorInterval = setInterval(() => {
             this.checkForChanges();
@@ -71,11 +71,11 @@ class GPUHotReloader {
     async checkFileModified(filepath) {
         try {
             // Try to check file modification time via server endpoint
-            const response = await fetch(`/file-mod-time?path=${encodeURIComponent(filepath)}`);
+            const response = await fetch(`http://localhost:8080/file-mod-time?path=${encodeURIComponent(filepath)}`);
             if (response.ok) {
                 const data = await response.json();
                 const currentModTime = data.modTime;
-                
+
                 if (filepath in this.lastModified) {
                     if (this.lastModified[filepath] !== currentModTime) {
                         this.lastModified[filepath] = currentModTime;
@@ -90,7 +90,7 @@ class GPUHotReloader {
             try {
                 const response = await fetch(filepath + '?t=' + Date.now(), { method: 'HEAD' });
                 const lastModified = response.headers.get('Last-Modified');
-                
+
                 if (filepath in this.lastModified) {
                     if (this.lastModified[filepath] !== lastModified) {
                         this.lastModified[filepath] = lastModified;
@@ -109,20 +109,20 @@ class GPUHotReloader {
     // Reload GPU management logic
     async reloadGPUManagement() {
         if (this.isReloading) return;
-        
+
         this.isReloading = true;
         console.log("🔄 GPU Hot Reloader: Reloading GPU management logic...");
-        
+
         try {
             // Force release any current GPU locks to prevent stale state
             await this.forceReleaseGPU();
-            
+
             // Clear any cached modules if possible
             this.clearModuleCache();
-            
+
             // Reload the GPU controller with fresh logic
             await this.reloadGPUController();
-            
+
             console.log("✅ GPU Hot Reloader: GPU management reloaded successfully");
         } catch (error) {
             console.error("❌ GPU Hot Reloader: Error during reload:", error);

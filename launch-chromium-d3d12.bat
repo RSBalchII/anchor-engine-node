@@ -6,7 +6,7 @@ set "USER_DATA=%~dp0browser_data"
 if not exist "%USER_DATA%" mkdir "%USER_DATA%"
 
 :: Define Flags for D3D12 (Default for Windows)
-set "FLAGS=--user-data-dir="%USER_DATA%" --ignore-gpu-blocklist --enable-webgpu-developer-features --enable-unsafe-webgpu --enable-dawn-features=allow_unsafe_apis --disable-gpu-watchdog"
+set "FLAGS=--user-data-dir="%USER_DATA%" --ignore-gpu-blocklist --enable-webgpu-developer-features --enable-unsafe-webgpu --enable-dawn-features=allow_unsafe_apis --disable-gpu-watchdog --disable-web-security --disable-site-isolation-trials --disable-features=IsolateOrigins,site-per-process"
 set "URL=http://localhost:8000/model-server-chat.html"
 
 echo ---------------------------------------------------

@@ -14,19 +14,28 @@
 - [x] **Model Profiles**: Added Lite, Mid, High, Ultra profiles.
 - [x] **Crash Prevention**: Context clamping for constrained drivers.
 - [x] **Mobile Optimization**: Service Worker (`llm-worker.js`) for non-blocking inference.
+- [x] **Consciousness Semaphore**: Implemented resource arbitration in `sovereign.js`.
 
 ## Phase 3: The Subconscious (Completed) ✅
 - [x] **Root Dreamer**: Created `tools/root-dreamer.html` for background memory consolidation.
 - [x] **Ingestion Refinement**: Upgraded `read_all.py` to produce LLM-legible YAML.
 - [x] **Root Architecture Docs**: Finalized terminology (Sovereign -> Root).
+- [x] **Memory Hygiene**: Implemented "Forgetting Curve" in `root-dreamer.html`.
 
-## Phase 3.1: Active Cognition (Current)
+## Phase 3.1: Active Cognition (Completed)
 - [x] **Memory Writing**: Implement `saveTurn` to persist chat to CozoDB.
 - [x] **User Control**: Add "Auto-Save" toggle to System Controls.
 - [x] **Temporal Grounding**: Inject System Time into `buildVirtualPrompt`.
 - [x] **Multimodal**: Add Drag-and-Drop Image support to Console.
 
-### Active Development - Expansion
+### Phase 3.2: The Neural Shell (Active) 🚧
+**Objective:** Decouple Intelligence (Chat) from Agency (Terminal).
+- [ ] **Bridge Repair**: Debug and stabilize `extension-bridge` connectivity.
+- [ ] **Neural Shell Protocol**: Implement `/v1/shell/exec` in `webgpu_bridge.py`.
+- [ ] **The "Coder" Model**: Add `Qwen2.5-Coder-1.5B` to Model Registry.
+- [ ] **Terminal UI**: Create `tools/neural-terminal.html` for natural language command execution.
+
+### Phase 3.3: Agentic Expansion (Deferred)
 - [ ] **Agentic Tools**: Port Verifier/Distiller logic to `tools/modules/agents.js`.
 - [ ] **Voice Output**: Add TTS to Console.
 

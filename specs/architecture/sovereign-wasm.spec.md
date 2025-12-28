@@ -51,6 +51,16 @@ The `webgpu_bridge.py` acts as a secure relay (websocket <-> http) for external 
 - **Input**: HTTP/REST (`/v1/chat/completions`)
 - **Output**: WebSocket (`ws://localhost:8080/ws/chat`)
 
+### 3.1 Local Model Serving (Storage Quota Bypass)
+**Problem**: Browsers (especially in Incognito/Guest modes) strictly limit persistent storage (e.g., <300MB), preventing the caching of large LLM weights (~2GB+).
+**Solution**: The Bridge acts as a local HTTP File Server.
+- **Endpoint**: `http://localhost:8080/models/{model_id}/...`
+- **Mechanism**: 
+    1. Frontend requests model from localhost.
+    2. If 404, Frontend triggers `POST /v1/models/pull`.
+    3. Bridge downloads artifacts from Hugging Face to `./models`.
+    4. Frontend polls status and loads the model into RAM (bypassing IndexedDB quota).
+
 ## 4. Audio Input (Root Mic)
 **Goal**: Pure client-side speech-to-text without sending audio to a cloud.
 
@@ -79,3 +89,31 @@ To prevent UI freezing during heavy inference, the LLM runs in a dedicated Web W
 - **Role**: Hosts the `MLCEngine` instance.
 - **Communication**: Uses `WebWorkerMLCEngineHandler` to bridge messages between the main thread and the worker.
 - **Benefit**: Ensures the UI remains responsive (scrolling, typing) even while the GPU is crunching tokens.
+
+## 6. Resource Management (Orchestrator)
+**Problem**: Multiple browser tabs (Mic, Console, Dreamer) competing for the single GPU resource led to deadlocks, timeouts, and "Device Lost" errors.
+**Solution**: A Priority-Queue based Locking System.
+
+### 6.1 GPU Controller (`tools/modules/sovereign.js`)
+- **Serialized Loading**: `withModelLoadLock()` ensures only one tab loads a model at a time.
+- **Access Priority**:
+  - **Priority 0 (High)**: Root Mic (Voice Input - cannot wait)
+  - **Priority 10 (Med)**: Root Console (Chat - user waiting)
+  - **Priority 20 (Low)**: Root Dreamer (Background tasks)
+- **Timeouts**: Increased broken-lock timeout from 60s to **120s** to accommodate large model loading.
+- **Emergency Release**: If a lock is held >120s, it is forcibly broken to prevent system deadlock.
+
+### 6.2 Bridge Orchestration (`smart_gpu_bridge.py`)
+- **Queue Tracking**: Tracks request start times to prevent starvation.
+- **Endpoints**:
+  - `GET /v1/gpu/status`: Monitor active locks and queue depth.
+  - `POST /v1/gpu/lock`: Acquire lock (blocking).
+  - `POST /v1/gpu/force-release-all`: Nuclear option for stuck states.
+
+## 7. Development Infrastructure
+**Problem**: Restarting the Python bridge and refreshing 3 browser tabs for every small code change is slow.
+
+### 7.1 Hot Reload System
+- **Backend**: `smart_gpu_bridge.py` monitors its own source code (and `download_models.py`) for changes. It automatically reloads the Python process while preserving active WebSocket connections if possible.
+- **Frontend**: `gpu-hot-reloader.js` connects to the bridge via WebSocket. When the bridge signals a reload (or detects an HTML update), the browser auto-refreshes.
+- **Safety**: Automatically releases all GPU locks during a reload event to prevent "Ghost Locks".
