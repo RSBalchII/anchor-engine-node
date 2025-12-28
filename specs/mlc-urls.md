@@ -124,6 +124,10 @@ Based on the official config at the GitHub link above, these models are confirme
 ### Vision Models
 *   `Phi-3.5-vision-instruct-q4f16_1-MLC` - Verified working
 
+### 💻 Code Specialists
+*   `Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC` - **Best for Neural Terminal.** Fast & Smart.
+*   `Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC` - Verified working
+
 ---
 
 ## 3. URL Construction Logic

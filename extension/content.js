@@ -100,15 +100,60 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Initialization Loop
-const observer = new MutationObserver(() => {
+// --- 6. Robust Initialization ---
+function startSovereignObserver() {
+    // Safety Check: If body isn't ready, wait for next frame
+    if (!document.body) {
+        console.warn("[Sovereign] document.body not ready, retrying...");
+        requestAnimationFrame(startSovereignObserver);
+        return;
+    }
+
+    console.log("[Sovereign] Body detected. Eyes opening...");
+
+    // Main Logic
     if (!textArea) {
         textArea = detectTextArea();
         if (textArea) {
-            console.log("[Sovereign] Text Area Detected.");
+            console.log("[Sovereign] Input Found on Init.");
             setupPauseDetector();
         }
     }
-});
 
-observer.observe(document.body, { childList: true, subtree: true });
+    // Watch for dynamic changes
+    const observer = new MutationObserver(() => {
+        if (!textArea) {
+            textArea = detectTextArea();
+            if (textArea) console.log("[Sovereign] Input Found via Mutation.");
+        }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+// Start only when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startSovereignObserver);
+} else {
+    startSovereignObserver();
+}
+
+// --- DEBUG: CLICK-TO-LOG REFLEX ---
+// This allows us to manually verify what the extension sees when we touch the UI.
+document.addEventListener('click', (event) => {
+    const target = event.target;
+    const detected = detectTextArea();
+
+    console.group("👁️ [Sovereign Debug] Retina Scan");
+    console.log("🖱️ Clicked Element:", target);
+    console.log("🏷️ Clicked Class:", target.className);
+
+    if (detected) {
+        console.log("%c✅ Active Input Detected:", "color:green;font-weight:bold", detected);
+        console.log("📝 Current Value:", detected.value || detected.innerText || detected.textContent);
+    } else {
+        console.log("%c❌ No Input Detected via Selector", "color:red;font-weight:bold");
+        console.log("🔍 Current Selector for Domain:", SELECTORS[window.location.hostname] || "NONE");
+    }
+    console.groupEnd();
+});

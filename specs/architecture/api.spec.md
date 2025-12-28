@@ -20,6 +20,12 @@ The "Bridge" acts as a reverse-proxy, exposing the browser's WebLLM engine as an
 - **Format:** OpenAI Standard.
 - **Flow:** Forwards to `webgpu-server-embed.html`.
 
+### `POST /v1/shell/exec`
+- **Purpose:** Neural Shell Protocol (The Hands). Executes arbitrary shell commands on host.
+- **Format:** JSON `{ "cmd": "string" }`.
+- **Response:** JSON `{ "stdout": "...", "stderr": "...", "code": 0 }`.
+- **Security:** Strict Token Auth required. 30s timeout.
+
 ## WebSockets
 - `/ws/chat`: Connection for Chat Worker.
 - `/ws/embed`: Connection for Embedding Worker.

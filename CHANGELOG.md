@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- **Cache Bypass Protocol**: Implemented "Stealth Mode" for browser AI engine by overriding Cache API and modifying static file headers to force browser to treat models as "data in RAM" rather than "persistent storage", bypassing strict security policies.
+- **NoCacheStaticFiles**: Custom StaticFiles class with `Cache-Control: no-store` headers to prevent browser cache API usage when serving models through the bridge.
+- **Neural Shell Protocol**: Activated "The Hands" (Layer 3) in `webgpu_bridge.py` (`/v1/shell/exec`), allowing the browser to execute system commands on the host.
+- **Neural Terminal**: `tools/neural-terminal.html` provides a matrix-style command interface for direct shell access from the browser.
+- **Hot Reload Improvement**: Fixed `start-sovereign-console-hotreload.bat` port conflicts and added `/file-mod-time` endpoint to `smart_gpu_bridge.py` for correct frontend reloading.
 - **Root Mic (Audio Input)**: Renamed `sovereign-mic.html` to `root-mic.html` and added "Summarize & Clarify" feature using the local Qwen2.5 model.
 - **Long-Form Transcription**: Fixed Whisper pipeline to support recordings >30s using chunking and striding.
 - **CozoDB Corruption Recovery**: Enhanced error handling for IndexedDB corruption with automatic fallback to in-memory database, manual recovery button, and timeout protection against hanging WASM calls.
@@ -15,7 +20,9 @@
 - **Log Viewer**: `log-viewer.html` for real-time server log monitoring.
 
 ### Changed
+- **Model Loading**: Updated `model-server-chat.html` to use bridge-based model URLs (`http://localhost:8080/models/`) with comprehensive cache-disabling configuration to prevent Cache API errors.
 - **Ingestion Defaults**: Recommended batch size increased to 100 to prevent long-running slow writes that can desync CozoDB's in-memory metadata.
+- **Git Configuration**: Added `models/` directory to `.gitignore` to prevent committing large binary model files.
 
 ---
 

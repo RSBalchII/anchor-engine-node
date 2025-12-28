@@ -1,6 +1,16 @@
 # Tools Changelog
 
-## [Unreleased] - 2025-12-23
+## [Unreleased] - 2025-12-26
+
+### Added
+- **On-Demand Model Serving**: `model-server-chat.html` now checks `http://localhost:8080/models/{id}` before loading. If missing, it triggers a download via the Bridge.
+- **Quota Bypass**: Using `useIndexedDBCache: false` for large models to bypass browser storage limits, relying on the Bridge's local file server instead.
+
+### Fixed
+- **Model ID Mismatch**: Fixed logic in `loadModel` where the `mlc-ai/` prefix was being aggressively stripped, causing config lookups to fail.
+- **UI Progress**: Added real-time progress bars for server-side model downloads.
+
+ - 2025-12-23
 
 ### Added
 - **Orchestrator Model:** New `orchestrator.py` tool to programmatically interact with the MLC Bridge from Python.

@@ -13,7 +13,7 @@ echo.
 echo Launching WebGPU Bridge (API Backend)...
 set BRIDGE_PORT=8080
 set BRIDGE_TOKEN=sovereign-secret
-start "WebGPU Bridge" cmd /k "cd /d "%~dp0" && python tools/webgpu_bridge.py"
+start "WebGPU Bridge" cmd /k "cd /d "%~dp0" && python scripts/smart_gpu_bridge.py"
 
 echo Launching File Server from tools directory...
 start "File Server" cmd /k "cd /d "%~dp0\tools" && python -m http.server 8000"
