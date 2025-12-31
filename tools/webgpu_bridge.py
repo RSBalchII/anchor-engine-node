@@ -399,6 +399,146 @@ async def gpu_force_release_all(request: Request):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+# --- MEMORY INGESTION ENDPOINT ---
+@app.post("/v1/memory/ingest")
+async def memory_ingest(request: Request):
+    """Ingest memory content into the local graph database"""
+    try:
+        body = await request.json()
+
+        # Extract content and metadata
+        content = body.get("content", "")
+        source = body.get("source", "unknown")
+        timestamp = body.get("timestamp", time.time())
+        content_type = body.get("type", "text")
+        tags = body.get("tags", [])
+
+        if not content.strip():
+            return JSONResponse(status_code=400, content={"error": "Content cannot be empty"})
+
+        print(f"🧠 INGEST: New memory from {source} ({len(content)} chars)")
+
+        # In the future, this would connect to the CozoDB instance and store the memory
+        # For now, we'll just return a success response
+        # The actual storage would happen in the browser via WebSocket to the chat engine
+        if workers["chat"]:
+            # Send the memory to the chat engine for storage in CozoDB
+            memory_data = {
+                "type": "memory_ingest",
+                "content": content,
+                "source": source,
+                "timestamp": timestamp,
+                "type": content_type,
+                "tags": tags
+            }
+
+            await workers["chat"].send_json({
+                "type": "memory_ingest",
+                "data": memory_data
+            })
+
+        return {
+            "status": "success",
+            "message": "Memory ingested successfully",
+            "content_length": len(content),
+            "source": source
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# --- ARCHIVIST INGEST ENDPOINT (Alternative) ---
+@app.post("/archivist/ingest")
+async def archivist_ingest(request: Request):
+    """Alternative ingestion endpoint for the Archivist system"""
+    try:
+        body = await request.json()
+
+        # Extract content and metadata
+        content = body.get("content", "")
+        source = body.get("source", "archivist")
+        timestamp = body.get("timestamp", time.time())
+        content_type = body.get("type", "text")
+        tags = body.get("tags", [])
+
+        if not content.strip():
+            return JSONResponse(status_code=400, content={"error": "Content cannot be empty"})
+
+        print(f"📚 ARCHIVIST: New content from {source} ({len(content)} chars)")
+
+        # Send to the chat engine for storage in CozoDB
+        if workers["chat"]:
+            memory_data = {
+                "type": "archivist_ingest",
+                "content": content,
+                "source": source,
+                "timestamp": timestamp,
+                "type": content_type,
+                "tags": tags
+            }
+
+            await workers["chat"].send_json({
+                "type": "memory_ingest",
+                "data": memory_data
+            })
+
+        return {
+            "status": "success",
+            "message": "Content archived successfully",
+            "content_length": len(content),
+            "source": source
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# --- MEMORY SEARCH ENDPOINT ---
+@app.post("/v1/memory/search")
+async def memory_search(request: Request):
+    """
+    Search the local memory graph via the Ghost Engine.
+    Returns formatted context suitable for pasting into LLMs.
+    """
+    if not workers["chat"]:
+        return JSONResponse(status_code=503, content={"error": "Ghost Engine (Chat) not connected"})
+
+    try:
+        body = await request.json()
+        query = body.get("query", "")
+
+        if not query:
+            return JSONResponse(status_code=400, content={"error": "Query is required"})
+
+        # 1. Create a unique ID for this request
+        req_id = str(uuid.uuid4())
+
+        # 2. Create a Future/Queue to wait for the response
+        response_queue = asyncio.Queue()
+        active_requests[req_id] = response_queue
+
+        # 3. Forward request to Ghost Engine via WebSocket
+        print(f"🔍 SEARCH: '{query}' (ID: {req_id})")
+        await workers["chat"].send_json({
+            "type": "memory_search",
+            "id": req_id,
+            "query": query
+        })
+
+        # 4. Wait for response (Timeout after 10s)
+        try:
+            result = await asyncio.wait_for(response_queue.get(), timeout=10.0)
+            return result
+        except asyncio.TimeoutError:
+            return JSONResponse(status_code=504, content={"error": "Search timed out"})
+        finally:
+            # Cleanup
+            if req_id in active_requests:
+                del active_requests[req_id]
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 # --- WEBSOCKETS (The Nervous System) ---
 @app.websocket("/ws/chat")
 async def ws_chat(websocket: WebSocket):

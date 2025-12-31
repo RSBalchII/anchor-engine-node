@@ -75,6 +75,14 @@
 - [ ] **Unsloth Training Pipeline**: RTX 4090 based fine-tuning.
 - [ ] **Model Merging**: FrankenMoE construction.
 
+### Phase 6: Model Loading Optimization (Completed)
+- [x] **Online-First Approach**: Implemented online-only model loading based on working `anchor-mic.html` implementation.
+- [x] **Simplified Configuration**: Removed complex local file resolution that caused hangs in `chat.html`.
+- [x] **Archived Complex Logic**: Preserved old implementation as `loadModel_archived()` for future reference.
+- [x] **Bridge Redirect Enhancement**: Improved `/models/{model}/resolve/main/{file}` endpoint for smart local/online fallback.
+- [x] **Model Availability Testing**: Enhanced testing protocols to verify model accessibility across components.
+- [x] **Documentation Updates**: Created Standards 007-011 to document model loading improvements.
+
 ## Backlog
 - [ ] **Federation Protocol**: P2P sync.
 - [ ] **Android App**: Wrapper for Root Coda.

@@ -49,6 +49,14 @@
 - [x] **Index Creation**: Added FTS index creation in memory initialization routines.
 - [x] **Stemming Support**: Enabled English stemming for improved word variation matching.
 
-## Phase 6: Federation
+## Phase 6: Model Loading Optimization (Completed)
+- [x] **Online-First Approach**: Implemented online-only model loading based on working `anchor-mic.html` implementation (Standard 007).
+- [x] **Simplified Configuration**: Removed complex local file resolution that caused hangs.
+- [x] **Archived Complex Logic**: Preserved old implementation for future reference while using working approach.
+- [x] **Bridge Redirect Enhancement**: Improved `/models/{model}/resolve/main/{file}` endpoint for smart local/online fallback.
+- [x] **Model Availability Testing**: Enhanced testing protocols to verify model accessibility across components.
+- [x] **Documentation Updates**: Created Standards 007-011 to document model loading improvements.
+
+## Phase 7: Federation
 - [ ] **Device Sync**: Sync IndexedDB across devices (Peer-to-Peer).
 - [ ] **Local-First Cloud**: Optional encrypted backup.

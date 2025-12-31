@@ -10,8 +10,9 @@ Just you, your browser, and your infinite context.
 ## ⚡ Quick Start
 
 1.  **Download** this repository.
-2.  **Open** `tools/index.html` in Chrome or Edge.
-3.  **Click** "Double Click to Launch" on the Console.
+2.  **Launch** the unified system: `start-anchor.bat`
+3.  **Open** `http://localhost:8000` in Chrome or Edge.
+4.  **Click** "Double Click to Launch" on the Console.
 
 *That's it. You are running a local LLM with persistent Graph Memory.*
 
@@ -19,12 +20,21 @@ Just you, your browser, and your infinite context.
 
 ## 🏗️ Architecture
 
-The system runs entirely in `tools/` using WebAssembly (WASM).
+The system runs entirely in `tools/` using WebAssembly (WASM) with a unified Anchor Core architecture.
 
-### 1. The Sovereign Loop
+### 1. The Anchor Loop
 ```mermaid
 graph TD
-    User -->|Input| HTML[model-server-chat.html]
+    User -->|Input| HTML[chat.html]
+
+    subgraph "ANCHOR CORE (Port 8000)"
+        Bridge[WebGPU Bridge]
+        API["API Endpoints"]
+        UI["UI Server"]
+    end
+
+    HTML -->|WebSocket| Bridge
+    Bridge -->|API| Ghost["Ghost Engine (Headless Browser)"]
 
     subgraph Browser_Memory ["Two Birds, One Stone"]
         HTML -->|Store/Retrieve| Cozo["CozoDB WASM"]
@@ -32,8 +42,8 @@ graph TD
     end
 
     subgraph Cognitive_Engine
-        HTML -->|Context + Prompt| WebLLM["DeepSeek-R1 (WASM)"]
-        WebLLM -->|Reasoning Trace| HTML
+        Ghost -->|Context + Prompt| WebLLM["DeepSeek-R1 (WASM)"]
+        WebLLM -->|Reasoning Trace| Ghost
     end
 ```
 
@@ -41,6 +51,8 @@ graph TD
 *   **Brain**: `chat.html` - Runs the Graph-R1 Reasoning Loop. Now uses **Hybrid Search** (Vector + BM25 FTS) and supports SOTA models (Qwen 3, Gemma 3).
 *   **Memory**: `CozoDB (WASM)` - Stores relations (`*memory`) and vectors. Persists to browser IndexedDB.
 *   **Stomach**: `db_builder.html` - Ingests files into the graph. Now "Multisensory-Ready" (Phase A): accepts images/audio as references.
+*   **Core**: `webgpu_bridge.py` - Unified server handling API, UI, and WebSocket connections on port 8000.
+*   **Ghost**: Headless browser engine providing GPU access for inference.
 
 ---
 
@@ -76,20 +88,27 @@ The system includes a comprehensive hot reload mechanism for GPU management and 
 - **Stale Lock Prevention**: Automatic cleanup during reloads
 - **Development Convenience**: Built-in triggers for manual reloads
 
-## 🏛️ Ghost & Shell Architecture
+## 🏛️ Anchor Core Architecture
 
-The system now features the Ghost & Shell architecture for native OS integration:
+The system now features the unified Anchor Core architecture for simplified deployment:
 
-*   **Ghost Engine**: Headless browser running inference in background (`launch-ghost.ps1`)
-*   **Shell Interface**: Native terminal with natural language processing (`anchor.py`, `neural-terminal.html`)
-*   **Bridge Protocol**: Secure communication via WebGPU bridge on port 8080
+*   **Anchor Core**: Single-process server handling API, UI, and WebSockets on port 8000 (`webgpu_bridge.py`)
+*   **Ghost Engine**: Headless browser running inference in background (launched by `start-anchor.bat`)
+*   **Shell Interface**: Native terminal with natural language processing (`anchor.py`, `terminal.html`)
 *   **Spawn Endpoint**: Launch native terminals from dashboard (`/v1/system/spawn_shell`)
 
-### Getting Started with Ghost & Shell
-1. Start the complete system: `start-ghost-shell.bat`
+### Getting Started with Anchor Core
+1. Start the unified system: `start-anchor.bat`
 2. Access the dashboard: `http://localhost:8000`
 3. Click "Anchor Shell" to spawn native terminal, or use `python tools/anchor.py`
-4. Use natural language commands (prefix with `?` in neural terminal)
+4. Use natural language commands in the terminal
+
+### Model Loading Strategy (Standard 007)
+The system now uses an online-first model loading approach for reliability:
+*   **Primary**: Direct HuggingFace URLs for immediate availability
+*   **Fallback**: Local model files when available
+*   **Bridge Redirect**: `/models/{model}/resolve/main/{file}` handles resolution logic
+*   **Simplified Configuration**: Online-only approach prevents loading hangs
 
 ### Known Issues
 * **Headless GPU Access**: WebGPU may not initialize in some headless environments. Ensure GPU drivers are up to date and hardware acceleration is enabled in browser settings.

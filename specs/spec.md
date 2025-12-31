@@ -44,16 +44,29 @@ graph TD
     Bridge -->|API| Ghost_Engine
     Ghost_Engine -->|GPU| Worker
     ChatAPI -->|MLC-LLM| Worker
-    Resolver -->|File Redirect| Models[Local Model Files]
+    Resolver -->|File Redirect| Models[Local/Online Model Files]
     UI -->|Context Retrieval| Search_Engine
     Search_Engine -->|Hybrid Results| UI
+
+    subgraph ModelLoading
+        UI -->|Requests| Resolver
+        Resolver -->|Local First| Models
+        Models -->|Fallback| Online[Online Models]
+    end
 ```
 
-## 2. Port Map
+## 2. Model Loading Strategy (Standard 007)
+The system now uses an online-first model loading approach for reliability:
+- **Primary**: Direct HuggingFace URLs for immediate availability
+- **Fallback**: Local model files when available
+- **Bridge Redirect**: `/models/{model}/resolve/main/{file}` handles resolution logic
+- **Simplified Configuration**: Online-only approach prevents loading hangs (Standard 007)
+
+## 3. Port Map
 
 * **8000**: **The One Port.** Serves UI, API, Models, and WebSocket connections.
 
-## 3. Search Architecture
+## 4. Search Architecture
 
 * **Hybrid Retrieval**: Combines Vector search (semantic) with BM25 (lexical) for optimal results.
 * **BM25 FTS**: CozoDB Full Text Search with stemming and relevance scoring.
