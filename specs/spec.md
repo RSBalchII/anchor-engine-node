@@ -1,6 +1,6 @@
-# Anchor Core: The Visual Monolith (v3.0)
+# Anchor Core: The Visual Monolith (v3.2)
 
-**Status:** Unified Architecture | **Philosophy:** One Port, One Truth.
+**Status:** Browser-Controlled Architecture | **Philosophy:** Visual Command Center, Resource-Queued.
 
 ## 1. The Anchor Architecture
 The **Anchor Core** (`webgpu_bridge.py`) is the unified server. The **Ghost Engine** is a headless browser window acting as the GPU Worker.
@@ -12,41 +12,52 @@ graph TD
 
         subgraph Assets
             UI[chat.html]
-            Anchor[anchor-mic.html]
-            Builder[db_builder.html]
-            Memory[memory-builder.html]
+            Context[context.html]
+            Sidecar[sidecar.html]
+            Vision[vision_engine.py]
+            Dreamer[memory-builder.html]
         end
 
         subgraph API_Endpoints
             ChatAPI["/v1/chat/completions"]
-            ShellAPI["/v1/shell/exec"]
-            ModelAPI["/v1/models/pull"]
-            GPUAPI["/v1/gpu/lock"]
-            SystemAPI["/v1/system/spawn_shell"]
-        end
-
-        subgraph Model_Redirect
-            Resolver["/models/{model}/resolve/main/{file}"]
+            SearchAPI["/v1/memory/search"]
+            VisionAPI["/v1/vision/ingest"]
+            GPUAPI["/v1/gpu/lock, /v1/gpu/unlock, /v1/gpu/status"]
+            LogAPI["/logs/recent, /logs/collect"]
         end
     end
 
     subgraph Ghost_Engine [Headless Browser]
         Worker[WebLLM (WASM)]
         Memory[CozoDB (WASM)]
-        subgraph Search_Engine
-            Vector[Vector Search]
-            BM25[BM25 FTS]
-        end
+        Search[Hybrid Search]
+        GPU[WebGPU Resources]
     end
 
-    User -->|HTTP| UI
-    UI -->|WebSocket| Bridge
+    User -->|HTTP| Sidecar
+    User -->|HTTP| Context
+
+    Sidecar -->|Vision Ingest| VisionAPI
+    Sidecar -->|Search| SearchAPI
+    VisionAPI -->|VLM Analysis| Vision
+    Vision -->|Memory Ingest| Ghost_Engine
+    SearchAPI -->|Query| Ghost_Engine
+    Ghost_Engine -->|Ground Truth| Sidecar
+
+    Sidecar -->|GPU Lock| GPUAPI
+    GPUAPI -->|Queue Manager| Ghost_Engine
+    Ghost_Engine -->|GPU| Worker
+
     Bridge -->|API| Ghost_Engine
     Ghost_Engine -->|GPU| Worker
     ChatAPI -->|MLC-LLM| Worker
+    SearchAPI -->|Memory Query| Memory
+    Dreamer -->|Background Processing| Memory
     Resolver -->|File Redirect| Models[Local Model Files]
     UI -->|Context Retrieval| Search_Engine
     Search_Engine -->|Hybrid Results| UI
+    Bridge -->|Log Collection| LogAPI
+    LogAPI -->|Central Buffer| LogViewer[log-viewer.html]
 ```
 
 ## 2. Port Map

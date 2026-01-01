@@ -75,6 +75,31 @@
 - [ ] **Unsloth Training Pipeline**: RTX 4090 based fine-tuning.
 - [ ] **Model Merging**: FrankenMoE construction.
 
+## Phase 6: GPU Resource Management (Completed)
+- [x] **GPU Queuing System**: Implement `/v1/gpu/lock`, `/v1/gpu/unlock`, and `/v1/gpu/status` endpoints with automatic queuing
+- [x] **Resource Conflict Resolution**: Eliminate GPU lock conflicts with proper queue management
+- [x] **503 Error Resolution**: Fix "Service Unavailable" errors by implementing proper resource queuing
+- [x] **Sidecar Integration**: Add GPU status monitoring to sidecar interface
+- [x] **Log Integration**: Add GPU resource management logs to centralized logging system
+- [x] **Documentation**: Update specs and standards to reflect GPU queuing system
+
+## Phase 7: Async/Await Best Practices (Completed)
+- [x] **Coroutine Fixes**: Resolve "coroutine was never awaited" warnings in webgpu_bridge.py
+- [x] **Event Loop Integration**: Properly integrate async functions with FastAPI's event loop
+- [x] **Startup Sequence**: Ensure logging system initializes properly with application lifecycle
+- [x] **Resource Management**: Fix resource cleanup in WebSocket handlers to prevent leaks
+- [x] **Error Handling**: Enhance async error handling with proper cleanup procedures
+- [x] **Documentation**: Create Standard 014 for async/await best practices
+
+## Phase 8: Browser-Based Control Center (Completed)
+- [x] **Sidecar UI**: Implement `tools/sidecar.html` with dual tabs for retrieval and vision
+- [x] **Context UI**: Implement `tools/context.html` for manual context retrieval
+- [x] **Vision Engine**: Create `tools/vision_engine.py` for Python-powered image analysis
+- [x] **Bridge Integration**: Update `webgpu_bridge.py` to serve UI and handle vision endpoints
+- [x] **Endpoint Implementation**: Add `/v1/vision/ingest`, `/v1/memory/search`, `/logs/recent` endpoints
+- [x] **File-based Logging**: Implement persistent logging to `logs/` directory with truncation
+- [x] **Documentation**: Update specs and standards to reflect new architecture
+
 ## Backlog
 - [ ] **Federation Protocol**: P2P sync.
 - [ ] **Android App**: Wrapper for Root Coda.

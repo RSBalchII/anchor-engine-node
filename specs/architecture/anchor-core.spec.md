@@ -41,13 +41,24 @@ graph TD
 
 ### 2. Shell Protocol (The Hands)
 - **`/v1/shell/exec`**: Execute system commands via bridge
-- **`/v1/system/spawn_shell`**: Spawn native PowerShell terminal
 
-### 3. Dashboard (`index.html`)
-- **Role:** Central launch point for all components
-- **Features:** Direct spawn of native Anchor shell
+### 3. Context System
+- **Context UI**: Read-only interface for quick context retrieval and copy-paste.
+- **Memory Search**: Query the Ghost Engine's Graph (Vector + BM25) for relevant context.
+- **Memory Builder**: Background processor using Qwen 1.5B in WebGPU for memory processing.
 
 ## Endpoints
+
+### `GET /sidecar`
+- **Function:** Serves the Context UI (consolidated interface).
+
+### `GET /context`
+- **Function:** Serves the Context UI (consolidated interface).
+
+### `POST /v1/memory/search`
+- **Function:** Queries the Ghost Engine's Graph (Vector + BM25).
+- **Input:** `{ "query": "string" }`
+- **Output:** `{ "context": "Formatted Ground Truth..." }`
 
 ### `POST /v1/chat/completions`
 - **Function:** Proxy to browser engine

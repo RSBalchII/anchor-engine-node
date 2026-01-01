@@ -76,6 +76,56 @@ The system includes a comprehensive hot reload mechanism for GPU management and 
 - **Stale Lock Prevention**: Automatic cleanup during reloads
 - **Development Convenience**: Built-in triggers for manual reloads
 
+## 🧠 Text-Only Architecture
+
+The system now focuses purely on text context and memory processing using browser-native WebGPU.
+
+* **Memory Builder (`memory-builder.html`)**: Background processor using Qwen 1.5B in WebGPU
+* **CozoDB (WASM)**: Local storage in browser IndexedDB
+* **Ghost Engine**: Headless browser handles all processing via WebGPU
+
+## 🎛️ Control Center
+
+* **Context UI (`/context` or `/sidecar`)**: Single, focused interface for retrieval and search in local memory graph. Both endpoints serve the same interface.
+
+## 📊 Logging & Monitoring
+
+The system provides comprehensive logging for debugging and monitoring:
+
+*   **Central Log Viewer**: Access all logs at `http://localhost:8000/log-viewer.html`
+*   **File-based Logs**: Individual component logs in the `logs/` directory
+*   **Log Truncation**: Automatic truncation to last 1000 lines per file
+*   **Real-time Streaming**: Live log updates from all system components
+
+### Log Access
+1. **Web Interface**: Visit `http://localhost:8000/log-viewer.html` for real-time logs
+2. **File System**: Check individual log files in the `logs/` directory
+3. **API Endpoint**: Access recent logs via `/logs/recent` endpoint
+
+## 🖥️ Browser-Based Control Center
+
+The system now features a unified browser-based control center:
+
+*   **Sidecar Interface**: Access the control center at `http://localhost:8000/sidecar`
+*   **Dual Tabs**: "Retrieve" tab for context search and "Observe" tab for vision processing
+*   **Vision Processing**: Drag-and-drop image processing with Python-powered VLM
+*   **Context Retrieval**: Manual context retrieval with one-click copy functionality
+*   **System Status**: Real-time system status and log monitoring
+
+## 📱 Low-Resource & Mobile Optimization
+
+The system now supports low-resource devices (phones, small laptops) and CPU-only operation:
+
+*   **Low-Resource Mode**: Set `LOW_RESOURCE_MODE=true` for conservative settings (64MB GPU buffer, single-threaded)
+*   **CPU-Only Mode**: Set `CPU_ONLY_MODE=true` to force CPU processing when GPU is unavailable
+*   **Mobile Ready**: Optimized for phones and tablets with reduced memory usage
+*   **Small Models**: Default to smallest available models (Phi-3.5-mini) for constrained hardware
+
+### Getting Started with Low-Resource Mode
+1. Set environment variable: `set LOW_RESOURCE_MODE=true`
+2. Start the system: `start-anchor.bat`
+3. For CPU-only: `set CPU_ONLY_MODE=true` before starting
+
 ## 🏛️ Ghost & Shell Architecture
 
 The system now features the Ghost & Shell architecture for native OS integration:

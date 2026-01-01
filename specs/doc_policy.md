@@ -26,7 +26,7 @@
 
 ### 4. Standards (`specs/standards/*.md`)
 *   **Role:** Institutional Memory (The "Laws" of the codebase).
-*   **Trigger:** Created after any bug that took >1 hour to fix.
+*   **Trigger:** Created after any bug that took >1 hour to fix OR any systemic improvement that affects multiple components.
 *   **Format:** "The Triangle of Pain"
     1.  **What Happened:** The specific failure mode (e.g., "Bridge crashed on start").
     2.  **The Cost:** The impact (e.g., "3 hours debugging Unicode errors").
@@ -35,6 +35,12 @@
 ### 5. Local Context (`*/README.md`)
 *   **Role:** Directory-specific context.
 *   **Limit:** 1 sentence explaining the folder's purpose.
+
+### 6. System-Wide Standards
+*   **Universal Logging:** All system components must route logs to the central log collection system (Standard 013)
+*   **Single Source of Truth:** The log viewer at `/log-viewer.html` is the single point for all system diagnostics
+*   **Async Best Practices:** All async/await operations must follow proper patterns for FastAPI integration (Standard 014)
+*   **Browser Control Center:** All primary operations must be accessible through unified browser interface (Standard 015)
 
 ## LLM Protocol
 1. **Read-First:** Always read `specs/spec.md` AND `specs/standards/` before coding.

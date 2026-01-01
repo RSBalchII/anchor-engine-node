@@ -7,6 +7,7 @@ This directory contains all test files for the Anchor Core system, organized to 
 ### Python Tests
 - `comprehensive_test_suite.py` - Main test suite covering model loading, data pipeline, endpoint verification, and syntax checking
 - `endpoint_syntax_verification.py` - Specific tests for endpoint accessibility and syntax verification
+- `test_new_endpoints.py` - Tests for new sidecar, context, and vision endpoints
 - `test_model_loading.py` - Tests for model loading functionality and endpoint accessibility
 - `test_model_availability.py` - Tests for model availability and download capability
 - `test_gpu_fixes.py` - Tests for GPU resource management and lock functionality

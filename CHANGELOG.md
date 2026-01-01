@@ -1,5 +1,249 @@
 # Context-Engine Changelog
 
+## [2.2.11] - 2025-12-31 "GPU Resource Queuing System"
+
+### Added
+- **GPU Management Endpoints**: Added comprehensive GPU resource management with queuing:
+  - `POST /v1/gpu/lock` - Acquire GPU lock with automatic queuing
+  - `POST /v1/gpu/unlock` - Release GPU lock and process next in queue
+  - `GET /v1/gpu/status` - Check GPU lock status and queue depth
+  - `POST /v1/gpu/reset` - Reset GPU state
+  - `POST /v1/gpu/force-release-all` - Force release all GPU locks
+- **Queuing System**: Implemented automatic queuing for GPU resource requests to prevent conflicts
+- **Resource Management**: Added proper GPU state tracking with owner identification
+- **Lock Token System**: Implemented token-based GPU lock system for secure access
+
+### Changed
+- **GPU Access**: All GPU operations now go through queuing system to prevent resource conflicts
+- **Error Handling**: Improved GPU resource error handling with proper queue management
+- **API Endpoints**: Enhanced with GPU resource management capabilities
+
+## [2.2.11] - 2025-12-31 "GPU Queue Management Fix"
+
+### Fixed
+- **Queue State Management**: Fixed issue where GPU queue length was not properly updated after lock acquisition
+- **Resource Handoff**: Corrected GPU resource handoff logic to properly clear queue when resources are available
+- **Status Reporting**: Fixed GPU status endpoint to accurately report queue state
+- **Immediate Acquisition**: Fixed logic so immediate lock acquisitions don't remain in queue
+
+### Changed
+- **GPU Queuing**: Improved GPU resource queuing with accurate state management
+- **Endpoint Responses**: Enhanced endpoint responses with correct queue status reporting
+
+## [2.2.12] - 2025-12-31 "UI Endpoint Fixes & Log File Verification"
+
+### Fixed
+- **UI Endpoints**: Fixed `/context` and `/sidecar` endpoints to properly serve HTML files with correct paths
+- **File Response**: Corrected FileResponse paths to use absolute paths for reliable file serving
+- **Endpoint Accessibility**: Resolved 500 errors for UI endpoints by fixing file path resolution
+- **Static File Serving**: Enhanced static file serving for HTML interfaces
+
+### Changed
+- **Path Resolution**: Updated endpoint handlers to use proper absolute path resolution for static files
+- **UI Serving**: Improved reliability of UI file serving from the bridge
+- **Error Handling**: Enhanced error handling for file serving operations
+
+## [2.2.11] - 2025-12-31 "Coroutines and Async Fixes"
+
+### Fixed
+- **Async Warnings**: Fixed "coroutine was never awaited" warnings by properly implementing startup event handlers
+- **Event Loop Integration**: Corrected async function calls to work properly with FastAPI's event loop
+- **Resource Management**: Fixed resource cleanup in WebSocket handlers to prevent leaks
+- **Startup Sequence**: Ensured logging system initializes properly with the application lifecycle
+
+### Changed
+- **Async Handling**: Improved async/await patterns throughout the bridge for better stability
+- **Error Handling**: Enhanced error handling for async operations with proper cleanup
+- **Initialization**: Refined startup sequence to ensure all components initialize correctly
+
+## [2.2.10] - 2025-12-31 "Log File System Implementation"
+
+### Added
+- **Logs Directory**: Created `logs/` directory to store individual component logs
+- **File-based Logging**: Each system component now writes to its own log file (e.g., `chat-api.log`, `memory-api.log`, `websocket-bridge.log`)
+- **Log Truncation**: Implemented automatic log truncation to keep only last 1000 lines per file
+- **Individual Log Files**: Separate log files for each component for easier debugging
+
+### Changed
+- **Log Storage**: Moved from in-memory only to file-based persistent logging
+- **Log Management**: Added automatic log rotation and truncation to prevent disk space issues
+- **API Endpoints**: All API endpoints now write to both central buffer and individual log files
+
+## [2.2.9] - 2025-12-31 "Complete Process Log Capture"
+
+### Added
+- **Process Logging**: Added logging for all major system processes (chat, memory search, WebSocket connections)
+- **Error Tracking**: Enhanced error logging with detailed context and request IDs
+- **Status Monitoring**: Added detailed status messages for connection states and process flow
+
+### Changed
+- **Log Collection**: Enhanced centralized log collection with comprehensive process monitoring
+- **API Endpoints**: All API endpoints now log detailed request/response information
+- **WebSocket Handler**: Improved WebSocket connection logging with detailed status updates
+- **Error Handling**: Enhanced error messages with better context and correlation IDs
+
+## [2.2.8] - 2025-12-31 "Universal Log Collection System"
+
+### Added
+- **Log Collection**: Added centralized log collection system in `webgpu_bridge.py` with global log buffer
+- **API Endpoints**: Added `/logs/recent` and `/logs/collect` endpoints for log aggregation
+- **Standard 013**: Created universal log collection standard for all system components
+- **Cross-Platform Logging**: Implemented logging from all system components (Python, JavaScript, WebSocket)
+
+### Changed
+- **Log Viewer**: Updated `log-viewer.html` to consume logs from the new centralized endpoint
+- **WebSocket Logging**: Enhanced WebSocket connection to send detailed status messages to log viewer
+- **System Integration**: All components now route logs through the central collection system
+
+## [2.2.7] - 2025-12-31 "Ghost Engine Startup Improvements"
+
+### Fixed
+- **Connection Issues**: Fixed Ghost Engine startup to ensure proper WebSocket connection establishment
+- **Process Launch**: Improved startup scripts to properly launch Ghost Engine with correct parameters
+- **CPU-Only Mode**: Enhanced CPU-only mode startup with appropriate browser flags
+- **Low-Resource Mode**: Fixed low-resource mode startup with conservative GPU settings
+
+### Changed
+- **Startup Scripts**: Updated `start-anchor.bat` and `start-low-resource.bat` with better Ghost Engine launch parameters
+- **Connection Timing**: Improved timing between server and Ghost Engine startup
+- **User Feedback**: Added clearer status messages during startup process
+
+## [2.2.6] - 2025-12-31 "WebGPU Adapter Error Handling"
+
+### Fixed
+- **WebGPU Errors**: Added specific handling for "No WebGPU Adapter found" errors on Snapdragon/limited GPU devices
+- **Error Messages**: Improved error messages to guide users when WebGPU is unavailable
+- **Graceful Degradation**: System now provides helpful guidance instead of failing silently
+
+### Changed
+- **Chat Endpoint**: Enhanced `/v1/chat/completions` to handle WebGPU adapter errors gracefully
+- **Error Response**: More informative error messages for GPU-related issues
+- **User Guidance**: Clear instructions for users with unsupported GPU configurations
+
+## [2.2.5] - 2025-12-31 "Log Viewer Consolidation"
+
+### Added
+- **Single Panel**: Consolidated all logs into one unified panel for easier monitoring
+- **Stream Collection**: All app processes now stream to single consolidated view
+- **Efficiency**: Removed unused chat and context panels that were empty
+
+### Changed
+- **Log Viewer**: `tools/log-viewer.html` now shows all logs in single panel
+- **UI Simplification**: Streamlined interface for better usability
+- **Copy Functionality**: Simplified copy to clipboard for all logs at once
+
+## [2.2.4] - 2025-12-31 "Chat Client & Bridge Reorientation"
+
+### Added
+- **Chat Client**: Converted `tools/anchor.py` from Shell Executor to Chat Client interface
+- **Stream Accumulation**: Enhanced bridge to properly accumulate chat stream responses
+- **Terminal Chat**: Added conversation history and context management to CLI
+
+### Fixed
+- **Chat Response**: Fixed issue where chat responses were cut off due to stream handling
+- **Bridge Protocol**: Improved WebSocket message handling for complete response delivery
+- **Conversation Flow**: Added proper conversation history management in CLI
+
+### Changed
+- **Architecture**: Shifted from command execution to chat interface in terminal client
+- **API Handling**: Bridge now accumulates streaming responses for non-streaming API compatibility
+- **User Experience**: Terminal client now provides full chat experience with context
+
+## [2.2.3] - 2025-12-31 "Ghost Engine Startup Fix"
+
+### Fixed
+- **JavaScript Disabled**: Removed `--disable-javascript` flag that was preventing Ghost Engine from starting
+- **WASM Engine**: Fixed issue where WebAssembly AI engine couldn't load with JavaScript disabled
+- **WebSocket Connection**: Resolved "Failed to fetch" errors by enabling JavaScript in headless browser
+- **Memory Search**: Fixed context search functionality by ensuring Ghost Engine starts properly
+
+### Changed
+- **Startup Scripts**: Updated `start-anchor.bat` and `start-low-resource.bat` to enable JavaScript
+- **Ghost Engine**: Headless browser now properly loads WASM AI engine and connects to bridge
+
+## [2.2.2] - 2025-12-31 "Context Search Fix"
+
+### Fixed
+- **Memory Search**: Fixed 503 errors when Ghost Engine is disconnected by providing helpful error messages
+- **WebSocket Handling**: Improved handling of search result responses from Ghost Engine
+- **Timeout Management**: Added proper timeout handling for search requests
+- **Error Messages**: Enhanced error messages to guide users when Ghost Engine is not connected
+
+### Changed
+- **Search Endpoint**: Improved `/v1/memory/search` to handle disconnected Ghost Engine gracefully
+- **Chat Endpoint**: Enhanced error handling for chat completions when Ghost Engine is unavailable
+
+## [2.2.1] - 2025-12-31 "UI Consolidation"
+
+### Removed
+- **Sidecar Interface**: Removed duplicate sidecar.html interface to consolidate to single Context UI
+- **Redundant Endpoints**: Streamlined UI access to focus on single interface
+
+### Added
+- **Context UI**: Single, focused interface for retrieval and search functionality
+- **Endpoint Consolidation**: Both `/sidecar` and `/context` now serve the same Context UI
+
+### Changed
+- **UI Strategy**: Shifted from multiple similar interfaces to single, focused Context UI
+- **User Experience**: Simplified navigation with single interface for context retrieval
+
+## [2.2.0] - 2025-12-31 "Text-Only Architecture Pivot"
+
+### Removed
+- **Vision Engine**: Removed Python-based vision_engine.py and Ollama dependency
+- **Image Processing**: Removed all /v1/vision/* endpoints and image-related functionality
+- **External Dependencies**: Eliminated heavy Python/Ollama dependencies for lightweight operation
+
+### Added
+- **Text-Only Focus**: Streamlined architecture focusing purely on text context and memory
+- **Simplified Bridge**: Cleaned webgpu_bridge.py with only essential context relay functionality
+- **Memory Builder**: Reinforced tools/memory-builder.html as the primary background processor
+- **Browser-Native Processing**: Leverage Ghost Engine (WebGPU) for all processing needs
+
+### Changed
+- **Architecture**: Shifted from multi-component system to lightweight, browser-native approach
+- **Processing Model**: Memory processing now handled by Qwen 1.5B in WebGPU (memory-builder.html)
+- **Dependency Management**: Eliminated external inference servers (Ollama) in favor of browser-native models
+- **Sidecar Interface**: Simplified to focus solely on retrieval and search functionality
+
+## [2.1.0] - 2025-12-31 "Daemon Eyes & Passive Observation"
+
+### Added
+- **Daemon Eyes**: Implemented "Digital Proprioception". System now observes user screen activity via `sidecar.html` toggle.
+- **Vision Pipeline**: Integrated `vision_engine.py` to convert images/screenshots into semantic text memories.
+- **Live Context Loop**: Added `POST /v1/vision/screenshot` for non-blocking background context ingestion.
+- **Unified Sidecar**: Merged Retrieval and Vision tools into `tools/sidecar.html`.
+- **Context UI**: Added `tools/context.html` for simplified read-only context retrieval with scrollable display and one-click copy
+- **New Endpoints**: Added bridge endpoints for serving UI and processing vision requests:
+    - `GET /sidecar` - Serves the unified control center
+    - `GET /context` - Serves the read-only context retrieval UI
+    - `POST /v1/vision/ingest` - Handles image upload and VLM processing
+    - `POST /v1/vision/screenshot` - Handles background screenshot processing
+    - `POST /v1/memory/search` - Implements memory graph search functionality
+
+### Changed
+- **Context Strategy**: Shifted from "Manual Copy-Paste" to "Passive Accumulation + Manual Retrieval".
+- **Bridge Architecture**: `webgpu_bridge.py` now manages background tasks (FastAPI `BackgroundTasks`) for image processing to prevent UI freezing.
+- **UI Workflow**: Unified workflow to browser-based control center, reducing terminal interaction needs
+
+## [2.0.3] - 2025-12-31 "Browser-Based Control Center & VLM Integration"
+
+### Added
+- **Vision Engine**: Created `tools/vision_engine.py` for Python-powered image analysis using Ollama backend
+- **Browser Control Center**: Implemented `tools/sidecar.html` with dual tabs for context retrieval and vision ingestion
+- **Context UI**: Added `tools/context.html` for manual context retrieval with scrollable display and one-click copy
+- **New Endpoints**: Added bridge endpoints for serving UI and processing vision requests:
+    - `GET /sidecar` - Serves the sidecar dashboard
+    - `GET /context` - Serves the context retrieval UI
+    - `POST /v1/vision/ingest` - Handles image upload and VLM processing
+    - `POST /v1/memory/search` - Implements memory graph search functionality
+- **VLM Integration**: Full integration pipeline from image upload → Python VLM → memory graph ingestion
+
+### Changed
+- **Bridge Enhancement**: Extended `webgpu_bridge.py` to serve UI files and orchestrate vision processing
+- **Memory Search**: Implemented placeholder search functionality with realistic response structure
+- **UI Workflow**: Unified workflow to browser-based control center, reducing terminal interaction needs
+
 ## [2.0.2] - 2025-12-31 "Test Suite Organization & Pipeline Verification"
 
 ### Added

@@ -1,152 +1,78 @@
-#!/usr/bin/env python3
-"""
-Anchor Terminal - Native Shell Interface for Anchor Core
-
-This script provides a native Python terminal interface that connects to the
-Anchor Core bridge and provides direct access to system resources.
-"""
-
-import os
+import requests
 import sys
 import json
-import requests
-import subprocess
-import platform
 import argparse
-from pathlib import Path
-from datetime import datetime
 
+# Configuration
+BRIDGE_URL = "http://localhost:8000"
 
-class AnchorTerminal:
-    def __init__(self, bridge_url="http://localhost:8000", token="sovereign-secret"):
-        self.bridge_url = bridge_url
-        self.token = token
-        self.headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        self.running = True
-        self.history = []
-        
-    def execute_shell_command(self, cmd):
-        """Execute a shell command via the bridge"""
+def check_connection():
+    try:
+        requests.get(f"{BRIDGE_URL}/health", timeout=1)
+        return True
+    except:
+        return False
+
+def chat_loop():
+    print("\n⚓ Anchor Terminal (Chat Mode)")
+    print("--------------------------------")
+    print("Connecting to Ghost Engine...")
+    
+    if not check_connection():
+        print(f"❌ Could not connect to {BRIDGE_URL}")
+        print("   -> Run 'start-anchor.bat' first.")
+        return
+
+    # Conversation History
+    history = [
+        {"role": "system", "content": "You are Anchor, a helpful AI assistant running locally."}
+    ]
+    
+    print("✅ Connected. Type 'exit' to quit, 'clear' to reset.\n")
+
+    while True:
         try:
-            payload = {"cmd": cmd}
-            response = requests.post(
-                f"{self.bridge_url}/v1/shell/exec",
-                headers=self.headers,
-                json=payload,
-                timeout=30
-            )
-            return response.json()
-        except Exception as e:
-            return {"error": str(e), "stdout": "", "stderr": str(e), "code": -1}
+            user_input = input("You: ").strip()
+            if not user_input: continue
+            
+            if user_input.lower() in ['exit', 'quit']:
+                print("👋 Disconnecting.")
+                break
+                
+            if user_input.lower() == 'clear':
+                history = [history[0]] # Keep system prompt
+                print("--- Context Cleared ---")
+                continue
 
-    def display_response(self, response):
-        """Display the command response in a formatted way"""
-        if "error" in response and response["error"]:
-            print(f"❌ Error: {response['error']}")
-        else:
-            if response.get("stdout"):
-                print(response["stdout"], end="")
-            if response.get("stderr"):
-                print(f"⚠️  stderr: {response['stderr']}", end="")
-            if "code" in response and response["code"] != 0:
-                print(f"🔄 Exit code: {response['code']}")
+            # Add User Message
+            history.append({"role": "user", "content": user_input})
+            print("Anchor: ", end="", flush=True)
 
-    def help_menu(self):
-        """Display help information"""
-        print("\n" + "="*60)
-        print("ANCHOR TERMINAL - NEURAL SHELL PROTOCOL")
-        print("="*60)
-        print("Commands:")
-        print("  <cmd>      - Execute via bridge (remote execution)")
-        print("  history    - Show command history")
-        print("  clear      - Clear screen")
-        print("  exit       - Exit the terminal")
-        print("  !status    - Check bridge status")
-        print("="*60 + "\n")
-
-    def check_bridge_status(self):
-        """Check if the bridge is accessible"""
-        try:
-            response = requests.get(f"{self.bridge_url}/health", timeout=5)
-            if response.status_code == 200:
-                result = response.json()
-                print(f"✅ Bridge connected: {self.bridge_url}")
-                print(f"   Engine status: {result.get('engine', 'unknown')}")
-                return True
-            else:
-                print(f"❌ Bridge error: {response.status_code}")
-                return False
-        except Exception as e:
-            print(f"❌ Bridge unreachable: {e}")
-            return False
-
-    def run(self):
-        """Main terminal loop"""
-        print(f"⚓ ANCHOR TERMINAL v1.0")
-        print(f"🔗 Connected to: {self.bridge_url}")
-        print(f"🖥️  Host: {platform.system()} {platform.release()}")
-        print(f"Type 'help' for available commands or 'exit' to quit.\n")
-        
-        # Check bridge status
-        self.check_bridge_status()
-        print()
-        
-        while self.running:
+            # Send to Bridge
             try:
-                # Get user input
-                user_input = input(f"anchor@{platform.node()}$ ").strip()
+                response = requests.post(
+                    f"{BRIDGE_URL}/v1/chat/completions",
+                    json={
+                        "messages": history,
+                        "stream": False # Bridge accumulates stream for us
+                    },
+                    timeout=120
+                )
                 
-                if not user_input:
-                    continue
-                    
-                # Add to history
-                self.history.append({"timestamp": datetime.now().isoformat(), "command": user_input})
-                
-                # Process commands
-                if user_input.lower() in ['exit', 'quit']:
-                    print("👋 Anchor terminal closing...")
-                    self.running = False
-                    
-                elif user_input.lower() == 'help':
-                    self.help_menu()
-                    
-                elif user_input.lower() == 'clear':
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    
-                elif user_input.lower() == 'history':
-                    print("\nCommand History:")
-                    for i, entry in enumerate(self.history[-10:], 1):  # Show last 10
-                        print(f"  {i:2d}. {entry['command']}")
-                    print()
-                    
-                elif user_input.startswith('!status'):
-                    self.check_bridge_status()
-                    
+                if response.status_code == 200:
+                    data = response.json()
+                    ai_text = data['choices'][0]['message']['content']
+                    print(ai_text + "\n")
+                    history.append({"role": "assistant", "content": ai_text})
                 else:
-                    # Execute via bridge
-                    print(f"📡 Executing on bridge: {user_input}")
-                    response = self.execute_shell_command(user_input)
-                    self.display_response(response)
+                    print(f"❌ Error {response.status_code}: {response.text}")
                     
-            except KeyboardInterrupt:
-                print("\n⚠️  Use 'exit' to quit the terminal.")
-            except EOFError:
-                print("\n👋 Anchor terminal closing...")
-                self.running = False
+            except Exception as e:
+                print(f"❌ Request Failed: {e}")
 
-
-def main():
-    parser = argparse.ArgumentParser(description="Anchor Terminal - Native Shell for Anchor Core")
-    parser.add_argument("--bridge-url", default="http://localhost:8000", 
-                       help="URL of the Anchor Core bridge (default: http://localhost:8000)")
-    parser.add_argument("--token", default="sovereign-secret", 
-                       help="Authentication token for the bridge")
-    
-    args = parser.parse_args()
-    
-    terminal = AnchorTerminal(bridge_url=args.bridge_url, token=args.token)
-    terminal.run()
-
+        except KeyboardInterrupt:
+            print("\nInterrupted.")
+            break
 
 if __name__ == "__main__":
-    main()
+    chat_loop()

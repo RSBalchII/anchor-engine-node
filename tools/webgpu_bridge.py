@@ -1,28 +1,91 @@
 import os
 import sys
-import subprocess
 import asyncio
+import uuid
+import json
 import time
 import uvicorn
-import json
-import uuid
 from fastapi import FastAPI, WebSocket, Request
-from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 
 # --- CONFIGURATION ---
-PORT = 8000  # The One Port
+PORT = 8000
 HOST = "0.0.0.0"
 
-# Fix Windows Encoding
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding='utf-8')
 
-app = FastAPI(title="Anchor Core")
+# --- LOG COLLECTION ---
+import datetime
+import asyncio
+from collections import deque
+import os
+from datetime import datetime as dt
 
-# --- CORS (Open Internal Borders) ---
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
+os.makedirs(logs_dir, exist_ok=True)
+
+# Global log buffer for collecting system logs
+MAX_LOG_ENTRIES = 1000
+log_buffer = deque(maxlen=MAX_LOG_ENTRIES)
+log_buffer_lock = asyncio.Lock()
+
+async def add_log_entry(source: str, log_type: str, message: str):
+    """Add a log entry to the global log buffer and save to file"""
+    global log_buffer
+    async with log_buffer_lock:
+        log_entry = {
+            "timestamp": dt.now().isoformat(),
+            "source": source,
+            "type": log_type,
+            "message": message
+        }
+        log_buffer.append(log_entry)
+
+        # Also write to individual log file with truncation
+        try:
+            log_file_path = os.path.join(logs_dir, f"{source.lower().replace('-', '_').replace(' ', '_')}.log")
+
+            # Read existing content and truncate if needed
+            if os.path.exists(log_file_path):
+                with open(log_file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+
+                # Keep only last 1000 lines
+                if len(lines) >= 1000:
+                    lines = lines[-500:]  # Keep last 500 to have room for new entries
+
+                # Write back truncated content plus new entry
+                with open(log_file_path, 'w', encoding='utf-8') as f:
+                    f.writelines(lines)
+                # Append the new log entry
+                with open(log_file_path, 'a', encoding='utf-8') as f:
+                    f.write(f"[{dt.now().strftime('%Y-%m-%d %H:%M:%S')}] [{log_type.upper()}] {message}\n")
+            else:
+                # File doesn't exist, create it with the new entry
+                with open(log_file_path, 'w', encoding='utf-8') as f:
+                    f.write(f"[{dt.now().strftime('%Y-%m-%d %H:%M:%S')}] [{log_type.upper()}] {message}\n")
+        except Exception:
+            # If file writing fails, just continue
+            pass
+
+async def get_recent_logs(limit: int = 100):
+    """Get recent log entries"""
+    async with log_buffer_lock:
+        recent_logs = list(log_buffer)[-limit:]
+        return recent_logs
+
+# Initialize with startup message - defer until after event loop starts
+def initialize_logging():
+    # This will be called when the app starts up
+    pass
+
+app = FastAPI(title="Anchor Core (Text-Only)")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,395 +97,362 @@ app.add_middleware(
 workers: Dict[str, WebSocket] = {"chat": None}
 active_requests: Dict[str, asyncio.Queue] = {}
 
-# --- MODEL RESOLVE REDIRECT (for MLC-LLM compatibility) ---
-# Handle the /resolve/main/ pattern that MLC-LLM expects for local models
-@app.get("/models/{model_name}/resolve/main/{file_path}")
-async def model_resolve_redirect_get(model_name: str, file_path: str):
-    """Handle GET requests for MLC-LLM /resolve/main/ requests"""
-    import os
-    from fastapi.responses import FileResponse, RedirectResponse
+# --- GPU RESOURCE MANAGEMENT ---
+import asyncio
+from collections import deque
 
-    # Construct path to actual model file
-    models_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-    actual_path = os.path.join(models_base, model_name, file_path)
-
-    # Check if the file exists in the actual model directory
-    if os.path.exists(actual_path) and os.path.isfile(actual_path):
-        return NoCacheFileResponse(actual_path)
-    else:
-        # If file doesn't exist locally, redirect to HuggingFace (Standard 009 Bridge Redirect Logic)
-        print(f"⚠️ File not found locally, redirecting to HuggingFace: {model_name}/resolve/main/{file_path}")
-        hf_url = f"https://huggingface.co/mlc-ai/{model_name}/resolve/main/{file_path}"
-        return RedirectResponse(url=hf_url, status_code=302)
-
-@app.head("/models/{model_name}/resolve/main/{file_path}")
-async def model_resolve_redirect_head(model_name: str, file_path: str):
-    """Handle HEAD requests for MLC-LLM /resolve/main/ requests"""
-    import os
-    from starlette.responses import Response
-
-    # Construct path to actual model file
-    models_base = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-    actual_path = os.path.join(models_base, model_name, file_path)
-
-    # Check if the file exists in the actual model directory
-    if os.path.exists(actual_path) and os.path.isfile(actual_path):
-        # Get file size for Content-Length header
-        file_size = os.path.getsize(actual_path)
-        return Response(
-            status_code=200,
-            headers={
-                "content-length": str(file_size),
-                "content-type": "application/json" if actual_path.endswith(('.json', '.config')) else "application/octet-stream",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-    else:
-        # If file doesn't exist locally, redirect to HuggingFace (Standard 009 Bridge Redirect Logic)
-        print(f"⚠️ HEAD request: File not found locally, redirecting to HuggingFace: {model_name}/resolve/main/{file_path}")
-        hf_url = f"https://huggingface.co/mlc-ai/{model_name}/resolve/main/{file_path}"
-        return RedirectResponse(url=hf_url, status_code=302)
-
-@app.options("/models/{model_name}/resolve/main/{file_path}")
-async def model_resolve_redirect_options(model_name: str, file_path: str):
-    """Handle OPTIONS requests for MLC-LLM /resolve/main/ requests"""
-    # For OPTIONS requests (CORS preflight), return appropriate headers
-    return Response(
-        status_code=200,
-        headers={
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "GET, HEAD, OPTIONS",
-            "access-control-allow-headers": "*",
-            "access-control-max-age": "86400"
-        }
-    )
-
-
-# --- STATIC ASSETS (No-Cache for Models) ---
-class NoCacheStaticFiles(StaticFiles):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    async def __call__(self, scope, receive, send):
-        async def send_wrapper(message):
-            if message['type'] == 'http.response.start':
-                headers = message.get('headers', [])
-                # Force browser to keep models in RAM, not Disk
-                headers.extend([
-                    (b"Cache-Control", b"no-store, no-cache, must-revalidate"),
-                    (b"Pragma", b"no-cache"),
-                    (b"Expires", b"0"),
-                ])
-                message['headers'] = headers
-            await send(message)
-        await super().__call__(scope, receive, send_wrapper)
-
-# 1. Smart Model Redirect (Special No-Cache Handling)
-# Look for models directory in the parent directory (project root)
-models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-if not os.path.exists(models_dir):
-    # If models directory doesn't exist, create it
-    os.makedirs(models_dir, exist_ok=True)
-
-# Create a custom route for models that checks locally first, then redirects to HuggingFace
-@app.get("/models/{file_path:path}")
-async def models_redirect(file_path: str):
-    """Smart redirect: Check for local file first, redirect to HuggingFace if missing"""
-    import os
-    from fastapi.responses import FileResponse, RedirectResponse
-
-    # Construct path to local model file
-    local_path = os.path.join(models_dir, file_path)
-
-    # Check if the file exists locally
-    if os.path.exists(local_path) and os.path.isfile(local_path):
-        # Serve the local file with no-cache headers (Standard 002)
-        return NoCacheFileResponse(local_path)
-    else:
-        # File doesn't exist locally, redirect to HuggingFace
-        print(f"⚠️ File not found locally, redirecting to HuggingFace: {file_path}")
-        hf_url = f"https://huggingface.co/{file_path}"
-        return RedirectResponse(url=hf_url, status_code=302)
-
-# Also need to handle HEAD requests for the same path
-@app.head("/models/{file_path:path}")
-async def models_redirect_head(file_path: str):
-    """Handle HEAD requests for model files with same redirect logic"""
-    import os
-    from starlette.responses import Response
-
-    # Construct path to local model file
-    local_path = os.path.join(models_dir, file_path)
-
-    # Check if the file exists locally
-    if os.path.exists(local_path) and os.path.isfile(local_path):
-        # Return response with file size for HEAD request
-        file_size = os.path.getsize(local_path)
-        return Response(
-            status_code=200,
-            headers={
-                "content-length": str(file_size),
-                "content-type": "application/octet-stream",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
-    else:
-        # File doesn't exist locally, redirect to HuggingFace
-        print(f"⚠️ HEAD request: File not found locally, redirecting to HuggingFace: {file_path}")
-        hf_url = f"https://huggingface.co/{file_path}"
-        return RedirectResponse(url=hf_url, status_code=302)
-
-# Custom FileResponse class to apply NoCache headers (Standard 002)
-class NoCacheFileResponse(FileResponse):
-    async def __call__(self, scope, receive, send):
-        # Apply the same cache control headers as NoCacheStaticFiles
-        async def send_wrapper(message):
-            if message['type'] == 'http.response.start':
-                headers = message.get('headers', [])
-                headers.extend([
-                    (b"Cache-Control", b"no-store, no-cache, must-revalidate"),
-                    (b"Pragma", b"no-cache"),
-                    (b"Expires", b"0"),
-                ])
-                message['headers'] = headers
-            await send(message)
-        await super().__call__(scope, receive, send_wrapper)
-
-# --- API ENDPOINTS (The Brain) ---
-@app.post("/v1/chat/completions")
-async def chat_completions(request: Request):
-    """Proxies chat requests to the Browser Engine (Ghost)"""
-    if not workers["chat"]:
-        return JSONResponse(status_code=503, content={"error": "Anchor Engine not connected. Open chat.html."})
-    
-    try:
-        body = await request.json()
-        req_id = str(uuid.uuid4())
-        active_requests[req_id] = asyncio.Queue()
-        
-        await workers["chat"].send_json({
-            "id": req_id,
-            "type": "chat",
-            "data": body
-        })
-        
-        # Wait for response (Simple non-streaming for now, or stream handling could be added)
-        # For simplicity in this unified view, we assume non-streaming or handle the first chunk
-        response = await asyncio.wait_for(active_requests[req_id].get(), timeout=60.0)
-        del active_requests[req_id]
-        
-        return response
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-@app.post("/v1/shell/exec")
-async def shell_exec(request: Request):
-    """Executes system commands requested by the Engine"""
-    try:
-        body = await request.json()
-        cmd = body.get("cmd") or body.get("command")
-        if not cmd:
-            return JSONResponse(status_code=400, content={"error": "No command provided"})
-            
-        print(f"⚓ EXEC: {cmd}")
-        # Execute in native shell
-        proc = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        
-        return {
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-            "code": proc.returncode
-        }
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-@app.post("/v1/system/spawn_shell")
-async def spawn_shell(request: Request):
-    """Spawns a new PowerShell window running the Anchor terminal client"""
-    try:
-        print("⚓ SPAWN: Launching Anchor Shell")
-
-        # Get the directory where this script is located
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Path to the anchor.py script
-        anchor_script = os.path.join(script_dir, "anchor.py")
-
-        # Command to start a new PowerShell window running the anchor client
-        cmd = f'start "Anchor Terminal" powershell -NoExit -Command "cd {script_dir}; python anchor.py"'
-
-        # Try to run the command to spawn a new window (non-blocking)
-        subprocess.Popen(cmd, shell=True)
-
-        return {"status": "spawned", "message": "Anchor terminal launched in new PowerShell window"}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-
-
-# --- MODEL DOWNLOAD ENDPOINTS ---
-# Track model download status
-model_download_status = {}
-
-@app.post("/v1/models/pull")
-async def pull_model(request: Request):
-    """Download a model from HuggingFace to local storage"""
-    try:
-        body = await request.json()
-        model_id = body.get("model_id")
-        model_url = body.get("url")
-
-        if not model_id:
-            return JSONResponse(status_code=400, content={"error": "model_id is required"})
-
-        print(f"📥 DOWNLOAD: Requested to pull model {model_id}")
-
-        # Check if download is already in progress
-        if model_id in model_download_status:
-            if model_download_status[model_id]["status"] == "downloading":
-                return JSONResponse(status_code=409, content={"error": "Download already in progress"})
-
-        # For now, return a simulated response since full implementation would require complex download logic
-        return {
-            "status": "simulated",
-            "model_id": model_id,
-            "message": "Model download simulated - check if model exists locally"
-        }
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@app.get("/v1/models/pull/status")
-async def get_pull_status(request: Request):
-    """Get the status of a model download"""
-    model_id = request.query_params.get("id")
-
-    if not model_id:
-        return JSONResponse(status_code=400, content={"error": "id parameter is required"})
-
-    # Return simulated status for now
-    return {
-        "status": "done",  # Simulated as completed
-        "progress": "100%",
-        "file": "Download completed (simulated)"
-    }
-
-
-# --- GPU MANAGEMENT ENDPOINTS ---
-# Track GPU state
+# GPU state management
 gpu_state = {
     "locked": False,
     "owner": None,
-    "queue_depth": 0,
-    "queued": [],
-    "hasPendingLoad": False,
-    "activeLoaders": []
+    "queue": deque(),  # Queue for pending GPU requests
+    "queue_lock": asyncio.Lock()  # Lock for queue operations
 }
 
+# --- STATIC & MODELS ---
+class NoCacheFileResponse(FileResponse):
+    async def __call__(self, scope, receive, send):
+        async def send_wrapper(message):
+            if message['type'] == 'http.response.start':
+                headers = message.get('headers', [])
+                headers.extend([(b"Cache-Control", b"no-store, no-cache, must-revalidate")])
+                message['headers'] = headers
+            await send(message)
+        await super().__call__(scope, receive, send_wrapper)
+
+models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+
+@app.get("/models/{file_path:path}")
+async def models_redirect(file_path: str):
+    local_path = os.path.join(models_dir, file_path)
+    if os.path.exists(local_path) and os.path.isfile(local_path):
+        return NoCacheFileResponse(local_path)
+    return RedirectResponse(url=f"https://huggingface.co/{file_path}", status_code=302)
+
+@app.head("/models/{file_path:path}")
+async def models_redirect_head(file_path: str):
+    from starlette.responses import Response
+    local_path = os.path.join(models_dir, file_path)
+    if os.path.exists(local_path) and os.path.isfile(local_path):
+        return Response(headers={"content-length": str(os.path.getsize(local_path))})
+    return RedirectResponse(url=f"https://huggingface.co/{file_path}", status_code=302)
+
+# --- GPU MANAGEMENT ENDPOINTS ---
 @app.post("/v1/gpu/lock")
 async def gpu_lock(request: Request):
-    """Acquire GPU lock for model loading"""
+    """Acquire GPU lock with queuing mechanism"""
     try:
         body = await request.json()
         agent_id = body.get("id", "unknown")
 
-        # For now, just return a token to simulate lock acquisition
-        gpu_state["locked"] = True
-        gpu_state["owner"] = agent_id
-        gpu_state["queue_depth"] = 0  # Simplified
+        # Add to queue and wait for turn
+        async with gpu_state["queue_lock"]:
+            request_id = str(uuid.uuid4())
+            queue_item = {
+                "id": request_id,
+                "agent_id": agent_id,
+                "acquired": asyncio.Event()
+            }
 
-        return {"status": "acquired", "token": f"token_{agent_id}_{time.time()}"}
+            # If GPU is not locked, acquire immediately without queuing
+            if not gpu_state["locked"]:
+                gpu_state["locked"] = True
+                gpu_state["owner"] = agent_id
+                queue_item["acquired"].set()
+            else:
+                # Otherwise, add to queue and wait for turn
+                gpu_state["queue"].append(queue_item)
+
+        # Wait for GPU to be available
+        await queue_item["acquired"].wait()
+
+        # Return a token to represent the lock
+        token = f"gpu_token_{agent_id}_{request_id}_{int(time.time())}"
+        await add_log_entry("GPU-Manager", "info", f"GPU lock acquired by {agent_id} (token: {token[:20]}...)")
+        return {"status": "acquired", "token": token, "queue_position": 0}
     except Exception as e:
+        await add_log_entry("GPU-Manager", "error", f"GPU lock failed: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
-
 
 @app.post("/v1/gpu/unlock")
 async def gpu_unlock(request: Request):
-    """Release GPU lock"""
+    """Release GPU lock and process next in queue"""
     try:
         body = await request.json()
         agent_id = body.get("id", "unknown")
 
-        # Release the lock
-        gpu_state["locked"] = False
-        gpu_state["owner"] = None
+        # Release the lock for this agent
+        if gpu_state["owner"] == agent_id and gpu_state["locked"]:
+            gpu_state["locked"] = False
+            gpu_state["owner"] = None
 
+            # Process next item in queue if available
+            async with gpu_state["queue_lock"]:
+                if gpu_state["queue"]:
+                    next_item = gpu_state["queue"].popleft()
+                    gpu_state["locked"] = True
+                    gpu_state["owner"] = next_item["agent_id"]
+                    next_item["acquired"].set()
+
+                    await add_log_entry("GPU-Manager", "info", f"GPU lock transferred to next in queue: {next_item['agent_id']}")
+                # If no items in queue, state remains unlocked with no owner
+
+        await add_log_entry("GPU-Manager", "info", f"GPU lock released by {agent_id}")
         return {"status": "released"}
     except Exception as e:
+        await add_log_entry("GPU-Manager", "error", f"GPU unlock failed: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
-
 
 @app.get("/v1/gpu/status")
 async def gpu_status(request: Request):
     """Get GPU status"""
-    return {
+    status = {
         "locked": gpu_state["locked"],
         "owner": gpu_state["owner"],
-        "queue_depth": gpu_state["queue_depth"],
-        "queued": gpu_state["queued"],
-        "hasPendingLoad": gpu_state["hasPendingLoad"],
-        "activeLoaders": gpu_state["activeLoaders"]
+        "queue_length": len(gpu_state["queue"]),
+        "queue_depth": len(gpu_state["queue"])  # For compatibility
     }
-
+    return status
 
 @app.post("/v1/gpu/reset")
 async def gpu_reset(request: Request):
     """Reset GPU state"""
-    try:
-        gpu_state["locked"] = False
-        gpu_state["owner"] = None
-        gpu_state["queue_depth"] = 0
-        gpu_state["queued"] = []
-
-        return {"status": "reset"}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
+    gpu_state["locked"] = False
+    gpu_state["owner"] = None
+    async with gpu_state["queue_lock"]:
+        gpu_state["queue"].clear()
+    await add_log_entry("GPU-Manager", "info", "GPU state reset")
+    return {"status": "reset"}
 
 @app.post("/v1/gpu/force-release-all")
 async def gpu_force_release_all(request: Request):
     """Force release all GPU locks"""
-    try:
-        gpu_state["locked"] = False
-        gpu_state["owner"] = None
-        gpu_state["queue_depth"] = 0
-        gpu_state["queued"] = []
-        gpu_state["hasPendingLoad"] = False
-        gpu_state["activeLoaders"] = []
+    gpu_state["locked"] = False
+    gpu_state["owner"] = None
+    async with gpu_state["queue_lock"]:
+        # Notify all queued items that they can't acquire the lock
+        while gpu_state["queue"]:
+            item = gpu_state["queue"].popleft()
+            # Don't set acquired event since we're cancelling
+        gpu_state["queue"].clear()
+    await add_log_entry("GPU-Manager", "info", "All GPU locks force released")
+    return {"status": "all_released"}
 
-        return {"status": "all_released"}
+# --- CHAT COMPLETION WITH GPU QUEUING ---
+@app.post("/v1/chat/completions")
+async def chat_completions(request: Request):
+    """Proxies chat to Ghost Engine and accumulates the stream."""
+    if not workers["chat"]:
+        await add_log_entry("Chat-API", "error", "Ghost Engine Disconnected - The headless browser is not connected.")
+        return JSONResponse(status_code=503, content={"error": "Ghost Engine Disconnected", "message": "The headless browser is not connected."})
+
+    try:
+        body = await request.json()
+        req_id = str(uuid.uuid4())
+        active_requests[req_id] = asyncio.Queue()
+
+        # Forward request to Ghost Engine
+        await workers["chat"].send_json({"id": req_id, "type": "chat", "data": body})
+        await add_log_entry("Chat-API", "info", f"Forwarded chat request {req_id} to Ghost Engine")
+
+        # Accumulate the stream from the browser into one big response
+        full_content = ""
+        while True:
+            # Wait 60s max per chunk
+            msg = await asyncio.wait_for(active_requests[req_id].get(), timeout=60.0)
+
+            # Check for stream end or error
+            if isinstance(msg, dict):
+                if msg.get("done"):
+                    await add_log_entry("Chat-API", "info", f"Chat request {req_id} completed successfully")
+                    break
+                if msg.get("error"):
+                    # Check if it's a WebGPU adapter error and provide helpful message
+                    error_msg = msg.get("error", "")
+                    await add_log_entry("Chat-API", "error", f"Chat request {req_id} error: {str(error_msg)}")
+                    if "No WebGPU Adapter found" in str(error_msg) or "GPU crash" in str(error_msg):
+                        del active_requests[req_id]
+                        return {
+                            "id": req_id,
+                            "object": "chat.completion",
+                            "created": int(time.time()),
+                            "choices": [{
+                                "index": 0,
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "⚠️ WebGPU Adapter not found. This device may not support WebGPU acceleration. Try using a CPU-based model or check GPU drivers. Error: " + str(error_msg)
+                                },
+                                "finish_reason": "stop"
+                            }]
+                        }
+                    return JSONResponse(status_code=500, content=msg)
+                # Handle direct object response (non-streaming)
+                if msg.get("choices"):
+                    await add_log_entry("Chat-API", "info", f"Received direct response for request {req_id}")
+                    return msg
+
+            # Append chunk content
+            if isinstance(msg, dict) and "chunk" in msg:
+                chunk = msg["chunk"]
+                # Parse OpenAI chunk format
+                if isinstance(chunk, dict):
+                    content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                    full_content += content
+
+        del active_requests[req_id]
+
+        # Return standard OpenAI non-streaming response
+        await add_log_entry("Chat-API", "info", f"Returning completed response for request {req_id}")
+        return {
+            "id": req_id,
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": full_content}, "finish_reason": "stop"}]
+        }
+
+    except asyncio.TimeoutError:
+        await add_log_entry("Chat-API", "error", f"Chat request {req_id} timed out after 60 seconds")
+        if req_id in active_requests: del active_requests[req_id]
+        return {
+            "id": req_id,
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "⚠️ Request timed out. The model may not be loaded or WebGPU adapter is unavailable. Please check that the Ghost Engine is running and has access to GPU resources."
+                },
+                "finish_reason": "stop"
+            }]
+        }
+    except Exception as e:
+        await add_log_entry("Chat-API", "error", f"Chat request {req_id} failed with exception: {str(e)}")
+        if req_id in active_requests: del active_requests[req_id]
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/v1/memory/search")
+async def memory_search(request: Request):
+    if not workers["chat"]:
+        await add_log_entry("Memory-API", "error", "Memory search requested but Ghost Engine is disconnected")
+        return JSONResponse(status_code=503, content={"error": "Ghost Engine Disconnected"})
+
+    try:
+        body = await request.json()
+        query = body.get("query", "")
+        req_id = str(uuid.uuid4())
+        active_requests[req_id] = asyncio.Queue()
+
+        await add_log_entry("Memory-API", "info", f"Forwarding memory search request '{query}' (ID: {req_id}) to Ghost Engine")
+        await workers["chat"].send_json({"type": "direct_search_request", "id": req_id, "query": query})
+
+        result = await asyncio.wait_for(active_requests[req_id].get(), timeout=15.0)
+        del active_requests[req_id]
+
+        await add_log_entry("Memory-API", "info", f"Memory search completed successfully for query '{query}'")
+        return {"status": "success", "context": result}
+    except asyncio.TimeoutError:
+        await add_log_entry("Memory-API", "error", f"Memory search timed out for query '{body.get('query', '')}'")
+        if req_id in active_requests: del active_requests[req_id]
+        return JSONResponse(status_code=504, content={"error": "Search request timed out"})
+    except Exception as e:
+        await add_log_entry("Memory-API", "error", f"Memory search failed with error: {str(e)}")
+        if req_id in active_requests: del active_requests[req_id]
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/context", response_class=HTMLResponse)
+async def get_context():
+    import os
+    file_path = os.path.join(os.path.dirname(__file__), "context.html")
+    return FileResponse(file_path)
+
+@app.get("/sidecar", response_class=HTMLResponse)
+async def get_sidecar():
+    import os
+    file_path = os.path.join(os.path.dirname(__file__), "sidecar.html")
+    return FileResponse(file_path)
+
+# --- LOGGING ENDPOINTS ---
+@app.get("/logs/recent")
+async def get_recent_logs_endpoint():
+    """API endpoint to get recent system logs"""
+    logs = await get_recent_logs(50)
+    return {"logs": logs}
+
+@app.post("/logs/collect")
+async def collect_log(request: Request):
+    """API endpoint to collect logs from various system components"""
+    try:
+        body = await request.json()
+        source = body.get("source", "unknown")
+        log_type = body.get("type", "info")
+        message = body.get("message", "")
+
+        await add_log_entry(source, log_type, message)
+
+        return {"status": "success", "message": "Log entry added"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "nominal", "engine": "connected" if workers["chat"] else "waiting", "timestamp": datetime.datetime.now().isoformat()}
 
-# --- WEBSOCKETS (The Nervous System) ---
+# --- WEBSOCKETS ---
 @app.websocket("/ws/chat")
 async def ws_chat(websocket: WebSocket):
     await websocket.accept()
     workers["chat"] = websocket
-    print("✅ Anchor Engine Connected")
+    await add_log_entry("WebGPU-Bridge", "success", "Ghost Engine Connected")
+    print("🟢 Ghost Engine Connected")
     try:
         while True:
             data = await websocket.receive_text()
             msg = json.loads(data)
+
+            # Route messages to waiting requests
             if "id" in msg and msg["id"] in active_requests:
                 await active_requests[msg["id"]].put(msg)
-    except:
+
+            # Special case for memory search results
+            if msg.get("type") == "direct_search_result":
+                rid = msg.get("id")
+                if rid in active_requests:
+                    await active_requests[rid].put(msg.get("result"))
+            # Handle other message types that might come from the Ghost Engine
+            elif msg.get("type") == "engine_ready":
+                await add_log_entry("Ghost-Engine", "success", "Ghost Engine Ready - Model loaded and ready for requests")
+                print("🔧 Ghost Engine Ready - Model loaded and ready for requests")
+            elif msg.get("type") == "model_loading":
+                status = msg.get('status', 'Loading...')
+                await add_log_entry("Ghost-Engine", "info", f"Ghost Engine Loading: {status}")
+                print(f"⚙️ Ghost Engine Loading: {status}")
+            elif msg.get("type") == "error":
+                error_msg = msg.get('message', 'Unknown error')
+                await add_log_entry("Ghost-Engine", "error", f"Ghost Engine Error: {error_msg}")
+                print(f"❌ Ghost Engine Error: {error_msg}")
+    except Exception as e:
         workers["chat"] = None
-        print("❌ Anchor Engine Disconnected")
+        error_msg = f"Ghost Engine Disconnected: {str(e)}"
+        await add_log_entry("WebGPU-Bridge", "error", error_msg)
+        print(error_msg)
+        # Attempt to clear any pending requests
+        for req_id in list(active_requests.keys()):
+            try:
+                # Put an error message in the queue to unblock waiting requests
+                await active_requests[req_id].put({"error": "Ghost Engine disconnected", "done": True})
+            except:
+                pass
 
-@app.get("/health")
-async def health():
-    return {"status": "nominal", "engine": "connected" if workers["chat"] else "waiting"}
-
-# 2. Mount UI (The Face) - Must be last to catch all other routes
-# Serves the current directory (tools/) as the root website
 app.mount("/", StaticFiles(directory=".", html=True), name="ui")
 
+async def startup_event():
+    """Initialize logging when the app starts"""
+    await add_log_entry("System", "info", f"Anchor Core started on port {PORT}")
+
+# Register the startup event
+app.on_event("startup")(startup_event)
+
 if __name__ == "__main__":
-    print(f"⚓ ANCHOR CORE RUNNING on http://{HOST}:{PORT}")
-    uvicorn.run(app, host=HOST, port=PORT, log_level="warning")
+    uvicorn.run(app, host=HOST, port=PORT, log_level="error")

@@ -1,0 +1,12 @@
+[2025-12-31 22:34:08] [INFO] GPU lock acquired by test-agent (token: gpu_token_test-agent...)
+[2025-12-31 22:35:30] [INFO] GPU lock transferred to next in queue: test-agent
+[2025-12-31 22:35:30] [INFO] GPU lock released by test-agent
+[2025-12-31 22:36:35] [INFO] GPU lock released by test-agent
+[2025-12-31 23:07:43] [INFO] GPU lock acquired by final-test (token: gpu_token_final-test...)
+[2025-12-31 23:07:43] [INFO] GPU lock transferred to next in queue: final-test
+[2025-12-31 23:07:43] [INFO] GPU lock released by final-test
+[2025-12-31 23:13:42] [INFO] GPU lock acquired by test-fix (token: gpu_token_test-fix_4...)
+[2025-12-31 23:13:42] [INFO] GPU lock transferred to next in queue: test-fix
+[2025-12-31 23:13:42] [INFO] GPU lock released by test-fix
+[2025-12-31 23:17:24] [INFO] GPU lock acquired by test-final (token: gpu_token_test-final...)
+[2025-12-31 23:17:24] [INFO] GPU lock released by test-final

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Sovereign System Debugger</title>
+    <title>Anchor Core System Logs</title>
     <style>
         body {
             background-color: #000;
@@ -47,12 +47,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            border-right: 1px solid #333;
             min-width: 0;
-        }
-
-        .panel:last-child {
-            border-right: none;
         }
 
         .panel-header {
@@ -102,28 +97,12 @@
         .success {
             color: #00ff00;
         }
-
-        /* Context specific styles */
-        .context-block {
-            border: 1px solid #333;
-            margin-bottom: 10px;
-            padding: 5px;
-            background: #050505;
-            font-size: 11px;
-        }
-
-        .context-header {
-            color: #aaa;
-            border-bottom: 1px solid #333;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
     </style>
 </head>
 
 <body>
     <div id="toolbar">
-        <span style="color: #88ccff; font-weight: bold;">Sovereign Broadcast Receiver</span>
+        <span style="color: #88ccff; font-weight: bold;">Anchor Core Log Stream</span>
         <span id="connection-status" style="color: #888; margin-left: 10px;">● Listening...</span>
         <div style="flex: 1;"></div>
         <button id="copy-all-btn" title="Copy all logs to clipboard">📋 Copy All</button>
@@ -132,45 +111,23 @@
     </div>
 
     <div id="main-container">
-        <!-- Panel 1: System Logs -->
+        <!-- Single Combined Log Panel -->
         <div class="panel">
             <div class="panel-header">
-                <span>System Logs</span>
+                <span>All System Logs</span>
             </div>
-            <div id="system-logs" class="log-container"></div>
-        </div>
-
-        <!-- Panel 2: Chat Stream -->
-        <div class="panel">
-            <div class="panel-header">
-                <span>Chat Stream</span>
-            </div>
-            <div id="chat-logs" class="log-container"></div>
-        </div>
-
-        <!-- Panel 3: Context Inspector -->
-        <div class="panel">
-            <div class="panel-header">
-                <span>Context / Memory</span>
-            </div>
-            <div id="context-view" class="log-container"></div>
+            <div id="combined-logs" class="log-container"></div>
         </div>
     </div>
 
     <script>
-        const systemContainer = document.getElementById('system-logs');
-        const chatContainer = document.getElementById('chat-logs');
-        const contextContainer = document.getElementById('context-view');
+        const combinedContainer = document.getElementById('combined-logs');
         const clearBtn = document.getElementById('clear-btn');
         const copyBtn = document.getElementById('copy-all-btn');
         const statusIndicator = document.getElementById('connection-status');
 
         copyBtn.onclick = () => {
-            const allText = [
-                "--- SYSTEM LOGS ---", systemContainer.innerText,
-                "\n--- CHAT LOGS ---", chatContainer.innerText,
-                "\n--- CONTEXT LOGS ---", contextContainer.innerText
-            ].join("\n");
+            const allText = combinedContainer.innerText;
 
             navigator.clipboard.writeText(allText).then(() => {
                 const original = copyBtn.innerHTML;
@@ -198,12 +155,9 @@
             const data = event.data;
 
             if (data.source === 'system') {
-                appendLog(systemContainer, `[${data.time}] [${data.type}] ${data.msg}`, data.type);
+                appendLog(combinedContainer, `[${data.time}] [${data.type}] ${data.msg}`, data.type);
             } else if (data.source === 'chat') {
-                appendLog(chatContainer, `[${data.time}] ${data.role}: ${data.text}`, 'info');
-                if (data.context) {
-                    appendContext(data.context);
-                }
+                appendLog(combinedContainer, `[${data.time}] ${data.role}: ${data.text}`, 'info');
             }
         };
 
@@ -214,21 +168,20 @@
             try {
                 // Known sources: 'Sovereign-Console' | 'Sovereign-Chat' | 'Sovereign-DB' | 'Sovereign-Embed'
                 if (data.source === 'Sovereign-Console') {
-                    appendLog(systemContainer, `[${new Date().toLocaleTimeString()}] [SOVEREIGN] ${data.message}`, data.type || 'info');
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] [SOVEREIGN] ${data.message}`, data.type || 'info');
                 } else if (data.source === 'Sovereign-Chat') {
-                    appendLog(chatContainer, `[${new Date().toLocaleTimeString()}] ${data.role || 'assistant'}: ${data.message}`, 'info');
-                    if (data.context) appendContext(data.context);
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] ${data.role || 'assistant'}: ${data.message}`, 'info');
                 } else if (data.source === 'Sovereign-DB') {
-                    appendLog(systemContainer, `[${new Date().toLocaleTimeString()}] [DB] ${data.message}`, data.type || 'info');
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] [DB] ${data.message}`, data.type || 'info');
                 } else if (data.source === 'Sovereign-Embed' || data.source === 'WebGPU-Embed') {
-                    appendLog(systemContainer, `[${new Date().toLocaleTimeString()}] [EMBED] ${data.message}`, 'debug');
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] [EMBED] ${data.message}`, 'debug');
                 } else if (data.source === 'WebGPU-Chat') {
-                    appendLog(chatContainer, `[${new Date().toLocaleTimeString()}] ${data.role || 'assistant'}: ${data.message}`, 'info');
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] ${data.role || 'assistant'}: ${data.message}`, 'info');
                 } else {
-                    appendLog(systemContainer, `[${new Date().toLocaleTimeString()}] ${JSON.stringify(data)}`, 'debug');
+                    appendLog(combinedContainer, `[${new Date().toLocaleTimeString()}] ${JSON.stringify(data)}`, 'debug');
                 }
             } catch (e) {
-                appendLog(systemContainer, `[coda_logs parsing error] ${e.message}`, 'error');
+                appendLog(combinedContainer, `[coda_logs parsing error] ${e.message}`, 'error');
             }
         };
 
@@ -238,12 +191,12 @@
 
         async function pollServerLogs() {
             try {
-                // Use relative path so it targets same origin when proxied; fall back to explicit host if needed
-                const resp = await fetch('http://localhost:8080/audit/server-logs?limit=50');
+                // Use the new logs endpoint
+                const resp = await fetch('http://localhost:8000/logs/recent');
 
                 if (resp.status === 404) {
                     if (!serverLogsErrorShown) {
-                        appendLog(systemContainer, `[ECE-Core] Backend logs endpoint returned 404. Is the backend running?`, 'warning');
+                        appendLog(combinedContainer, `[ECE-Core] Logs endpoint returned 404. Is the backend running?`, 'warning');
                         statusIndicator.style.color = '#ffcc00';
                         statusIndicator.innerText = '● Backend logs unavailable';
                         serverLogsErrorShown = true;
@@ -257,16 +210,17 @@
                 }
 
                 if (!resp.ok) {
-                    appendLog(systemContainer, `[ECE-Core] Poll error: HTTP ${resp.status}`, 'error');
+                    appendLog(combinedContainer, `[ECE-Core] Poll error: HTTP ${resp.status}`, 'error');
                     return;
                 }
 
                 const payload = await resp.json();
                 if (payload && Array.isArray(payload.logs)) {
-                    for (const line of payload.logs) {
+                    for (const logEntry of payload.logs) {
+                        const line = `[${new Date(logEntry.timestamp).toLocaleTimeString()}] [${logEntry.source}] ${logEntry.message}`;
                         if (!serverLogSet.has(line)) {
                             serverLogSet.add(line);
-                            appendLog(systemContainer, `[ECE-Core] ${line}`, 'success');
+                            appendLog(combinedContainer, `[ECE-Core] ${line}`, logEntry.type || 'info');
                         }
                     }
                     // Prevent unbounded growth
@@ -276,7 +230,7 @@
                 }
             } catch (e) {
                 if (!serverLogsErrorShown) {
-                    appendLog(systemContainer, `[ECE-Core] Poll error: ${e.message}`, 'error');
+                    appendLog(combinedContainer, `[ECE-Core] Poll error: ${e.message}`, 'error');
                     statusIndicator.style.color = '#ff4444';
                     statusIndicator.innerText = '● Poll error';
                     serverLogsErrorShown = true;
@@ -305,7 +259,7 @@
 
         // Retry button
         document.getElementById('retry-logs-btn').addEventListener('click', () => {
-            appendLog(systemContainer, '[ECE-Core] Manual retry requested', 'info');
+            appendLog(combinedContainer, '[ECE-Core] Manual retry requested', 'info');
             statusIndicator.style.color = '#88ccff';
             statusIndicator.innerText = '● Retrying...';
             startPolling();
@@ -319,14 +273,6 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function appendContext(contextData) {
-            const div = document.createElement('div');
-            div.className = 'context-block';
-            div.innerHTML = `<div class="context-header">Context Update</div><pre>${JSON.stringify(contextData, null, 2)}</pre>`;
-            contextContainer.appendChild(div);
-            contextContainer.scrollTop = contextContainer.scrollHeight;
-        }
-
         function colorize(line, type) {
             if (type === 'error' || line.includes('ERROR') || line.includes('❌')) return `<span class="error">${line}</span>`;
             if (type === 'warn' || line.includes('WARNING')) return `<span class="warning">${line}</span>`;
@@ -336,9 +282,7 @@
         }
 
         clearBtn.onclick = () => {
-            systemContainer.innerHTML = '';
-            chatContainer.innerHTML = '';
-            contextContainer.innerHTML = '';
+            combinedContainer.innerHTML = '';
         };
     </script>
 </body>

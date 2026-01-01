@@ -557,7 +557,7 @@
                     return;
                 }
                 
-                appendLog('main', `Dream Error: ${msg}`, 'error`);
+                appendLog('main', `Dream Error: ${msg}`, 'error');
                 // For non-fatal errors, wait and retry
                 await new Promise(r => setTimeout(r, 5000));
                 if (store.state.isDreaming) dreamLoop();
