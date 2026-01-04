@@ -132,6 +132,21 @@
 - [x] **Launch Logic**: Unified startup in `start-anchor.bat` and `webgpu_bridge.py`.
 - [x] **Standard 023**: Documented "Anchor Lite" architecture and "Triangle of Pain".
 
+### Phase 10: Context Ingestion Pipeline Fixes (Completed)
+- [x] **Field Name Alignment**: Fixed mismatch between watchdog payload (`filetype`) and endpoint expectation (`file_type`)
+- [x] **Source Identification**: Updated watchdog to send proper source identifiers instead of "unknown"
+- [x] **Ghost Engine Update**: Fixed handleIngest function to use correct field names (`msg.file_type`)
+- [x] **Error Handling**: Enhanced error reporting in watchdog for better debugging
+- [x] **Database Initialization**: Verified CozoDB schema creation and memory table initialization
+- [x] **Ingestion Verification**: Confirmed context files are properly ingested and searchable
+
+### Phase 11: Script Running Protocol Implementation (Completed)
+- [x] **Protocol Creation**: Created `SCRIPT_PROTOCOL.md` with guidelines to prevent getting stuck in long-running loops
+- [x] **System Optimization**: Fixed database paths and search queries for better performance
+- [x] **Documentation Update**: Updated doc_policy to include protocol as allowed root document
+- [x] **Standards Creation**: Created Standards 035 and 036 for detached execution and log management
+- [x] **Startup Scripts**: Created proper detached startup scripts with logging
+
 ## Backlog
 - [ ] **Federation Protocol**: P2P sync.
 - [ ] **Android App**: Wrapper for Root Coda.

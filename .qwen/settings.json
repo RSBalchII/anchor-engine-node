@@ -5,5 +5,18 @@
   "$version": 2,
   "general": {
     "preferredEditor": "vscode"
+  },
+  "model": {
+    "generationConfig": {
+      "schemaCompliance": "openapi_30"
+    }
+  },
+  "context": {
+    "loadMemoryFromIncludeDirectories": true
+  },
+  "tools": {
+    "shell": {
+      "showColor": true
+    }
   }
 }

@@ -1,1 +1,0 @@
-Core tools for the Anchor system: Bridge, UI, and CLI components.

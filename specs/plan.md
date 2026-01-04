@@ -80,6 +80,14 @@
 - [x] **File Logging**: Implemented persistent file-based logging with truncation
 - [x] **UI Serving**: Extended bridge to serve HTML interfaces for unified workflow
 
-## Phase 9: Federation
+## Phase 9: Context Ingestion Pipeline Fixes (Completed)
+- [x] **Field Name Alignment**: Fixed mismatch between watchdog payload (`filetype`) and endpoint expectation (`file_type`)
+- [x] **Source Identification**: Updated watchdog to send proper source identifiers instead of "unknown"
+- [x] **Ghost Engine Update**: Fixed handleIngest function to use correct field names (`msg.file_type`)
+- [x] **Error Handling**: Enhanced error reporting in watchdog for better debugging
+- [x] **Database Initialization**: Verified CozoDB schema creation and memory table initialization
+- [x] **Ingestion Verification**: Confirmed context files are properly ingested and searchable
+
+## Phase 10: Federation
 - [ ] **Device Sync**: Sync IndexedDB across devices (Peer-to-Peer).
 - [ ] **Local-First Cloud**: Optional encrypted backup.

@@ -5,6 +5,11 @@ build/
 dist/
 wheels/
 *.egg-info
+.qwen
+*.json
+*.yaml
+*.txt
+node_modules
 
 # Virtual environments
 .venv
@@ -14,9 +19,6 @@ models/
 
 backend/archive/db/
 
-context/
-archive/
-browser_data/
-edge_profile_vulkan/
-launch-edge-unsafe.bat
-launch-edge-vulkan.bat
+*context/
+/archive/
+/browser_data/
