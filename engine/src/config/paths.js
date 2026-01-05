@@ -18,6 +18,9 @@ if (isPkg) {
     basePath = path.join(__dirname, '..', '..', '..');
 }
 
+// Allow env override for MODELS_DIR, default to project/models
+const MODELS_DIR = process.env.MODELS_DIR || path.join(basePath, 'models');
+
 module.exports = {
     IS_PKG: isPkg,
     BASE_PATH: basePath,
@@ -25,6 +28,7 @@ module.exports = {
     CONTEXT_DIR: path.join(basePath, 'context'),
     BACKUPS_DIR: path.join(basePath, 'backups'),
     LOGS_DIR: path.join(basePath, 'logs'),
+    MODELS_DIR: MODELS_DIR,
     // In production, keep the DB in the root or context folder. In dev, it's in engine/
     DB_PATH: isPkg ? path.join(basePath, 'context.db') : path.join(basePath, 'engine', 'context.db')
 };

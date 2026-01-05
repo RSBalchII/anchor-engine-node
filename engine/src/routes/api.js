@@ -100,6 +100,52 @@ router.post('/dream', async (req, res) => {
   }
 });
 
+// === SCRIBE (Markovian State) ENDPOINTS ===
+const scribe = require('../services/scribe');
+
+// POST /v1/scribe/update - Update session state from conversation history
+router.post('/scribe/update', async (req, res) => {
+  try {
+    const { history } = req.body;
+    if (!history || !Array.isArray(history)) {
+      return res.status(400).json({ error: 'history array is required' });
+    }
+    const result = await scribe.updateState(history);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /v1/scribe/state - Get current session state
+router.get('/scribe/state', async (req, res) => {
+  try {
+    const state = await scribe.getState();
+    res.json({ state: state || null });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /v1/scribe/state - Clear session state
+router.delete('/scribe/state', async (req, res) => {
+  try {
+    const result = await scribe.clearState();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /v1/inference/status - Get model status
+router.get('/inference/status', async (req, res) => {
+  try {
+    res.json(inference.getStatus());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /v1/backup
 router.get('/backup', async (req, res) => {
   try {

@@ -1,7 +1,14 @@
+/**
+ * Inference Service - Local LLM Integration
+ * 
+ * Provides local inference using node-llama-cpp with GGUF models.
+ * Implements Context Weaving for intelligent context management.
+ */
+
 const fs = require('fs');
 const path = require('path');
+const { MODELS_DIR } = require('../config/paths');
 
-const MODELS_DIR = 'C:/Users/rsbiiw/Projects/models';
 const DEFAULT_MODEL = 'gemma-3-4b-it.i1-Q4_K_S.gguf';
 
 let llama = null;
@@ -9,11 +16,22 @@ let model = null;
 let context = null;
 let session = null;
 let currentModelName = '';
+let currentCtxSize = 4096;
 
-// Helper: Get list of GGUF files
+/**
+ * Get list of available GGUF model files
+ */
 function listModels() {
-    if (!fs.existsSync(MODELS_DIR)) return [];
-    return fs.readdirSync(MODELS_DIR).filter(f => f.endsWith('.gguf'));
+    try {
+        if (!fs.existsSync(MODELS_DIR)) {
+            console.warn(`Models directory not found: ${MODELS_DIR}`);
+            return [];
+        }
+        return fs.readdirSync(MODELS_DIR).filter(f => f.endsWith('.gguf'));
+    } catch (e) {
+        console.error('Error listing models:', e.message);
+        return [];
+    }
 }
 
 async function getLlamaInstance() {
@@ -66,6 +84,7 @@ async function loadModel(modelName, options = {}) {
         });
 
         currentModelName = modelName;
+        currentCtxSize = parseInt(options.ctxSize) || 4096;
         return { status: 'success', message: `Loaded ${modelName}` };
     } catch (e) {
         console.error("Model Load Error:", e);
@@ -77,7 +96,7 @@ async function initInference() {
     if (session) return session;
     const models = listModels();
     const modelToLoad = models.includes(DEFAULT_MODEL) ? DEFAULT_MODEL : models[0];
-    if (!modelToLoad) throw new Error("No models found.");
+    if (!modelToLoad) throw new Error(`No models found in ${MODELS_DIR}. Please add GGUF files.`);
     await loadModel(modelToLoad);
     return session;
 }
@@ -120,23 +139,101 @@ JSON Tags:`;
     }
 }
 
+/**
+ * Raw completion without session management.
+ * Used by internal services like Scribe that need direct prompting.
+ * 
+ * @param {string} text - Raw prompt text
+ * @param {Object} options - Generation options
+ * @returns {string} - Model response
+ */
+async function rawCompletion(text, options = {}) {
+    try {
+        const s = await initInference();
+        return await s.prompt(text, {
+            temperature: parseFloat(options.temperature) || 0.5,
+            maxTokens: parseInt(options.maxTokens) || 500,
+        });
+    } catch (e) {
+        console.error('Raw completion error:', e.message);
+        throw new Error(`Raw completion failed: ${e.message}`);
+    }
+}
+
+/**
+ * Chat with Context Weaving
+ * 
+ * Implements intelligent context management:
+ * 1. System Prompt (fixed)
+ * 2. Markovian State (from Scribe, if available)
+ * 3. User Message
+ * 
+ * @param {Array} messages - Array of {role, content} objects
+ * @param {Object} generationOptions - Temperature, topP, maxTokens, etc.
+ * @returns {string} - Model response
+ */
 async function chat(messages, generationOptions = {}) {
-    const s = await initInference();
-    const lastMsg = messages[messages.length - 1].content;
-    
-    return await s.prompt(lastMsg, {
-        temperature: parseFloat(generationOptions.temperature) || 0.7,
-        topP: parseFloat(generationOptions.topP) || 0.9,
-        topK: parseInt(generationOptions.topK) || 40,
-        repeatPenalty: parseFloat(generationOptions.repeatPenalty) || 1.1,
-        maxTokens: parseInt(generationOptions.maxTokens) || 1024,
-    });
+    try {
+        const s = await initInference();
+        
+        // --- Context Weaving ---
+        let contextParts = [];
+        
+        // 1. Markovian State (High Priority)
+        try {
+            const { getState } = require('./scribe');
+            const state = await getState();
+            if (state && state.trim()) {
+                contextParts.push(`[SESSION STATE]\n${state}\n[/SESSION STATE]`);
+            }
+        } catch (e) {
+            // Scribe not available, continue without state
+        }
+        
+        // 2. User's message
+        const lastMsg = messages[messages.length - 1]?.content || '';
+        
+        // 3. Construct augmented prompt
+        let augmentedMsg = lastMsg;
+        if (contextParts.length > 0) {
+            augmentedMsg = contextParts.join('\n\n') + '\n\n' + lastMsg;
+        }
+        
+        // 4. Generate with error boundary
+        const response = await s.prompt(augmentedMsg, {
+            temperature: parseFloat(generationOptions.temperature) || 0.7,
+            topP: parseFloat(generationOptions.topP) || 0.9,
+            topK: parseInt(generationOptions.topK) || 40,
+            repeatPenalty: parseFloat(generationOptions.repeatPenalty) || 1.1,
+            maxTokens: parseInt(generationOptions.maxTokens) || 1024,
+        });
+        
+        return response;
+        
+    } catch (e) {
+        console.error('Chat inference error:', e.message);
+        return `[Inference Error] ${e.message}`;
+    }
+}
+
+/**
+ * Get current model status
+ */
+function getStatus() {
+    return {
+        loaded: !!session,
+        model: currentModelName || null,
+        contextSize: currentCtxSize,
+        modelsDir: MODELS_DIR
+    };
 }
 
 module.exports = {
     listModels,
     loadModel,
     generateTags,
+    rawCompletion,
     chat,
-    initInference
+    initInference,
+    getStatus
 };
