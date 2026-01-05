@@ -172,9 +172,10 @@ async function rawCompletion(text, options = {}) {
  * 
  * @param {Array} messages - Array of {role, content} objects
  * @param {Object} generationOptions - Temperature, topP, maxTokens, etc.
- * @returns {string} - Model response
+ * @param {Function} onToken - Optional callback for streaming tokens
+ * @returns {string} - Model response (full text)
  */
-async function chat(messages, generationOptions = {}) {
+async function chat(messages, generationOptions = {}, onToken = null) {
     try {
         const s = await initInference();
         
@@ -208,6 +209,12 @@ async function chat(messages, generationOptions = {}) {
             topK: parseInt(generationOptions.topK) || 40,
             repeatPenalty: parseFloat(generationOptions.repeatPenalty) || 1.1,
             maxTokens: parseInt(generationOptions.maxTokens) || 1024,
+            onToken: onToken ? (chunks) => {
+                if (model) {
+                    const text = model.detokenize(chunks);
+                    onToken(text);
+                }
+            } : undefined
         });
         
         return response;

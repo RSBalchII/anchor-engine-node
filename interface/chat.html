@@ -144,6 +144,8 @@
             input.value = '';
 
             const loadingId = addMsg("Thinking...", 'ai');
+            const msgDiv = document.getElementById(loadingId);
+            msgDiv.innerText = ""; // Clear "Thinking..."
             
             // Construct Prompt with Manual Context
             const manualContext = document.getElementById('manual-context').value.trim();
@@ -163,15 +165,49 @@
                         topP: document.getElementById('topp').value,
                         topK: document.getElementById('topk').value,
                         repeatPenalty: document.getElementById('rep-pen').value,
-                        maxTokens: document.getElementById('max-tokens').value
+                        maxTokens: document.getElementById('max-tokens').value,
+                        stream: true
                     })
                 });
-                const data = await res.json();
-                
-                // Replace loading with real response
-                document.getElementById(loadingId).innerText = data.choices[0].message.content;
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    
+                    // Keep the last partial line in the buffer
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            
+                            try {
+                                const data = JSON.parse(dataStr);
+                                if (data.token) {
+                                    msgDiv.innerText += data.token;
+                                    // Scroll to bottom
+                                    const hist = document.getElementById('chat-history');
+                                    hist.scrollTop = hist.scrollHeight;
+                                } else if (data.error) {
+                                    msgDiv.innerText += `\n[Error: ${data.error}]`;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE:', e);
+                            }
+                        }
+                    }
+                }
+
             } catch (e) {
-                document.getElementById(loadingId).innerText = "Error: " + e;
+                msgDiv.innerText += "\n[Network Error: " + e + "]";
             }
         }
 

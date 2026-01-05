@@ -91,11 +91,31 @@ router.post('/inference/load', async (req, res) => {
 // POST /v1/chat/completions
 router.post('/chat/completions', async (req, res) => {
   try {
-    const { messages, ...options } = req.body;
-    const response = await inference.chat(messages, options);
-    res.json({ choices: [{ message: { content: response } }] });
+    const { messages, stream = false, ...options } = req.body;
+
+    if (stream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      await inference.chat(messages, options, (token) => {
+        const data = JSON.stringify({ token });
+        res.write(`data: ${data}\n\n`);
+      });
+
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } else {
+      const response = await inference.chat(messages, options);
+      res.json({ choices: [{ message: { content: response } }] });
+    }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+      res.end();
+    }
   }
 });
 
