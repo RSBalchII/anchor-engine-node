@@ -1,0 +1,11 @@
+{
+    "llm": {
+        "model_dir": "../../models",
+        "chat_model": "gemma-3-4b-it-abliterated-v2.i1-Q4_K_S.gguf",
+        "task_model": "Qwen3-4B-Function-Calling-Pro.gguf"
+    },
+    "dreamer": {
+        "enabled": true,
+        "schedule": "0 3 * * *"
+    }
+}

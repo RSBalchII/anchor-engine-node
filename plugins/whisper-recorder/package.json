@@ -1,0 +1,27 @@
+{
+    "name": "whisper-audio-recorder",
+    "version": "1.0.0",
+    "description": "Standalone audio recorder and transcriber using node-llama-cpp",
+    "main": "dist/index.js",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "record": "node dist/record.js"
+    },
+    "dependencies": {
+        "@mlc-ai/web-llm": "^0.2.1",
+        "@xenova/transformers": "^2.15.0",
+        "onnxruntime-node": "^1.17.0",
+        "node-audiorecorder": "^3.0.0",
+        "wav": "^1.0.2",
+        "dotenv": "^16.3.1",
+        "chalk": "^5.3.0",
+        "ws": "^8.16.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.3",
+        "@types/node": "^20.10.0",
+        "@types/wav": "^1.0.4"
+    }
+}
