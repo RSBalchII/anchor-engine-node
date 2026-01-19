@@ -1,145 +1,165 @@
+Based on the comprehensive context provided—specifically the transition to **Tag-Walker (Standard 065)**, the removal of the embedding infrastructure to reduce technical debt, and the updated `provider.ts` logic—here is the fully updated `README.md`.
+
+This version replaces the outdated "UniversalRAG/Vector" terminology with the new "Graph-Native/Tag-Walker" architecture.
+
+### Updated `README.md`
+
+```markdown
 # ECE_Core - Sovereign Context Engine
 
-> **Executive Cognitive Enhancement (ECE)** - Personal external memory system as an assistive cognitive tool.
+> **Sovereign Context Engine (SCE)** - A local-first, graph-native memory system for cognitive augmentation.
 
-**Status**: Active development | **Architecture**: UniversalRAG (Node.js + WebGPU + RocksDB)
+**Version**: 3.0.0 | **Architecture**: Tag-Walker (Graph-Native) | **Stack**: Node.js Monolith + CozoDB (RocksDB)
 
 ---
 
 ## 🌟 Overview
 
-The ECE_Core is a modern **UniversalRAG** engine that transforms your local file system into a queriable, sovereign AI memory. It runs locally, ensuring 100% privacy, and uses a **Dual-Worker** architecture to handle chat and ingestion simultaneously without lag.
+The **ECE_Core** is a sovereign memory engine that transforms your local file system into a structured, queryable knowledge graph. Unlike traditional RAG systems that rely on heavy, probabilistic vector embeddings, ECE uses a **deterministic "Tag-Walker" protocol** to navigate your data.
+
+It runs 100% locally, protecting your privacy while enabling "Deep Context" retrieval on consumer hardware (low RAM/VRAM requirements).
 
 ### Key Features
-- **Sovereign Provenance**: Your files are "Tier 1" knowledge. The system boosts them 2x over generic data.
-- **Dual-Worker System**: Dedicated workers for **Chat** (e.g., Qwen) and **Embeddings** (e.g., Gemma).
-- **Universal Ingestion**: Just drop files into the `Inbox` or `Notebook`. Text, code, and markdown are chemically "atomized" into vector memories.
-- **Thinking Context**: Uses a "Rolling Context" window that prioritizes relevant facts + recent history.
-- **Desktop Overlay**: A thin, transparent "Heads Up Display" for instant access to your specialized AI.
+
+* **🕷️ The Tag-Walker Protocol**: Replaces resource-heavy Vector Search with a lightweight, 3-phase graph traversal (Anchor → Bridge → Walk).
+* **👑 Sovereign Provenance**: Implements "Trust Hierarchy." Data created by you (Sovereign) receives a 3.0x retrieval boost over external scrapes.
+* **🪞 Mirror Protocol 2.0**: Projects your AI's internal graph onto your filesystem as readable Markdown files organized by `@bucket` and `#tag`.
+* **👻 Ghost Data Protocol**: "Read-After-Write" verification ensures zero data loss during high-velocity ingestion.
+* **⚛️ Atomic Ingestion**: Chemically splits content into "Atoms" (thoughts) rather than arbitrary text chunks, preserving semantic integrity.
 
 ---
 
 ## 🏗️ Architecture
 
-### 1. Ingestion Pipeline ("The Refiner")
-- **Atomization**: Splits content into semantic "Atoms" (thoughts) rather than arbitrary chunks.
-- **Sanitization**: Strips null bytes, corrects encoding, and handles standard file types.
-- **Embedding**: Uses a dedicated 300M+ parameter model (separate from Chat) to vectorize atoms.
-- **Storage**: Persists to **CozoDB** (RocksDB backend) + **HNSW** Vector Index.
+### 1. The Core (Node.js Monolith)
+The engine runs as a single, efficient Node.js process managing three distinct layers:
 
-### 2. Cognitive Services
-- **ChatWorker**: Specialized worker for high-speed inference (supports streaming).
-- **EmbeddingWorker**: Dedicated worker for vector generation.
-- **ContextManager**: Middle-out context composer with:
-    - **Dynamic Recency**: Adapts sort order based on temporal queries ("latest logs" vs "history").
-    - **Safety Buffer**: Targets 3800 tokens to prevent overflow.
-    - **Smart Slicing**: Truncates content at punctuation boundaries.
+1.  **Ingestion (The Refiner)**:
+    * **Atomizer**: Splits text/code into logical units.
+    * **Enricher**: Assigns `source_id`, `sequence`, and `provenance`.
+    * **Zero-Vector**: Stubs embedding slots to maintain schema compatibility without VRAM cost.
 
-### 3. Application Layer
-- **API**: RESTful interface at `http://localhost:3000/v1/`.
-- **Frontend**: Modern React + Vite dashbaord.
-- **Desktop Overlay**: Lightweight Electron shell for "Always-on-Top" assistance.
+2.  **Retrieval (Tag-Walker)**:
+    * **Phase 1 (Anchors)**: Uses optimized FTS (Full Text Search) to find direct keyword matches (70% context budget).
+    * **Phase 2 (The Walk)**: Pivots via shared tags/buckets to find "Associative Neighbors" that share context but lack keywords (30% context budget).
+
+3.  **Persistence (CozoDB)**:
+    * Backed by **RocksDB** for high-performance local storage.
+    * Manages a Datalog graph of `*memory`, `*source`, and `*engrams`.
+
+### 2. The Application Layer
+* **API**: RESTful interface at `http://localhost:3000/v1/`.
+* **Frontend**: Modern React + Vite dashboard for managing memories.
+* **Desktop Overlay**: Electron "Thin Client" for Always-on-Top assistance.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js >= 18.0.0
-- pnpm package manager (`npm i -g pnpm`)
-- Git
+* Node.js >= 18.0.0
+* pnpm (`npm i -g pnpm`)
+* Git
 
 ### 1. Installation
 ```bash
-git clone https://github.com/External-Context-Engine/ECE_Core.git
+git clone [https://github.com/External-Context-Engine/ECE_Core.git](https://github.com/External-Context-Engine/ECE_Core.git)
 cd ECE_Core
 pnpm install
+
 ```
 
-### 2. Configuration (`.env`)
-The system uses a single `.env` file. A sample is provided.
+### 2. Configuration
+
+Copy the example configuration:
+
 ```bash
+cp .env.example .env
+
+```
+
+Ensure your `.env` is configured for **Tag-Walker Mode** (Embeddings Disabled):
+
+```env
 # Core
 PORT=3000
-API_KEY=ece-secret-key
 
-# Models (Absolute Paths or specific filenames in 'engine/models')
+# Models (Chat Only)
 LLM_MODEL_PATH=Qwen3-4B-Instruct.gguf
-LLM_EMBEDDING_MODEL_PATH=embeddinggemma-300m.gguf
-
-# Hardware
-LLM_GPU_LAYERS=33
 LLM_CTX_SIZE=4096
-LLM_EMBEDDING_CTX_SIZE=8192
+LLM_GPU_LAYERS=33
 
-# Vision (Required for image processing)
-VISION_MODEL_PATH=C:/path/to/Qwen2-VL-2B-Instruct.gguf
-VISION_PROJECTOR_PATH=C:/path/to/mmproj-Qwen2-VL.gguf
+# Tech Debt Removal (Disable Embeddings)
+EMBEDDING_GPU_LAYERS=0
+
 ```
 
 ### 3. Run Engine
+
 ```bash
 pnpm start
+
 ```
-*   Server: `http://localhost:3000`
-*   Health: `http://localhost:3000/health`
+
+* **Server**: `http://localhost:3000`
+* **Health Check**: `http://localhost:3000/health`
 
 ### 4. Run Desktop Overlay (Optional)
+
 ```bash
 cd desktop-overlay
 pnpm install
 pnpm start
+
 ```
 
 ---
 
 ## 📂 Project Structure
 
-- **engine/**: The core logic (Node.js, Express, Llama.cpp).
-    - `src/core/inference/`: Chat & Embedding Workers.
-    - `src/services/ingest/`: Refiner & Atomizer.
-    - `src/services/search/`: Vector Search & Routing.
-- **frontend/**: React + Vite web dashboard.
-- **desktop-overlay/**: Electron "Thin Client".
-- **archive/**: Deprecated code.
+* **`engine/`**: The neural center.
+* `src/core/`: Database (CozoDB) and Batch processors.
+* `src/services/ingest/`: Watchdog, Refiner, and Atomizer.
+* `src/services/search/`: The **Tag-Walker** implementation.
+* `src/services/mirror/`: Filesystem projection logic.
 
----
 
-## 🛠️ Development
-
-### Build
-```bash
-# Builds Engine, Frontend, and Types
-npm run build
-```
-
-### Test
-```bash
-npm test
-```
+* **`frontend/`**: React dashboard.
+* **`desktop-overlay/`**: Electron app.
+* **`specs/`**: The **Sovereign Engineering Code (SEC)** - The laws governing this system.
 
 ---
 
 ## 📚 Documentation Standards
 
-- **`specs/doc_policy.md`**: Documentation standards.
-- **`specs/spec.md`**: Technical specification.
-- **`specs/plan.md`**: Roadmap.
-- **`specs/tasks.md`**: Current task list.
+This project follows strict engineering standards documented in `specs/standards/`. Key references:
+
+* **Standard 065**: [Graph-Based Associative Retrieval](https://www.google.com/search?q=specs/standards/065-graph-associative-retrieval.md)
+* **Standard 059**: [Reliable Ingestion (Ghost Data Protocol)](https://www.google.com/search?q=specs/standards/059_reliable_ingestion.md)
+* **Standard 058**: [UniversalRAG API](https://www.google.com/search?q=specs/standards/058_universal_rag_api.md)
 
 ---
 
 ## 🧰 Utility Tools
 
 ### Codebase Scraper (`read_all.js`)
-Use this tool to consolidate an entire project into a digestable format for the engine.
+
+Consolidate an entire project into a digestable corpus for the engine.
+
 ```bash
 node read_all.js <path_to_project_root>
+
 ```
-**Output:** `combined_memory.yaml`
-**Usage:** Drop the resulting file into your `notebook/inbox` folder to ingest the entire codebase as a single knowledge source.
+
+**Output**: `codebase/combined_context.yaml`
+**Usage**: Drop the result into `notebook/inbox` to instantly ingest a project.
 
 ---
 
-## Acknowledgments
-**"Your data, sovereign. Your tools, open. Your mind, augmented."**
+## License
+
+Elastic License 2.0. Copyright (c) 2026 External Context Engine. See [LICENSE](file:///LICENSE) for full terms.
+
+```
+
+```

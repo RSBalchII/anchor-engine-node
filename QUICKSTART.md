@@ -40,17 +40,17 @@ Once started, the engine will be available at `http://localhost:3000`.
 
 ### API Endpoints
 - Health check: `GET /health`
-- Chat completions: `POST /v1/chat/completions`
-- Memory search: `POST /v1/memory/search`
+- Chat completions: `POST /v1/chat/completions` (OpenAI format)
+- Memory search: `POST /v1/memory/search` (Tag-Walker Protocol)
 - Ingest content: `POST /v1/ingest`
 - List buckets: `GET /v1/buckets`
 - Backup database: `GET /v1/backup`
 
-### File-Based Context
-The system automatically watches the `context/` directory for new files and ingests them. Supported formats include:
-- `.txt`, `.md`, `.json`, `.yaml`, `.yml`
-- `.js`, `.ts`, `.py`, `.html`, `.css`
-- And many other text-based formats
+### Semantic Brain Mirroring
+The system projects its inner database into the `mirrored_brain/` directory using an `@bucket/#tag` structure. This allows you to browse and manage the AI's "thoughts" directly through your filesystem.
+
+### File-Based Ingestion
+The system automatically watches the `inbox/` and `context/` directories for new files. 
 
 ## Configuration
 
@@ -77,7 +77,7 @@ npm run build
 ## Services
 
 The engine includes several background services:
-- **Dreamer**: Self-organizing memory categorization (runs automatically)
-- **Mirror Protocol**: Creates physical copies of the AI brain
-- **File Watcher**: Monitors `context/` directory for changes
+- **Dreamer**: Self-organizing memory categorization and auto-tagging.
+- **Mirror 2.0**: Generates the `mirrored_brain` filesystem projection (@bucket/#tag).
+- **Tag-Walker**: High-speed graph-based associative retrieval engine.
 - **Scribe**: Manages session state for conversation coherence

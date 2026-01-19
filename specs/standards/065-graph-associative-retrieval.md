@@ -22,6 +22,7 @@ We replace the Vector Layer with a **Graph-Based Associative Retrieval** protoco
 #### Phase 1: Anchor Search (70% Budget)
 **Goal:** Find "Direct Hits" using Weighted Keyword Search (BM25).
 1.  **Execute FTS**: Search for atoms matching the user query.
+    *   **Rule**: All FTS queries MUST be passed through `sanitizeFtsQuery` to prevent parser crashes on special characters (e.g., `.org`).
 2.  **Boosting**: Boost results that contain query terms in `tags` or `buckets` (2x boost).
 3.  **Selection**: Allocate **70%** of the context character budget to these results.
 

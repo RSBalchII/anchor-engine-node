@@ -22,9 +22,13 @@ function sanitizeFilename(text: string): string {
 export async function createMirror() {
     console.log('🪞 Mirror Protocol: Starting semantic brain mirroring...');
 
-    if (!fs.existsSync(MIRRORED_BRAIN_PATH)) {
-        fs.mkdirSync(MIRRORED_BRAIN_PATH, { recursive: true });
+    // Wipe existing mirrored brain to ensure only latest state is present
+    if (fs.existsSync(MIRRORED_BRAIN_PATH)) {
+        console.log(`🪞 Mirror Protocol: Wiping stale mirror at ${MIRRORED_BRAIN_PATH}`);
+        fs.rmSync(MIRRORED_BRAIN_PATH, { recursive: true, force: true });
     }
+
+    fs.mkdirSync(MIRRORED_BRAIN_PATH, { recursive: true });
 
     const query = '?[id, timestamp, content, source, type, hash, buckets, tags] := *memory{id, timestamp, content, source, type, hash, buckets, tags}';
     const result = await db.run(query);

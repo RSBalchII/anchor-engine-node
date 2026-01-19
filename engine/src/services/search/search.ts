@@ -24,6 +24,17 @@ interface SearchResult {
 }
 
 /**
+ * Helper to sanitize queries for CozoDB FTS engine
+ */
+function sanitizeFtsQuery(query: string): string {
+  return query
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Create or update an engram (lexical sidecar) for fast entity lookup
  */
 export async function createEngram(key: string, memoryIds: string[]): Promise<void> {
@@ -69,6 +80,9 @@ async function tagWalkerSearch(
   _maxChars: number = 524288
 ): Promise<SearchResult[]> {
   try {
+    const sanitizedQuery = sanitizeFtsQuery(query);
+    if (!sanitizedQuery) return [];
+
     // 1. Direct Search (The Anchor)
     // We use FTS to find the "Entry Nodes" into the graph
     const anchorQuery = `
@@ -80,7 +94,7 @@ async function tagWalkerSearch(
             :limit 20
         `;
 
-    const anchorResult = await db.run(anchorQuery, { query, buckets });
+    const anchorResult = await db.run(anchorQuery, { query: sanitizedQuery, buckets });
     if (!anchorResult.rows || anchorResult.rows.length === 0) return [];
 
     // Map Anchors
@@ -204,11 +218,7 @@ export async function executeSearch(
 
 // Helper for FTS
 export async function runTraditionalSearch(query: string, buckets: string[]): Promise<SearchResult[]> {
-  const sanitizedQuery = query
-    .replace(/[^a-zA-Z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+  const sanitizedQuery = sanitizeFtsQuery(query);
 
   if (!sanitizedQuery) return [];
 

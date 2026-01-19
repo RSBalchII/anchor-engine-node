@@ -3,23 +3,17 @@
 ## Mission
 
 Build a **personal external memory system** as an assistive cognitive tool using:
-- Redis + Neo4j tiered memory (pure graph architecture)
-- Markovian reasoning (chunked thinking)
-- Graph-R1 reasoning (iterative retrieval)
-- Local-first LLM integration (llama.cpp)
-- Plugin-based tool system (UTCP - Simple Tool Mode)
+- **CozoDB (RocksDB)**: Unified graph-relational-vector-fts engine (Replacing Neo4j/Redis).
+- **Tag-Walker Protocol**: Graph-based associative retrieval (Replacing legacy Vector Search).
+- **Mirror 2.0**: Tangible Knowledge Graph filesystem projections.
+- **Local-first LLM integration**: `node-llama-cpp` for GGUF support.
 
-**Current**: Neo4j + Redis architecture (SQLite removed)
-**Protocol**: Plugin System (migrated from MCP 2025-11-13)
-**Tools**: Tools loaded via `PluginManager` from `plugins/` directory:
-  - `web_search` - DuckDuckGo search with results
-  - `filesystem_read` - File and directory operations
-  - `shell_execute` - Shell command execution (with safety checks)
-  - `mgrep` - Semantic code & natural language file search (semantic `grep`) - Implemented as a standalone plugin in `plugins/mgrep/`
+**Current**: Node.js Monolith with CozoDB backend.
+**Tools**: Loaded via `PluginManager` from `plugins/` directory.
 
 ## Architecture Overview
 
-### System Architecture (UniversalRAG)
+### System Architecture (Tag-Walker)
 
 ```mermaid
 graph TD
@@ -35,98 +29,91 @@ graph TD
         
         subgraph "Ingestion Pipeline"
             Refiner -->|Sanitize| Atomizer[Atomizer]
-            Atomizer -->|Chunks| EmbeddingWorker
+            Atomizer -->|Zero-Vector Stub| Cozo
         end
         
-        subgraph "Inference System (Dual-Worker)"
+        subgraph "Inference System"
             Provider -->|Routing| ChatWorker[ChatWorker (Chat Model)]
-            Provider -->|Routing| EmbeddingWorker[EmbeddingWorker (Vector Model)]
+            Provider -->|Tasks| Orch[OrchestratorWorker]
         end
         
         subgraph "Context Manager"
-            Search[Vector Search] -->|Results| Slicer[Context Slicer]
+            Search[Tag-Walker Search] -->|FTS + Pivot| Slicer[Context Slicer]
             Slicer -->|Assembly| Provider
         end
     end
 
     subgraph "Persistence Layer"
-        EmbeddingWorker -->|Vectors| Cozo[CozoDB (RocksDB)]
-        Refiner -->|Metadata| Cozo
+        Cozo[CozoDB (RocksDB)] -->|Mirror 2.0| Mirror[mirrored_brain/ @bucket/#tag]
     end
 
     style ChatWorker fill:#f9f,stroke:#333
-    style EmbeddingWorker fill:#bbf,stroke:#333
+    style Orch fill:#bbf,stroke:#333
     style Cozo fill:#dfd,stroke:#333
 ```
 
-### Context Assembly Flow
+### Context Assembly Flow (Tag-Walker)
 
 ```mermaid
 graph LR
-    Query[User Query] --> Analysis{Temporal Analysis?}
+    Query[User Query] --> FTS[Phase 1: Anchor FTS]
+    FTS --> Harvest[Phase 2: Tag Harvest]
+    Harvest --> Walk[Phase 3: Neighbor Walk]
     
-    Analysis -->|Yes ("recent", "now")| WeightsTemp[Recency: 60% / Relev: 40%]
-    Analysis -->|No| WeightsStd[Recency: 30% / Relev: 70%]
-    
-    WeightsTemp --> Ranking
-    WeightsStd --> Ranking
-    
-    subgraph "Search & Selection"
-        Vectors[Vector Search] --> Ranking[Mixed Score Sort]
-        Ranking --> Budget{Token Budget < 3800?}
+    subgraph "Retrieval Layer"
+        FTS -->|70% Budget| Ranking
+        Walk -->|30% Budget| Ranking
     end
     
-    Budget -->|Fit| Add[Add Atom]
+    Ranking[Score-Based Mix] --> Budget{Token Budget?}
+    
+    Budget -->|Fit| FinalContext[Final Context Prompt]
     Budget -->|Overflow| Slicing[Smart Slicing]
     
     subgraph "Smart Slicing"
-        Slicing --> Punctuation{Find . ! ? \\n}
-        Punctuation -->|Found| Cut[Truncate at Punctuation]
-        Punctuation -->|Not Found| HardCut[Hard Truncate]
+        Slicing --> Punctuation{Find Sentence End}
+        Punctuation -->|Found| Cut[Truncate]
+        Punctuation -->|Not Found| HardCut[Hard Cut]
     end
     
-    Add --> Resort[Chronological Re-Sort]
-    Cut --> Resort
-    HardCut --> Resort
-    
-    Resort --> FinalContext[Final Context Prompt]
+    Cut --> FinalContext
+    HardCut --> FinalContext
 ```
 
-### Cognitive Architecture: Agent-Based System
+## Graph Architecture: CozoDB
 
 **Verifier Agent** - Truth Verification
 - **Role**: Fact-checking via Empirical Distrust
 - **Method**: Provenance-aware scoring (primary sources > summaries)
 - **Goal**: Reduce hallucinations, increase factual accuracy
 
-**Distiller Agent** - Memory Compression & Context Rotation
-- **Role**: Memory summarization and compression + Context Rotation Protocol
-- **Method**: LLM-assisted distillation with salience scoring + context gist creation
-- **Goal**: Maintain high-value context, enable infinite context, prune noise
+**Distiller Agent** - Memory Compression
+- **Role**: Memory summarization and compression
+- **Method**: LLM-assisted distillation with salience scoring
+- **Goal**: Maintain high-value context, prune noise
 
-**Archivist Agent** - Memory Maintenance & Context Management
-- **Role**: Knowledge base maintenance, freshness checks + Context Coordination
-- **Method**: Scheduled verification, stale node detection, context rotation oversight
-- **Goal**: Keep memory graph current and trustworthy, manage context windows
+**Archivist Agent** - Memory Maintenance
+- **Role**: Knowledge base maintenance, freshness checks
+- **Method**: Scheduled verification, stale node detection
+- **Goal**: Keep memory graph current and trustworthy
 
 **Memory Weaver** - Automated Relationship Repair
 - **Role**: Automated graph relationship repair and optimization
-- **Method**: Embedding-based similarity with audit trail (`auto_commit_run_id`)
-- **Goal**: Maintain graph integrity with full traceability
+- **Method**: Tag-based similarity with audit trail (`auto_commit_run_id`)
+- **Goal**: Maintain graph integrity without vectors
 
-### Reasoning Architecture: Graph-R1 + Markovian Reasoning
+### Reasoning Architecture: Tag-Walker + CozoDB
 
-**Graph-R1 Reasoning Pattern**:
-1. **Think** - High-level planning based on question
-2. **Generate Query** - Create Cypher query for Neo4j
-3. **Retrieve Subgraph** - Fetch relevant memories and relationships  
-4. **Rethink** - Plan next iteration based on retrieved context
-5. **Repeat** - Iterate until confident or max iterations reached
+**Tag-Walker Reasoning Pattern**:
+1. **Anchor** - FTS match for direct entities
+2. **Pivot** - Extract tags from anchors
+3. **Walk** - Retrieve neighbors via shared tags
+4. **Boost** - Apply Sovereign provenance boosting
+5. **Synthesize** - Present multi-node context to LLM
 
-**Markovian Memory**: Chunked context management for infinite windows
-- **Active Context**: Current working memory (in Redis)
-- **Gist Memory**: Compressed historical context (in Neo4j as `:ContextGist`)
-- **Rotation Protocol**: When active context approaches 55k tokens, compress oldest segments to gists
+**Unified Memory**: Consolidated context management
+- **Hot Context**: Active session memories in CozoDB
+- **Mirrored Brain**: Filesystem projection via @bucket/#tag structure
 
 ### Tool Architecture: UTCP Plugin System
 
@@ -170,10 +157,10 @@ graph LR
 - Response: Streaming SSE with full context injection
 
 **Memory Operations**:
-- `POST /memory/add` - Add memory to Neo4j graph
-- `POST /memory/search` - Semantic search with relationships  
-- `GET /memory/summaries` - Session summary retrieval
-- `POST /archivist/ingest` - Ingest content with distillation
+- `POST /v1/memory/search` - Tag-Walker search
+- `GET /v1/buckets` - List active buckets
+- `POST /v1/ingest` - Manual atom ingestion
+- `GET /v1/backup` - Snapshot RocksDB state
 
 **Health & Info**:
 - `GET /health` - Server health check
@@ -186,12 +173,11 @@ graph LR
 
 ## Configuration
 
-### Required Parameters (in `.env` or config.yaml)
-- `NEO4J_URI` - Neo4j connection URI (default: bolt://localhost:7687)
-- `REDIS_URL` - Redis connection URL (default: redis://localhost:6379)
-- `LLM_MODEL_PATH` - Path to GGUF model file
-- `ECE_HOST` - Host for ECE server (default: 127.0.0.1)
-- `ECE_PORT` - Port for ECE server (default: 8000)
+### Required Parameters (in `.env` or sovereign.yaml)
+- `MODELS_DIR` - Path to GGUF model storage
+- `NOTEBOOK_DIR` - Root of the target brain for mirroring
+- `LLM_GPU_LAYERS` - GPU offload settings
+- `PORT` - Engine API port (default: 3000)
 
 ### Optional Parameters
 - `ECE_REQUIRE_AUTH` - Enable API token authentication (default: false)
@@ -228,10 +214,10 @@ graph LR
 - **Context Windows**: 64k requires ~8GB VRAM for KV cache with 7B-14B models
 
 ### Memory Management
-- **Hot Cache**: Redis for active session context (24h TTL)
-- **Cold Storage**: Neo4j for persistent memories with relationships
-- **Context Rotation**: Automatic compression of old context when approaching limits
-- **Caching Strategy**: L1 (Redis) for active context, L2 (Neo4j) for historical context
+- **Hot Cache**: rocksdb backed CozoDB for all active session and entity memories.
+- **Mirrored Brain**: File-based projection in `@bucket/#tag` format for human audit.
+- **Cleanup Strategy**: Periodic vacuuming of FTS indices in CozoDB.
+- **Caching Strategy**: RocksDB block cache handles L1 performance; Mirror 2.0 provides L2 observability.
 
 ## Integration Points
 
