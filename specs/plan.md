@@ -1,7 +1,7 @@
-# Anchor Core Roadmap (V2.3)
+# Anchor Core Roadmap (V2.4)
 
-**Status:** Text-Only + Watchdog Deployed
-**Focus:** Stability & Passive Text Ingestion.
+**Status:** Markovian Reasoning Deployed & Context Assembly Experiments Added
+**Focus:** Production Polish & Verification.
 
 ## Phase 1: Foundation (Completed)
 - [x] Pivot to WebLLM/WebGPU stack.
@@ -17,83 +17,52 @@
 - [x] **Kernel Implementation**: Created `sovereign.js` (Unified Logger, State, Hardware).
 - [x] **The Ears**: Refactored `root-mic.html` to Root Architecture.
 - [x] **The Stomach**: Refactored `sovereign-db-builder.html` to Root Architecture.
+
+## Phase 3: Markovian Reasoning & Context Optimization (Completed)
+- [x] **Scribe Service**: Created `engine/src/services/scribe.js` for rolling state
+- [x] **Context Weaving**: Upgraded `inference.js` to auto-inject session state
+- [x] **Dreamer Service**: Enhanced `dreamer.js` with batch processing to prevent OOM errors
+- [x] **Semantic Translation**: Added intent translation via local SLM
+- [x] **Context Experiments**: Created `engine/tests/context_experiments.js` for optimal context window sizing
 - [x] **The Brain**: Refactored `model-server-chat.html` to Root Architecture (Graph-R1 preservation).
 
-## Phase 3: Expansion & Hardening (Completed)
-- [x] **Resource Hardening**: Implemented "Consciousness Semaphore" in `sovereign.js`.
-- [x] **Documentation Refactor**: Executed "Visual Monolith" strategy.
-- [x] **Memory Hygiene**: Implement "Forgetting Curve" in `root-dreamer.html`.
-- [x] **Active Memory Persistence**: Enable chat to write back to the Graph.
-- [x] **Temporal Awareness**: Ground the model in real-time.
-- [x] **Mobile Optimization**: Polish mobile UX for `model-server-chat.html`.
+## Phase 3-8: [Archived] (Completed)
+*See `specs/tasks.md` for detailed historical phases.*
 
-## Phase 4: Text-Only Architecture (Completed)
-- [x] **Vision Removal**: Remove brittle Vision/Ollama dependencies.
-- [x] **Watchdog Implementation**: Create passive text ingestion service.
-- [x] **Debounce & Hash Check**: Prevent duplicate file ingestion.
-- [x] **[Archived] Auto-Resurrection**: Enhance browser process management.
-- [x] **Streaming CLI**: Improve terminal UX with streaming responses.
+## Phase 9: Node.js Monolith & Snapshot Portability (Completed)
+- [x] **Migration**: Move from Python/Browser Bridge to Node.js Monolith (Standard 034).
+- [x] **FTS Optimization**: Implement native CozoDB BM25 search.
+- [x] **Operational Safety**: Implement detached execution and logging protocols (Standard 035/036).
+- [x] **Snapshot Portability**: Create "Eject" (Backup) and "Hydrate" (Restore) workflow (Standard 037).
 
-## Phase 5: Context Expansion & Persistence (Completed)
-- [x] **Code File Support**: Expand to monitor programming language extensions.
-- [x] **Browser Profile Management**: Implement temporary profile cleanup.
-- [x] **Chat Session Persistence**: Auto-save conversations to context directory.
-- [x] **Ingestion Loop Closure**: Ensure chat sessions become ingested context.
+## Phase 10: Cortex Upgrade (Completed)
+- [x] **Local Inference**: Integrate `node-llama-cpp` for GGUF support (Standard 038).
+- [x] **Multi-Bucket Schema**: Migrate from single `bucket` to `buckets: [String]` (Standard 039).
+- [x] **Dreamer Service**: Implement background self-organization via local LLM.
+- [x] **Cozo Hardening**: Resolve list-handling and `unnest` syntax errors (Standard 040).
+- [x] **ESM Interop**: Fix dynamic import issues for native modules in CJS.
 
-## Phase 6: Session Recorder & Text-File Source of Truth (Completed)
-- [x] **Daily Session Files**: Create `chat_YYYY-MM-DD.md` files for each day's conversations.
-- [x] **Text-File Source of Truth**: Implement "Database is Cache" philosophy.
-- [x] **Cross-Machine Sync**: Enable file sync via Dropbox/Git for multi-device access.
-- [x] **Infinite Loop**: Create feedback loop: Chat -> File -> Ingestion -> Memory -> Next Chat.
-- [x] **Timestamped Entries**: Format messages with timestamps for better tracking.
+## Phase 11: Markovian Reasoning Engine (Completed)
+- [x] **Scribe Service**: Implement rolling session state compression (Standard 041).
+- [x] **Context Weaving**: Auto-inject Markovian state into inference.
+- [x] **Test Suite**: Create `engine/tests/suite.js` for API verification.
+- [x] **Benchmark Tool**: Create `engine/tests/benchmark.js` for accuracy testing.
+- [x] **Configuration Hardening**: Externalize paths, fix package.json, add validation.
 
-## Phase 7: Model Loading Reliability (Completed)
-- [x] **[Archived] URL Construction Fix**: Implemented `/models/{model}/resolve/main/{file}` redirect for MLC-LLM compatibility.
-- [x] **File Standardizing**: Standardized component names (`anchor-mic.html`, `memory-builder.html`, `db_builder.html`).
-- [x] **Server Stability**: Fixed hanging issues with problematic path parameter syntax.
-- [x] **Endpoint Completeness**: Verified all documented endpoints are accessible.
-
-## Phase 5.5: Search Enhancement (Completed)
-- [x] **BM25 Implementation**: Replaced regex-based search with CozoDB FTS using BM25 algorithm.
-- [x] **Hybrid Search**: Combined vector search (semantic) with BM25 (lexical) for better results.
-- [x] **Index Creation**: Added FTS index creation in memory initialization routines.
-- [x] **Stemming Support**: Enabled English stemming for improved word variation matching.
-
-## Phase 6: GPU Resource Management (Completed)
-- [x] **[Archived] GPU Queuing System**: Implemented automatic queuing for GPU resource requests to prevent conflicts
-- [x] **[Archived] Resource Status Management**: Added GPU lock status tracking with owner identification
-- [x] **[Archived] 503 Error Resolution**: Fixed "Service Unavailable" errors by implementing proper resource queuing
-- [x] **[Archived] Endpoint Integration**: Added `/v1/gpu/lock`, `/v1/gpu/unlock`, `/v1/gpu/status` endpoints
-- [x] **[Archived] Log Integration**: Added GPU resource management to centralized logging system
-
-## Phase 7: Async/Await Best Practices (Completed)
-- [x] **[Archived] Coroutine Fixes**: Resolved "coroutine was never awaited" warnings in webgpu_bridge.py
-- [x] **[Archived] Event Loop Integration**: Properly integrated async functions with FastAPI's event loop
-- [x] **Startup Sequence**: Ensured logging system initializes properly with application lifecycle
-- [x] **Resource Management**: Fixed resource cleanup in WebSocket handlers to prevent leaks
-- [x] **Error Handling**: Enhanced async error handling with proper cleanup procedures
-
-## Phase 8: Browser-Based Control Center (Completed)
-- [x] **UI Integration**: Implemented browser-based sidecar with retrieval and vision tabs
-- [x] **[Archived] Vision Engine**: Created Python-powered VLM integration for image analysis
-- [x] **Endpoint Expansion**: Added vision ingestion and enhanced logging endpoints
-- [x] **File Logging**: Implemented persistent file-based logging with truncation
-- [x] **UI Serving**: Extended bridge to serve HTML interfaces for unified workflow
-
-## Phase 9: Context Ingestion Pipeline Fixes (Completed)
-- [x] **Field Name Alignment**: Fixed mismatch between watchdog payload (`filetype`) and endpoint expectation (`file_type`)
-- [x] **Source Identification**: Updated watchdog to send proper source identifiers instead of "unknown"
-- [x] **[Archived] Ghost Engine Update**: Fixed handleIngest function to use correct field names (`msg.file_type`)
-- [x] **Error Handling**: Enhanced error reporting in watchdog for better debugging
-- [x] **Database Initialization**: Verified CozoDB schema creation and memory table initialization
-- [x] **Ingestion Verification**: Confirmed context files are properly ingested and searchable
-
-## Phase 10: Production Polish
+## Phase 12: Production Polish (In Progress)
 - [ ] **UI/UX Overhaul**: Implement "Flight Recorder" aesthetic for the dashboard.
-- [ ] **Android Compatibility**: Ensure the Node.js monolith runs efficiently in Termux.
-- [ ] **Clean Install Script**: Create a one-click setup for new users.
-- [ ] **Elastic Window Tuning**: Optimize snippeting for 1M token context windows.
+- [ ] **Chat Cockpit**: Enhance `interface/chat.html` with conversation history.
+- [ ] **Streaming Responses**: Implement SSE for real-time token streaming.
+- [ ] **Android Compatibility**: Ensure Node.js monolith runs in Termux.
+- [ ] **Clean Install Script**: Create one-click setup for new users.
 
-## Phase 11: Federation
-- [ ] **Device Sync**: Sync IndexedDB across devices (Peer-to-Peer).
+## Phase 13: Enterprise & Advanced RAG (Up Next)
+- [ ] **Backup System**: Robust snapshotting/restore (Feature 7).
+- [ ] **Smart Context**: Middle-Out "Rolling Slicer" logic (Feature 8).
+- [ ] **RAG IDE**: Live Context Visualization in UI (Feature 9).
+- [ ] **Provenance**: Trust Hierarchy switching (Feature 10).
+
+## Phase 14: Federation (Future)
+- [ ] **Device Sync**: Sync snapshots across devices (P2P or cloud).
 - [ ] **Local-First Cloud**: Optional encrypted backup.
+- [ ] **Multi-Model**: Support multiple models loaded simultaneously.

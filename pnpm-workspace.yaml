@@ -1,0 +1,8 @@
+packages:
+  - engine
+  - shared
+  - frontend
+
+ignoredBuiltDependencies:
+  - cozo-node
+  - sharp

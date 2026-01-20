@@ -1,154 +1,148 @@
-# Context Engine (Sovereign Edition)
+# ECE_Core - Sovereign Context Engine
 
-> **Philosophy:** Your mind, augmented. Your data, sovereign. Your tools, open.
+> **Sovereign Context Engine (SCE)** - A local-first, graph-native memory system for cognitive augmentation.
 
-A **Headless Node.js** cognitive extraction system. No browser dependencies. No cloud. No installation.
-Just you, Node.js, and your infinite context.
+**Version**: 3.0.0 | **Architecture**: Tag-Walker (Graph-Native) | **Stack**: Node.js Monolith + CozoDB (RocksDB)
 
 ---
 
-## ⚡ Quick Start
+## 🌟 Overview
 
-1.  **Download** this repository.
-2.  **Install** Node.js dependencies: `cd engine && npm install`
-3.  **Inject Context**: Drop any `.md`, `.txt`, or `.yaml` files into the `context/` directory.
-4.  **Launch** the unified system: `start_engine.*` specificed for your environment.
-6.  **Search**: Access the dashboard at `http://localhost:3000` to query your memories.
+The **ECE_Core** is a sovereign memory engine that transforms your local file system into a structured, queryable knowledge graph. Unlike traditional RAG systems that rely on heavy, probabilistic vector embeddings, ECE uses a **deterministic "Tag-Walker" protocol** to navigate your data.
 
-*That's it. You are running a headless context engine with persistent Graph Memory.*
+It runs 100% locally, protecting your privacy while enabling "Deep Context" retrieval on consumer hardware (low RAM/VRAM requirements).
 
-## 📋 Script Running Protocol
+### Key Features
 
-**IMPORTANT**: To prevent getting stuck in long-running loops, follow the script running protocol:
-
-- All services run in detached mode with logging to the `logs/` directory
-- Never run long-running processes in attached mode
-- Check log files in `logs/` directory to monitor system status
-- Use `start_engine.bat` or `start_engine.ps1` to start the system properly
+* **🕷️ The Tag-Walker Protocol**: Replaces resource-heavy Vector Search with a lightweight, 3-phase graph traversal (Anchor → Bridge → Walk).
+* **👑 Sovereign Provenance**: Implements "Trust Hierarchy." Data created by you (Sovereign) receives a 3.0x retrieval boost over external scrapes.
+* **🪞 Mirror Protocol 2.0**: Projects your AI's internal graph onto your filesystem as readable Markdown files organized by `@bucket` and `#tag`.
+* **👻 Ghost Data Protocol**: "Read-After-Write" verification ensures zero data loss during high-velocity ingestion.
+* **⚛️ Atomic Ingestion**: Chemically splits content into "Atoms" (thoughts) rather than arbitrary text chunks, preserving semantic integrity.
 
 ---
 
 ## 🏗️ Architecture
 
-The system now runs in `engine/` using Node.js with direct CozoDB integration.
+### 1. The Core (Node.js Monolith)
+The engine runs as a single, efficient Node.js process managing three distinct layers:
 
-### 1. The Sovereign Loop
-```mermaid
-graph TD
-    User -->|Input| API["HTTP API"]
+1.  **Ingestion (The Refiner)**:
+    * **Atomizer**: Splits text/code into logical units.
+    * **Enricher**: Assigns `source_id`, `sequence`, and `provenance`.
+    * **Zero-Vector**: Stubs embedding slots to maintain schema compatibility without VRAM cost.
 
-    subgraph "SOVEREIGN ENGINE (Port 3000)"
-        Engine[Express Server]
-        API["API Endpoints"]
-        Cozo["CozoDB Node"]
-    end
+2.  **Retrieval (Tag-Walker)**:
+    * **Phase 1 (Anchors)**: Uses optimized FTS (Full Text Search) to find direct keyword matches (70% context budget).
+    * **Phase 2 (The Walk)**: Pivots via shared tags/buckets to find "Associative Neighbors" that share context but lack keywords (30% context budget).
 
-    API -->|REST| Engine
-    Engine -->|Direct| Cozo["CozoDB (RocksDB)"]
+3.  **Persistence (CozoDB)**:
+    * Backed by **RocksDB** for high-performance local storage.
+    * Manages a Datalog graph of `*memory`, `*source`, and `*engrams`.
 
-    subgraph File_Watcher ["Context Watcher"]
-        Watcher[chokidar] -->|Monitor| Context["context/ directory"]
-        Watcher -->|Ingest| Cozo
-    end
+### 2. The Application Layer
+* **API**: RESTful interface at `http://localhost:3000/v1/`.
+* **Frontend**: Modern React + Vite dashboard for managing memories.
+* **Desktop Overlay**: Electron "Thin Client" for Always-on-Top assistance.
 
-    subgraph Cognitive_Engine
-        Engine -->|Query| Cozo
-        Cozo -->|Results| Engine
-    end
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+* Node.js >= 18.0.0
+* pnpm (`npm i -g pnpm`)
+* Git
+
+### 1. Installation
+```bash
+git clone https://github.com/External-Context-Engine/ECE_Core.git
+cd ECE_Core
+pnpm install
 ```
 
-### 2. Core Components
-*   **Engine**: `src/index.js` - Node.js server with Express, CORS, and body-parser.
-*   **Memory**: `CozoDB (Node)` - Stores relations (`*memory`) with RocksDB persistence.
-*   **Ingestion**: `chokidar` - Watches `context/` directory for file changes and auto-ingests.
-*   **Core**: `engine/` - Node.js monolith handling API, ingestion, and database operations.
-*   **Data**: `context/` - Directory for storing context files that are automatically monitored.
+### 2. Configuration
+
+Copy the example configuration:
+
+```bash
+cp .env.example .env
+```
+
+Ensure your `.env` is configured for **Tag-Walker Mode** (Embeddings Disabled):
+
+```env
+# Core
+PORT=3000
+
+# Models (Chat Only)
+LLM_MODEL_PATH=Qwen3-4B-Instruct.gguf
+LLM_CTX_SIZE=4096
+LLM_GPU_LAYERS=33
+
+# Tech Debt Removal (Disable Embeddings)
+EMBEDDING_GPU_LAYERS=0
+```
+
+### 3. Run Engine
+
+```bash
+pnpm start
+```
+
+* **Server**: `http://localhost:3000`
+* **Health Check**: `http://localhost:3000/health`
+
+### 4. Run Desktop Overlay (Optional)
+
+```bash
+cd desktop-overlay
+pnpm install
+pnpm start
+```
 
 ---
 
-## 🏛️ Node.js Monolith Architecture
+## 📂 Project Structure
 
-The system now features the unified Node.js monolith architecture for simplified deployment:
+* **`engine/`**: The neural center.
+* `src/core/`: Database (CozoDB) and Batch processors.
+* `src/services/ingest/`: Watchdog, Refiner, and Atomizer.
+* `src/services/search/`: The **Tag-Walker** implementation.
+* `src/services/mirror/`: Filesystem projection logic.
 
-*   **Sovereign Engine**: Single-process Node.js server handling API, ingestion, and database on port 3000
-*   **CozoDB Integration**: Direct integration with `cozo-node` using RocksDB backend
-*   **File Watcher**: `chokidar` monitors `context/` directory for automatic ingestion
-*   **API Endpoints**: Standardized endpoints for ingestion, querying, and health checks
 
-### Getting Started with Node.js Monolith
-1. Install dependencies: `cd engine && npm install`
-2. Start the unified system: `start_engine.bat` (or `start_engine.ps1`)
-3. Access the health check: `http://localhost:3000/health`
-4. Use the API endpoints for ingestion and querying
-
-### API Endpoints
-*   `POST /v1/memory/search` - **Cognitive Search**: Returns "Elastic Window" snippets grouped by file.
-*   `POST /v1/ingest` - Content ingestion endpoint (manual override).
-*   `POST /v1/query` - Raw CozoDB query execution endpoint.
-*   `GET /health` - Service health verification endpoint.
+* **`frontend/`**: React dashboard.
+* **`desktop-overlay/`**: Electron app.
+* **`specs/`**: The **Sovereign Engineering Code (SEC)** - The laws governing this system.
 
 ---
 
-## 🧠 Cognitive Retrieval (Elastic Window)
+## 📚 Documentation Standards
 
-The engine uses a sophisticated **"Elastic Window"** strategy to solve the "Keyword Saturation" problem (where large files flood the LLM context).
+This project follows strict engineering standards documented in `specs/standards/`. Key references:
 
-### 1. BM25 Full-Text Search
-When you query the engine, it first performs a **BM25 Full-Text Search** across the entire database to find the most relevant documents.
-
-### 2. Elastic Snippeting
-Instead of returning the whole file, the engine:
-- **Scans** for every occurrence of your keywords.
-- **Allocates** a character budget (default 5000) across all hits.
-- **Expands** a "window" of context (min 300 chars) around each hit to capture full thoughts.
-- **Merges** overlapping or nearby snippets to ensure coherence.
-
-### 3. Grouped Output
-Results are returned as a **Context Digest**:
-- **Source Header**: Printed once per file with a relevance score.
-- **Snippets**: All relevant sections from that file listed below the header.
-- **Separators**: Clear `---` markers between different sources.
-
-This ensures the LLM receives **high-density, relevant paragraphs** instead of "sentence soup" or massive, irrelevant file chunks.
+* **Standard 065**: [Graph-Based Associative Retrieval](./specs/standards/065-graph-associative-retrieval.md)
+* **Standard 059**: [Reliable Ingestion (Ghost Data Protocol)](./specs/standards/059_reliable_ingestion.md)
+* **Standard 058**: [UniversalRAG API](./specs/standards/058_universal_rag_api.md)
 
 ---
 
-## 🔄 Context Collection & Migration
+## 🧰 Utility Tools
 
-The system now includes comprehensive context collection and legacy migration:
+### Codebase Scraper (`read_all.js`)
 
-*   **Legacy Migration**: `engine/src/migrate_history.js` consolidates legacy session files into YAML/JSON
-*   **Context Collection**: `read_all.js` and `engine/src/read_all.js` aggregate content from project directories
-*   **File Monitoring**: Automatic ingestion of new files in `context/` directory
-*   **Multi-Format Output**: Generates text, JSON, and YAML formats for maximum compatibility
-*   **Archive Strategy**: Legacy V2 artifacts archived to `archive/v2_python_bridge/`
+Consolidate an entire project into a digestable corpus for the engine.
 
-### Data Migration Process
-1. Legacy session files consolidated from `context/Coding-Notes/Notebook/history/important-context/sessions/`
-2. Converted to YAML format in `context/full_history.yaml` and `context/full_history.json`
-3. Auto-ingested into CozoDB for persistent storage
-4. Legacy Python infrastructure archived for historical reference
+```bash
+node read_all.js <path_to_project_root>
+```
 
-### Context Collection Strategy
-*   **File Discovery**: Recursive scanning of `context/` directory
-*   **Format Support**: Handles .json, .md, .yaml, .txt, .py, .js, .html, .css, .sh, .ps1, .bat
-*   **Exclusion Rules**: Skips common build directories, logs, and combined outputs
-*   **Encoding Detection**: Robust encoding handling for various file types
-*   **Structured Output**: Generates both JSON and YAML memory files
+**Output**: `codebase/combined_context.yaml`
+**Usage**: Drop the result into `notebook/inbox` to instantly ingest a project.
 
 ---
 
-## 📚 Documentation
+## License
 
-*   **Architecture**: [specs/spec.md](specs/spec.md)
-*   **Roadmap**: [specs/plan.md](specs/plan.md)
-*   **Migration Guide**: [specs/standards/034-nodejs-monolith-migration.md](specs/standards/034-nodejs-monolith-migration.md)
-*   **Autonomous Execution**: [specs/protocols/001-autonomous-execution.md](specs/protocols/001-autonomous-execution.md)
-
----
-
-## 🧹 Legacy Support
-The old Python/Browser Bridge (V2) has been **archived**.
-*   Legacy artifacts: `archive/v2_python_bridge/`
-*   Legacy code: `webgpu_bridge.py`, `anchor_watchdog.py`, `start-anchor.bat`, etc.
-*   Migration guide: [specs/standards/034-nodejs-monolith-migration.md](specs/standards/034-nodejs-monolith-migration.md)
+Elastic License 2.0. Copyright (c) 2026 External Context Engine. See [LICENSE](LICENSE) for full terms.

@@ -1,20 +1,71 @@
 {
-  "name": "sovereign-context-engine",
-  "version": "3.0.0",
-  "description": "Headless Context Engine & Knowledge Graph",
-  "main": "src/index.js",
-  "scripts": {
-    "start": "node src/index.js",
-    "migrate": "node src/migrate_history.js",
-    "read-all": "node src/read_all.js",
-    "hydrate": "node src/hydrate.js"
-  },
-  "dependencies": {
-    "body-parser": "^1.20.2",
-    "chokidar": "^3.6.0",
-    "cors": "^2.8.5",
-    "cozo-node": "^0.7.5",
-    "express": "^4.18.2",
-    "js-yaml": "^4.1.1"
-  }
+    "name": "sovereign-context-engine",
+    "version": "3.0.0",
+    "type": "module",
+    "description": "Headless Context Engine & Knowledge Graph",
+    "main": "src/index.js",
+    "bin": "src/index.js",
+    "scripts": {
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
+        "migrate": "node src/migrate_history.js",
+        "read-all": "node src/read_all.js",
+        "hydrate": "node src/hydrate.js",
+        "test": "node tests/all_routes_and_services.js",
+        "test:routes": "node tests/all_routes_and_services.js",
+        "test:quick": "node tests/suite.js",
+        "test:benchmark": "node tests/benchmark.js",
+        "test:context": "node tests/context_experiments.js",
+        "benchmark": "node tests/benchmark.js",
+        "build": "tsc",
+        "build:standalone": "tsc && pkg .",
+        "lint": "eslint src/ --ext .ts,.js",
+        "lint:fix": "eslint src/ --ext .ts,.js --fix"
+    },
+    "pkg": {
+        "assets": [
+            "src/**/*",
+            "node_modules/cozo-node/native/**/*",
+            "context/**/*",
+            "codebase/**/*",
+            "specs/**/*",
+            "shared/**/*",
+            "!.env",
+            "!.env.*",
+            "!*.log",
+            "!logs/",
+            "!node_modules/@types/"
+        ],
+        "targets": [
+            "node18-win-x64"
+        ],
+        "outputPath": "dist",
+        "compress": "GZip"
+    },
+    "dependencies": {
+        "@ece/shared": "workspace:*",
+        "@xenova/transformers": "^2.17.2",
+        "axios": "^1.13.2",
+        "body-parser": "^1.20.2",
+        "chokidar": "^3.6.0",
+        "cors": "^2.8.5",
+        "cozo-node": "^0.7.6",
+        "dotenv": "^16.3.1",
+        "express": "^4.18.2",
+        "js-yaml": "^4.1.1",
+        "node-llama-cpp": "^3.15.0",
+        "sharp": "^0.34.5",
+        "wink-eng-lite-web-model": "^1.7.1",
+        "wink-nlp": "^2.3.0"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/js-yaml": "^4.0.9",
+        "@types/node": "^25.0.7",
+        "eslint": "^8.56.0",
+        "pkg": "^5.8.1",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
 }

@@ -4,10 +4,71 @@
 
 ## Core Philosophy
 1. **Code is King:** Code is the only source of truth. Documentation is a map, not the territory.
-2. **Visuals over Text:** Prefer Mermaid diagrams to paragraphs.
-3. **Brevity:** Text sections must be <500 characters.
-4. **Pain into Patterns:** Every major bug must become a Standard.
-5. **LLM-First Documentation:** Documentation must be structured for LLM consumption and automated processing.
+2. **Synchronous Testing:** EVERY feature or data change MUST include a matching update to the Test Suite.
+3. **Visuals over Text:** Prefer Mermaid diagrams to paragraphs.
+4. **Brevity:** Text sections must be <500 characters.
+5. **Pain into Patterns:** Every major bug must become a Standard.
+6. **LLM-First Documentation:** Documentation must be structured for LLM consumption and automated processing.
+7. **Change Capture:** All significant system improvements and fixes must be documented in new Standard files.
+
+## User-Facing Documentation
+
+### `QUICKSTART.md` (Root) — **PRIMARY USER GUIDE**
+*   **Role:** First-time user onboarding and daily workflow reference.
+*   **Content:** Data ingestion methods, deduplication logic, backup/restore, search patterns.
+*   **Audience:** New users, daily reference for workflow.
+*   **Authority:** Canonical guide for how users interact with ECE.
+
+### `README.md` (Root)
+*   **Role:** Project overview, installation, and quick start.
+*   **Content:** What ECE is, how to install, link to QUICKSTART.md.
+
+## Data Ingestion Standards
+
+### Unified Ingestion Flow
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  INPUT METHODS (All paths lead to CozoDB)                        │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Drop files → context/           (Watcher auto-ingests)       │
+│  2. Corpus YAML → context/          (read_all.js output)         │
+│  3. API POST → /v1/ingest           (Programmatic)               │
+│  4. Backup restore → backups/       (Session resume)             │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  DEDUPLICATION LAYER                                             │
+├─────────────────────────────────────────────────────────────────┤
+│  • Hash match → Skip (exact duplicate)                           │
+│  • >80% Jaccard → Skip (semantic duplicate)                      │
+│  • 50-80% Jaccard → New version (temporal folding)               │
+│  • <50% Jaccard → New document                                   │
+│  • >500KB → Reject (Standard 053: FTS poisoning)                │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  CozoDB GRAPH → Mirror → context/mirrored_brain/                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Corpus File Format (read_all.js output)
+```yaml
+project_structure: "C:/path/to/project"
+files:
+  - path: "src/index.js"
+    content: "// file content..."
+  - path: "README.md"
+    content: "# Project..."
+metadata:
+  total_files: N
+  timestamp: "ISO-8601"
+```
+
+### Ingestion Rules
+1. **Max Content Size:** 500KB per file (Standard 053: CozoDB Pain Points)
+2. **Auto-Bucketing:** Top-level folder name = bucket; root files → `pending`
+3. **Corpus Detection:** Files with `project_structure:` + `files:` array are extracted
+4. **Temporal Folding:** Search shows latest version, history timestamps collapsed
 
 ## Structure
 
@@ -16,59 +77,81 @@
 *   **Format:** "Visual Monolith".
 *   **Content:** High-level diagrams (Kernel, Memory, Logic, Bridge). No deep implementation details.
 
-### 2. The Tracker (`specs/tasks.md`)
-*   **Role:** Current work queue.
-*   **Format:** Checklist.
-*   **Maintenance:** Updated by Agents after every major task.
+### 2. Search Patterns (`specs/search_patterns.md`)
+*   **Role:** Document the new semantic search and temporal folding capabilities.
+*   **Format:** Examples and usage guidelines.
+*   **Content:** How to leverage semantic intent translation and temporal folding for optimal results.
 
-### 3. The Roadmap (`specs/plan.md`)
-*   **Role:** Strategic vision.
-*   **Format:** Phased goals.
+## CozoDB Integration Challenges & Solutions
 
-### 4. Standards (`specs/standards/*.md`)
-*   **Role:** Institutional Memory (The "Laws" of the codebase).
-*   **Trigger:** Created after any bug that took >1 hour to fix OR any systemic improvement that affects multiple components.
-*   **Format:** "The Triangle of Pain"
-    1.  **What Happened:** The specific failure mode (e.g., "Bridge crashed on start").
-    2.  **The Cost:** The impact (e.g., "3 hours debugging Unicode errors").
-    3.  **The Rule:** The permanent constraint (e.g., "Force UTF-8 encoding on Windows stdout").
+### Issue Description
+During development, we encountered significant challenges integrating CozoDB with the ECE_Core project, particularly around the native module loading and ES module compatibility.
 
-### 5. Root-Level Documents
-*   **Role:** System-wide protocols and policies.
-*   **Examples:** `SCRIPT_PROTOCOL.md`, `README.md`
-*   **Purpose:** Critical system-wide protocols that apply to the entire project.
+### Root Cause
+The `cozo-node` package is a native addon that exports functions directly rather than a class. When importing in an ES module environment, the import syntax needs to be adjusted to handle the CommonJS module correctly.
 
-### 6. Local Context (`*/README.md`)
-*   **Role:** Directory-specific context.
-*   **Limit:** 1 sentence explaining the folder's purpose.
+### Solution Implemented
+Instead of trying to instantiate a `CozoDb` class, we now use the individual functions exported by the module:
+- `open_db()` - Creates a database instance and returns a database ID
+- `query_db()` - Executes queries against a database using its ID
+- `close_db()` - Closes the database connection
 
-### 7. System-Wide Standards
-*   **Universal Logging:** All system components must route logs to the central log collection system (Standard 013)
-*   **Single Source of Truth:** The log viewer at `/log-viewer.html` is the single point for all system diagnostics
-*   **Async Best Practices:** All async/await operations must follow proper patterns for FastAPI integration (Standard 014)
-*   **Browser Control Center:** All primary operations must be accessible through unified browser interface (Standard 015)
-*   **Detached Script Execution:** All data processing scripts must run in detached mode with logging to `logs/` directory (Standard 025)
-*   **Never Attached Mode:** Long-running services and scripts must NEVER be run in attached mode to prevent command-line blocking (Standard 035 in 30-OPS)
-*   **Script Running Protocol:** All long-running processes must execute in detached mode with output redirected to timestamped log files (Standard 035 in 30-OPS)
-*   **Ghost Engine Connection Management:** All memory operations must handle Ghost Engine disconnections gracefully with proper error reporting and auto-reconnection (Standard 026)
-*   **No Resurrection Mode:** System must support manual Ghost Engine control via NO_RESURRECTION_MODE flag (Standard 027)
-*   **Default No Resurrection:** Ghost Engine resurrection is disabled by default, requiring manual activation (Standard 028)
-*   **Consolidated Data Aggregation:** Single authoritative script for data aggregation with multi-format output (Standard 029)
-*   **Multi-Format Output:** Project aggregation tools must generate JSON, YAML, and text outputs for maximum compatibility (Standard 030)
-*   **Ghost Engine Stability:** CozoDB schema creation must handle FTS failures gracefully to prevent browser crashes (Standard 031)
-*   **Ghost Engine Initialization Flow:** Database initialization must complete before processing ingestion requests to prevent race conditions (Standard 032)
-*   **CozoDB Syntax Compliance:** All CozoDB queries must use proper syntax to ensure successful execution (Standard 033)
-*   **Node.js Monolith Migration:** System must migrate from Python/Browser Bridge to Node.js Monolith architecture (Standard 034)
+### Key Learnings
+1. Native modules in Node.js environments can have compatibility issues between CommonJS and ES modules
+2. The `cozo-node` package exports functions directly, not a class
+3. Proper error handling is essential when working with native modules
+4. The database ID system requires careful management to prevent memory leaks
 
-## LLM Protocol
-1. **Read-First:** Always read `specs/spec.md`, `SCRIPT_PROTOCOL.md`, AND `specs/standards/` before coding.
-2. **Drafting:** When asked to document, produce **Mermaid diagrams** and short summaries.
-3. **Editing:** Do not modify `specs/doc_policy.md` or `specs/spec.md` structure unless explicitly instructed.
-4. **Archival:** Move stale docs to `archive/` immediately.
-5. **Enforcement:** If a solution violates a Standard, reject it immediately.
-6. **Standards Evolution:** New standards should follow the "Triangle of Pain" format and be numbered sequentially (001, 002, etc.).
-7. **Cross-Reference:** When creating new standards, reference related existing standards to maintain consistency.
-8. **Detached Mode:** All LLM development scripts must run in detached mode (non-interactive) and log to files in the `logs/` directory with timestamped names (Standard 025).
+### Testing Approach
+Created `test-cozo.js` to verify the native module functionality independently before integrating into the main codebase.
 
----
-*Verified by Architecture Council. Edited by Humans Only.*
+### Prevention Measures
+- Always test native module integrations in isolation first
+- Verify the actual export structure of third-party modules
+- Implement proper cleanup routines for database connections
+- Add comprehensive error handling for native module failures
+
+## NER Standardization (CPU-First Discovery)
+
+### Issue Description
+The "Teacher" component uses local AI to discover tags without calling the expensive LLM. Initially, we attempted to use GLiNER (Zero-Shot NER), but encountered significant compatibility issues with the `transformers.js` library and ONNX runtime.
+
+### Root Cause
+1.  **Unsupported Architecture:** GLiNER uses a custom architecture not natively supported by standard `transformers.js` pipelines.
+2.  **Model Availability:** The ONNX community builds for GLiNER are fragmented and often failed to download or run reliably.
+3.  **Dependency Hell:** Attempting to force GLiNER support triggered complex native dependency chains (Sharp/libvips) that are unstable on Windows.
+
+### Solution Implemented
+Switched the "Teacher" to a standard **BERT-based Named Entity Recognition (NER)** model (`Xenova/bert-base-NER`).
+
+**Benefits:**
+*   **Native Support:** Works out-of-the-box with `token-classification` pipeline.
+*   **Stability:** No custom inference logic or "hacky" dependency overrides needed.
+*   **Reliability:** The model is a staple of the Hugging Face ecosystem and extremely unlikely to disappear.
+
+### Standard 070: Local Discovery
+*   **Primary:** `Xenova/bert-base-NER` (Quantized ONNX)
+*   **Fallback:** `Xenova/bert-base-multilingual-cased-ner-hrl`
+*   **Failsafe:** Main LLM (Orchestrator) via "Tag Infection" prompts.
+
+## Native Module Best Practices
+
+### Core Principles
+1. **Graceful Degradation**: Services should continue to function when native modules are unavailable
+2. **Platform Compatibility**: Always test on target platforms before deployment
+3. **Error Handling**: Implement fallback mechanisms for missing dependencies
+4. **Documentation**: Record integration challenges and solutions for future reference
+
+### Implementation Guidelines
+- Use WASM/JavaScript alternatives when possible to avoid native compilation issues
+- Implement try/catch blocks around native module operations
+- Provide meaningful error messages and fallback behaviors
+- Document platform-specific installation requirements
+- Test error conditions and fallback paths regularly
+
+### Key Learnings from Recent Issues
+- Native modules can cause platform-specific issues that impact system stability
+- Graceful error handling is essential for robust systems
+- Proper documentation of integration challenges helps future development
+- Fallback mechanisms ensure core functionality remains available
+- Always verify the actual export structure of third-party modules before integration

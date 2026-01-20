@@ -1,20 +1,37 @@
-# Node
+# Sensitive Data & Secrets
+.env
+.env.*
+*.env
+
+# Database & Storage
+context.db/
+backups/
+logs/
+*.log
+*.sqlite
+*.db
+
+# Model Archives & Heavy Binaries
+archive/
+models/
+*.gguf
+*.bin
+*.pth
+
+# Code Dependencies
 node_modules/
-npm-debug.log
+dist/
+build/
+.pnpm-store/
 
-# Database & Storage (User Data)
-engine/context.db/
-backups/*.yaml
-backups/*.json
-
-# Context (User Data) - Keep folder, ignore content
-context/*
-!context/.gitkeep
-
-# Logs
-logs/*
-!logs/.gitkeep
-
-# System
+# IDE & System
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
+*.bak
+
+# Temporary/User Specific
+desktop-overlay/
+codebase/combined_context.yaml
+read_all.js
