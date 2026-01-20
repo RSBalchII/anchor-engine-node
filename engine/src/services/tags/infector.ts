@@ -9,15 +9,17 @@ import wink from 'wink-nlp';
 import model from 'wink-eng-lite-web-model';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { db } from '../../core/db.js';
 
 // Initialize the "Reflex" Engine (Fast CPU NLP)
 // Cast to any to avoid strict typing issues with wink-nlp generic models
 const nlp = wink(model) as any;
 
-// Use defined path for tags, relative to engine root or configured path
-// Assuming 'context/sovereign_tags.json' implies <ROOT>/context/sovereign_tags.json
-const TAGS_FILE = path.resolve('../context/sovereign_tags.json');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..', '..'); // engine/src/services/tags -> engine/src/services -> engine/src -> engine -> ROOT
+const TAGS_FILE = path.join(PROJECT_ROOT, 'context', 'sovereign_tags.json');
 
 /**
  * 1. The Generator (Source)
@@ -37,6 +39,9 @@ async function* atomStream(batchSize = 500) {
         `;
 
         const result = await db.run(query, { lastId, limit: batchSize });
+        if (result.rows && result.rows.length > 0) {
+            console.log(`[Infector] Stream fetched batch of ${result.rows.length} atoms...`);
+        }
 
         if (!result.rows || result.rows.length === 0) {
             break; // Stream exhausted

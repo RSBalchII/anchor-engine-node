@@ -8,6 +8,11 @@
  */
 
 import { db } from '../../core/db.js';
+import wink from 'wink-nlp';
+import model from 'wink-eng-lite-web-model';
+
+// Initialize Wink-NLP (Low-Memory Model)
+const nlp = wink(model);
 
 // AsyncLock implementation for preventing concurrent dream cycles
 class AsyncLock {
@@ -261,8 +266,6 @@ async function clusterAndSummarize(): Promise<void> {
   try {
     console.log('🌙 Dreamer: Running Abstraction Pyramid analysis...');
 
-    const { runSideChannel } = await import('../llm/provider.js');
-
     // 1. Find Unbound Atoms (Level 1 Nodes without a Parent)
     const { config } = await import('../../config/index.js');
     const limit = (config.DREAMER_BATCH_SIZE || 5) * 4; // Fetch 4x batch size for clustering context
@@ -311,64 +314,62 @@ async function clusterAndSummarize(): Promise<void> {
 
       console.log(`🌙 Dreamer: Summarizing cluster of ${cluster.length} atoms...`);
 
-      let runningSummary = "";
+
       // 3. Process Clusters -> Episodes (Level 2)
-      // We bundle atoms in the cluster into larger chunks for summarization to save LLM calls
-      // CPU-Optimization: Reduced from 25 to 5 to prevent hour-long pre-fill times.
-      const CHUNK_SIZE = 5;
+      console.log(`🌙 Dreamer: Summarizing cluster of ${cluster.length} atoms (Deterministic Episode)...`);
 
-      for (let i = 0; i < cluster.length; i += CHUNK_SIZE) {
-        const subBatch = cluster.slice(i, i + CHUNK_SIZE);
-        const batchContent = subBatch.map(a => `- ${String(a.content).substring(0, 300)}`).join('\n');
+      // DETERMINISTIC EPISODE GENERATION (Standard 072)
+      // Instead of LLM, we use pure metadata extraction for the Episode Node.
+      // This is O(1) and instant.
 
-        let prompt = "";
-        if (runningSummary) {
-          prompt = `
-            Current Episode Summary: "${runningSummary}"
-            
-            New related events to incorporate:
-            ${batchContent}
-            
-            Update the summary to include these new events naturally. Keep it concise, one paragraph only.
-          `;
-        } else {
-          prompt = `
-            Summarize the following sequence of related events into a concise, one-paragraph episode summary.
-            Events:
-            ${batchContent}
-          `;
-        }
-
-        try {
-          const updated = (await runSideChannel(prompt, "You are an expert historian specializing in concise event summarization.")) as string;
-          if (updated) {
-            runningSummary = updated.trim();
-          } else if (!runningSummary) {
-            runningSummary = String(subBatch[0].content).substring(0, 500); // Minimum fallback
-          }
-        } catch (e) {
-          console.warn('[Dreamer] Mid-cluster summarization LLM failure, using fallback.');
-          if (!runningSummary) runningSummary = String(subBatch[0].content).substring(0, 500);
-          runningSummary += `\n(Next part processed with partial context due to error)`;
-        }
-      }
-
-      // Create Episode Node (Level 2)
-      const crypto = await import('crypto');
-      const summaryHash = crypto.createHash('sha256').update(runningSummary).digest('hex');
-      const episodeId = `ep_${summaryHash.substring(0, 16)}`;
+      // A. Extract Date Range
       const startTime = cluster[0].timestamp;
       const endTime = cluster[cluster.length - 1].timestamp;
 
+      // B. Concatenate content for Wink Analysis
+      const fullText = cluster.map(a => a.content).join('\n');
+
+      // C. Extract Entities & Keywords using Wink
+      const doc = nlp.readDoc(fullText);
+
+      // Get top entities (if any)
+      // Filter: Must be > 2 chars, exclude numbers
+      const entities = doc.entities().out(nlp.its.value, nlp.as.freqTable)
+        .filter((e: any) => e[0].length > 2 && !/^\d+$/.test(e[0]))
+        .slice(0, 10)
+        .map((e: any) => e[0]);
+
+      // Get top nouns (topics)
+      // Filter: Must be > 3 chars, exclude common junk
+      const topics = doc.tokens()
+        .filter((t: any) => t.out(nlp.its.pos) === 'NOUN' && !t.out((nlp.its as any).stopWord))
+        .out(nlp.its.normal, nlp.as.freqTable)
+        .filter((t: any) => t[0].length > 3 && !/^[0-9]+$/.test(t[0])) // Filter numbers and short words
+        .slice(0, 5)
+        .map((t: any) => t[0]);
+
+      // D. Construct Metadata-Rich Content
+      const episodeContent = `
+EPISODE HEADER
+Range: ${new Date(startTime).toISOString()} - ${new Date(endTime).toISOString()}
+Topics: ${topics.join(', ')}
+Entities: ${entities.join(', ')}
+Atom Count: ${cluster.length}
+      `.trim();
+
+      // Create Episode Node (Level 2)
+      const crypto = await import('crypto');
+      const summaryHash = crypto.createHash('sha256').update(episodeContent).digest('hex');
+      const episodeId = `ep_${summaryHash.substring(0, 16)}`;
+
       // Insert Summary Node
-      // :create summary_node { id, type, content, span_start, span_end, embedding }
       await db.run(
         `?[id, type, content, span_start, span_end, embedding] <- [[$id, $type, $content, $start, $end, $emb]]
       :put summary_node { id, type, content, span_start, span_end, embedding }`,
         {
           id: episodeId,
           type: 'episode',
-          content: runningSummary,
+          content: episodeContent,
           start: startTime,
           end: endTime,
           emb: new Array(384).fill(0.0) // Placeholder
@@ -382,7 +383,7 @@ async function clusterAndSummarize(): Promise<void> {
         { edges }
       );
 
-      console.log(`🌙 Dreamer: Created Episode ${episodeId} from ${cluster.length} atoms.`);
+      console.log(`🌙 Dreamer: Created Episode ${episodeId} (Topics: ${topics.join(', ')})`);
     }
 
   } catch (e: any) {
