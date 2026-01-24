@@ -22,8 +22,8 @@
       },
       "conditions": [
         ["OS==\"mac\"", {
-          "cflags": ["-std=c++17", "-stdlib=libc++"],
-          "cflags_cc": ["-std=c++17", "-stdlib=libc++"],
+          "cflags": ["-std=c++17", "-stdlib=libc++", "-mmacosx-version-min=10.15"],
+          "cflags_cc": ["-std=c++17", "-stdlib=libc++", "-mmacosx-version-min=10.15"],
           "link_settings": {
             "libraries": ["-stdlib=libc++"]
           },
