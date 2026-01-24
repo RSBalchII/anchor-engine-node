@@ -11,7 +11,8 @@
         "./src/native/fingerprint.cpp"
       ],
       "include_dirs": [
-        "<!@(node -p \"require('node-addon-api').include\")"
+        "<!@(node -p \"require('node-addon-api').include\")",
+        "<!@(echo $SDKROOT)/usr/include/c++/v1"
       ],
       "defines": [ "NAPI_DISABLE_CPP_EXCEPTIONS" ],
       "msvs_settings": {
@@ -27,8 +28,14 @@
             "CLANG_CXX_LIBRARY": "libc++",
             "MACOSX_DEPLOYMENT_TARGET": "10.15",
             "CLANG_CXX_LANGUAGE_STANDARD": "c++17",
-            "OTHER_CPLUSPLUSFLAGS": ["-std=c++17", "-stdlib=libc++", "-mmacosx-version-min=10.15"]
-          }
+            "SDKROOT": "macosx",
+            "OTHER_CPLUSPLUSFLAGS": [
+              "-std=c++17",
+              "-stdlib=libc++"
+            ]
+          },
+          "cflags_cc": ["-std=c++17", "-stdlib=libc++"],
+          "ldflags": ["-stdlib=libc++"]
         }]
       ]
     }

@@ -53,5 +53,8 @@ cd ..
 # 5. Launch Electron
 echo ""
 echo "[INFO] Launching ECE Desktop Environment..."
+echo "[INFO] The Dashboard will open automatically when the Engine is ready."
+echo ""
+
 cd desktop-overlay
 npm start

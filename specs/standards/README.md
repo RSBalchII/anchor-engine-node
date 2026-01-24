@@ -3,17 +3,23 @@
 This is the authoritative reference manual for the External Context Engine (ECE) project. Standards are organized by domain to facilitate navigation and understanding.
 
 ## Domain 00: CORE (Philosophy & Invariants)
+
 Philosophy, Privacy, and "Local-First" invariants that govern the fundamental principles of the system.
 
 ### Standards:
+
 - [012-context-utility-manifest.md](012-context-utility-manifest.md) - Context utility manifest and philosophical foundations
 - [027-no-resurrection-mode.md](027-no-resurrection-mode.md) - Manual control via NO_RESURRECTION_MODE flag
 - [028-default-no-resurrection-mode.md](028-default-no-resurrection-mode.md) - Default behavior for Ghost Engine resurrection
+- [074-native-module-acceleration.md](00-CORE/074-native-module-acceleration.md) - Iron Lung Protocol for C++ native modules
+- [075-macos-native-build-configuration.md](00-CORE/075-macos-native-build-configuration.md) - macOS Sequoia SDK fix for native builds
 
 ## Domain 10: ARCH (System Architecture)
+
 Node.js Monolith, CozoDB, Termux, Hardware limits, and system architecture decisions.
 
 ### Standards:
+
 - [003-webgpu-initialization-stability.md](003-webgpu-initialization-stability.md) - WebGPU initialization stability
 - [004-wasm-memory-management.md](004-wasm-memory-management.md) - WASM memory management
 - [014-async-best-practices.md](014-async-await-best-practices.md) - Async/await patterns for system integration
@@ -27,9 +33,11 @@ Node.js Monolith, CozoDB, Termux, Hardware limits, and system architecture decis
 - [060-worker-system.md](060-worker-system.md) - High-performance worker architecture
 
 ## Domain 20: DATA (Data, Memory, Filesystem)
+
 Source of Truth, File Ingestion, Schemas, YAML Snapshots, and all data-related concerns.
 
 ### Standards:
+
 - [017-file-ingestion-debounce-hash-checking.md](017-file-ingestion-debounce-hash-checking.md) - File ingestion with debouncing and hash checking
 - [019-code-file-ingestion-comprehensive-context.md](019-code-file-ingestion-comprehensive-context.md) - Comprehensive context for code file ingestion
 - [021-chat-session-persistence-context-continuity.md](021-chat-session-persistence-context-continuity.md) - Chat session persistence and context continuity
@@ -53,9 +61,11 @@ Source of Truth, File Ingestion, Schemas, YAML Snapshots, and all data-related c
 - [070-local-discovery.md](070-local-discovery.md) - Local Discovery & NER Standardization
 
 ## Domain 30: OPS (Protocols, Safety, Debugging)
+
 Agent Safety (Protocol 001), Logging, Async handling, and operational procedures.
 
 ### Standards:
+
 - [001-windows-console-encoding.md](001-windows-console-encoding.md) - Windows console encoding handling
 - [011-comprehensive-testing-verification.md](011-comprehensive-testing-verification.md) - Testing and verification
 - [013-universal-log-collection.md](013-universal-log-collection.md) - Universal log collection system
@@ -69,9 +79,11 @@ Agent Safety (Protocol 001), Logging, Async handling, and operational procedures
 - [062-inference-stability.md](062-inference-stability.md) - CUDA error handling and model stability
 
 ## Domain 40: BRIDGE (APIs, Extensions, UI)
+
 Extensions, Ports, APIs, and all interface-related concerns.
 
 ### Standards:
+
 - [010-bridge-redirect-implementation.md](010-bridge-redirect-implementation.md) - Bridge redirect implementation
 - [015-browser-control-center.md](015-browser-control-center.md) - Unified browser control center
 - [018-streaming-cli-client-responsive-ux.md](018-streaming-cli-client-responsive-ux.md) - Responsive UX for streaming CLI clients
