@@ -22,17 +22,11 @@
       },
       "conditions": [
         ["OS==\"mac\"", {
-          "cflags": ["-std=c++17", "-stdlib=libc++", "-mmacosx-version-min=10.15"],
-          "cflags_cc": ["-std=c++17", "-stdlib=libc++", "-mmacosx-version-min=10.15"],
-          "link_settings": {
-            "libraries": ["-stdlib=libc++"]
-          },
           "xcode_settings": {
             "GCC_ENABLE_CPP_EXCEPTIONS": "NO",
             "CLANG_CXX_LIBRARY": "libc++",
             "MACOSX_DEPLOYMENT_TARGET": "10.15",
-            "CLANG_CXX_LANGUAGE_STANDARD": "c++17",
-            "OTHER_CPLUSPLUSFLAGS": ["-std=c++17", "-stdlib=libc++"]
+            "CLANG_CXX_LANGUAGE_STANDARD": "c++17"
           }
         }]
       ]
