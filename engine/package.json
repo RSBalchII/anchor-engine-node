@@ -23,6 +23,7 @@
         "build:universal": "npm run build && npm run build:native",
         "lint": "eslint src/ --ext .ts,.js",
         "chat": "ts-node tools/chat.ts",
+        "chat-api": "node dist/server-8080.js",
         "lint:fix": "eslint src/ --ext .ts,.js --fix"
     },
     "pkg": {

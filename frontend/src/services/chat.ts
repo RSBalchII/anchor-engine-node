@@ -8,7 +8,9 @@ export class ChatService {
         onMessage: (message: Partial<Message>) => void,
         onError: (error: string) => void,
         onComplete: () => void,
-        model?: string
+        model?: string,
+        saveToGraph: boolean = false,
+        usePort8080: boolean = false
     ) {
         if (this.abortController) {
             this.abortController.abort();
@@ -17,9 +19,12 @@ export class ChatService {
         this.abortController = new AbortController();
 
         try {
+            // Determine the base URL based on the port selection
+            const baseUrl = usePort8080 ? 'http://localhost:8080' : '';
+
             // First, get context for the user's query using molecule search
             // Split the query into sentence-like chunks and search each separately
-            const moleculeResponse = await fetch('/v1/memory/molecule-search', {
+            const moleculeResponse = await fetch(`${baseUrl}/v1/memory/molecule-search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -44,7 +49,8 @@ export class ChatService {
             ];
 
             const requestBody: any = {
-                messages
+                messages,
+                save_to_graph: saveToGraph  // Add the save_to_graph parameter
             };
 
             // Include model if provided
@@ -52,7 +58,7 @@ export class ChatService {
                 requestBody.model = model;
             }
 
-            const response = await fetch('/v1/chat/completions', {
+            const response = await fetch(`${baseUrl}/v1/chat/completions`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

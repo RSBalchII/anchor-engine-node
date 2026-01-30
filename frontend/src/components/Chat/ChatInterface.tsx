@@ -15,6 +15,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ model }) => {
         error: null
     });
     const [input, setInput] = useState('');
+    const [saveToGraph, setSaveToGraph] = useState(false);
+    const [usePort8080, setUsePort8080] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -72,7 +74,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ model }) => {
             },
             (error) => setState(prev => ({ ...prev, isLoading: false, error })),
             () => setState(prev => ({ ...prev, isLoading: false })),
-            model
+            model,
+            saveToGraph,
+            usePort8080
         );
     };
 
@@ -142,6 +146,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ model }) => {
                     </div>
                 )}
                 <div ref={messagesEndRef} />
+            </div>
+
+            {/* Toggle Controls */}
+            <div className="p-3 bg-gray-900/50 border-t border-gray-800/50 flex flex-wrap gap-4 items-center">
+                <label className="flex items-center gap-2 text-xs text-gray-400">
+                    <input
+                        type="checkbox"
+                        checked={saveToGraph}
+                        onChange={(e) => setSaveToGraph(e.target.checked)}
+                        className="rounded"
+                    />
+                    Save to Graph
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-gray-400">
+                    <input
+                        type="checkbox"
+                        checked={usePort8080}
+                        onChange={(e) => setUsePort8080(e.target.checked)}
+                        className="rounded"
+                    />
+                    Use Port 8080
+                </label>
             </div>
 
             {/* Input Area - Matching Search UI aesthetic */}

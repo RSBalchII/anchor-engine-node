@@ -1,9 +1,9 @@
 {
     "llm": {
         "model_dir": "../../models",
-        "chat_model": "glm-edge-1.5b-chat.Q5_K_M.gguf",
+        "chat_model": "GLM-4.7-Flash.i1-Q4_K_S.gguf",
         "task_model": "Qwen3-4B-Function-Calling-Pro.gguf",
-        "gpu_layers": 11,
+        "gpu_layers": 1,
         "ctx_size": 8192
     },
     "dreamer": {

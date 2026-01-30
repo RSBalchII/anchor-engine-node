@@ -9,6 +9,7 @@ Build a **personal external memory system** as an assistive cognitive tool using
 - **Mirror 2.0**: Tangible Knowledge Graph filesystem projections.
 - **Local-first LLM integration**: `node-llama-cpp` for GGUF support.
 - **Browser Paradigm**: Universal compatibility through selective loading and cross-platform design.
+- **Stateless Contextual Chat Protocol (Standard 084)**: Context-first, stateless interaction model that grounds each response in relevant ECE data without session memory.
 
 ## Core Architecture
 

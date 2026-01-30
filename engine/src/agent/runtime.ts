@@ -12,6 +12,7 @@ interface AgentRuntimeOptions {
   verbose?: boolean;
   maxIterations?: number;
   onEvent?: (event: AgentEvent) => void;
+  messages?: Array<{role: string, content: string}>;
 }
 
 export class AgentRuntime {
@@ -20,11 +21,13 @@ export class AgentRuntime {
   private verbose: boolean;
   private maxIterations: number;
   private onEvent?: (event: AgentEvent) => void;
+  private messages?: Array<{role: string, content: string}>;
 
   constructor(options: AgentRuntimeOptions = {}) {
     this.verbose = options.verbose ?? false;
     this.maxIterations = options.maxIterations ?? 4;
     this.onEvent = options.onEvent;
+    this.messages = options.messages;
 
     // Load the native module (kept for legacy/potential future needs)
     this.native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node');
@@ -60,24 +63,26 @@ export class AgentRuntime {
 
   /**
    * Basic Chat Flow (User Requested Validation Mode)
-   * User Prompt -> Model -> Stream Output
-   * No RAG, No Meta-Reasoning Injection.
+   * Context -> User Prompt -> Model -> Stream Output
+   * Uses provided context instead of chat session history.
    */
   async runLoop(objective: string): Promise<string> {
     if (this.verbose) {
       console.log(`[AgentRuntime] Starting Basic Chat for: "${objective}"`);
     }
 
-    // Default System Prompt for raw interaction (or Model defaults)
-    const systemPrompt = "You are a helpful AI assistant.";
-
     let fullAnswer = "";
 
-    // Direct Chat Call
-    await this.inferenceService.chat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: objective }
-    ], {
+    // Use provided contextual messages if available, otherwise use default
+    const chatMessages = this.messages && this.messages.length > 0
+      ? this.messages
+      : [
+          { role: 'system', content: "You are a helpful AI assistant." },
+          { role: 'user', content: objective }
+        ];
+
+    // Direct Chat Call with contextual messages
+    await this.inferenceService.chat(chatMessages, {
       temperature: 0.7,
       onToken: (token: string) => {
         fullAnswer += token;

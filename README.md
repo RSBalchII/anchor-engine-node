@@ -7,6 +7,11 @@ The Sovereign Context Engine (ECE) is a background service that acts as a "secon
 ### 🌟 Architecture: Single Brain, Dual Interface
 The engine runs as a headless kernel, accessible via:
 
+#### 🔧 Key Architectural Components:
+- **Stateless Contextual Chat Protocol (Standard 084)**: Context-first, stateless interaction model that grounds each response in relevant ECE data without session memory.
+- **Intelligent Context Provision**: Automatic retrieval and injection of relevant knowledge graph data for each query.
+- **Toggle-Enabled Features**: Save-to-graph and port 8080 routing for flexible deployment and integration.
+
 1.  **GlassPanel UI** (Default): A focused web interface at `http://localhost:3000`.
 2.  **Neural Terminal**: A command-line chat tool (`npm run chat`).
 

@@ -491,10 +491,10 @@ export function setupRoutes(app: Application) {
     }
   });
 
-  // LLM: Chat Completions (Agentic RAG)
+  // LLM: Chat Completions (Intelligent Context Provision)
   app.post('/v1/chat/completions', async (req: Request, res: Response) => {
     try {
-      const { messages, model } = req.body;
+      const { messages, model, save_to_graph = false } = req.body;
 
       // Get the last user message to use as the objective
       const lastMessage = messages[messages.length - 1];
@@ -503,17 +503,31 @@ export function setupRoutes(app: Application) {
       console.log(`[API] Agent Request Objective: "${objective}" (Length: ${objective?.length})`);
       console.log(`[API] Objective Type: ${typeof objective}`);
 
-      // 1. Setup SSE
+      // 1. Retrieve context from ECE search API
+      const searchResults = await executeSearch(objective, undefined, [], 20000, false, 'all', []); // query, bucket, buckets, maxChars, deep, provenance, tags
+      const contextBlock = searchResults.context || '';
+
+      // Prepare messages with context as system prompt and user query
+      const contextualMessages = [
+        { role: 'system', content: `Context:\n${contextBlock}\n\nPrevious conversation and user context has been omitted for performance. Use only the provided context above to inform your response.` },
+        { role: 'user', content: objective }
+      ];
+
+      // 2. Setup SSE
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      // 2. Initialize Agent Runtime
+      // Variable to store the full response for potential saving
+      let fullResponse = '';
+
+      // 3. Initialize Agent Runtime with contextual messages
       const runtime = new AgentRuntime({
         model,
         verbose: true,
         maxIterations: 5,
+        messages: contextualMessages, // Pass the contextual messages to the agent
         onEvent: (event) => {
           // Map Agent Events to SSE
           if (event.type === 'thought') {
@@ -529,6 +543,11 @@ export function setupRoutes(app: Application) {
               choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
             };
             res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+
+            // Accumulate the response if we need to save it
+            if (save_to_graph) {
+              fullResponse += event.content;
+            }
           } else if (event.type === 'answer') {
             // Ensure any remaining content is sent before stop
             if (event.content) {
@@ -539,10 +558,15 @@ export function setupRoutes(app: Application) {
                 model: model || "ece-agent",
                 choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
               };
-              // We only send this if we think we missed tokens, otherwise it might double print. 
+              // We only send this if we think we missed tokens, otherwise it might double print.
               // Actually, Basic Chat streams tokens. sending full answer again is bad.
               // let's just log it for debug
               console.log(`[API] Agent finished. Final Answer length: ${event.content.length}`);
+
+              // Accumulate the response if we need to save it
+              if (save_to_graph) {
+                fullResponse += event.content;
+              }
             }
 
             // Final stop chunk
@@ -560,10 +584,73 @@ export function setupRoutes(app: Application) {
         }
       });
 
-      // 3. Run the Agent Loop (Prompt -> Thought -> Thought -> Assess -> Answer)
+      // 4. Run the Agent Loop with contextual messages (Context -> Prompt -> Model Responds)
       await runtime.runLoop(objective);
 
-      // 4. Finish
+      // 5. If save_to_graph is true, save the conversation to the graph
+      if (save_to_graph) {
+        try {
+          // Save user message
+          const userTimestamp = Date.now();
+          const userHash = crypto.createHash('sha256').update(objective).digest('hex');
+
+          await db.run(
+            `?[id, timestamp, content, source, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding] <- $data
+             :insert memory {id, timestamp, content, source, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding}`,
+            {
+              data: [[
+                `chat_${userTimestamp}_user`,
+                userTimestamp,
+                objective,
+                'chat_session',
+                `chat_${userTimestamp}`,
+                0,
+                'chat_user',
+                userHash,
+                ['inbox', 'personal'],
+                ['#chat', '#conversation'],
+                [],
+                'internal',
+                "0",
+                new Array(768).fill(0.1)
+              ]]
+            }
+          );
+
+          // Save AI response
+          const aiTimestamp = Date.now();
+          const aiHash = crypto.createHash('sha256').update(fullResponse).digest('hex');
+
+          await db.run(
+            `?[id, timestamp, content, source, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding] <- $data
+             :insert memory {id, timestamp, content, source, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding}`,
+            {
+              data: [[
+                `chat_${aiTimestamp}_ai`,
+                aiTimestamp,
+                fullResponse,
+                'chat_session',
+                `chat_${aiTimestamp}`,
+                1,
+                'chat_ai',
+                aiHash,
+                ['inbox', 'personal'],
+                ['#chat', '#conversation'],
+                [],
+                'internal',
+                "0",
+                new Array(768).fill(0.1)
+              ]]
+            }
+          );
+
+          console.log(`[API] Chat saved to graph: User message and AI response`);
+        } catch (saveErr) {
+          console.error('[API] Error saving chat to graph:', saveErr);
+        }
+      }
+
+      // 6. Finish
       res.write('data: [DONE]\n\n');
       res.end();
 

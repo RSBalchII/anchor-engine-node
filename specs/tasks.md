@@ -28,6 +28,26 @@
 
 ### Phase 22: Browser Paradigm Implementation - **COMPLETED** ✅
 - [x] **Architecture Evolution**:
+
+## Active Sprint: Stateless Contextual Chat Implementation
+
+### Phase 24: Intelligent Context Provision & Stateless Chat - **COMPLETED** ✅
+- [x] **Context Injection Protocol**:
+    *   [x] Implement ECE search API integration for dynamic context retrieval.
+    *   [x] Format context as system prompt for model consumption.
+    *   [x] Ensure context is injected before each user query.
+- [x] **Stateless Model Operation**:
+    *   [x] Eliminate session memory from chat interactions.
+    *   [x] Ground each response solely in retrieved ECE data and current prompt.
+    *   [x] Prevent context drift and maintain topical relevance.
+- [x] **Toggle Feature Implementation**:
+    *   [x] Add `save_to_graph` toggle to optionally persist conversations to knowledge graph.
+    *   [x] Add `use_port_8080` toggle to route API requests for Qwen Code CLI integration.
+    *   [x] Implement UI controls for both toggles in chat interface.
+- [x] **Standards & Documentation**:
+    *   [x] Create Standard 084: Stateless Contextual Chat Protocol.
+    *   [x] Update main specification documents to reflect new architecture.
+    *   [x] Update README with key architectural components.
     - [x] Implement PathManager for centralized path resolution
     - [x] Create NativeModuleManager with fallback mechanisms
     - [x] Develop Bright Node Protocol for graph-based reasoning

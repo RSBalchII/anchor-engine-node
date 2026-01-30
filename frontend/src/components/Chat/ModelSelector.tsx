@@ -36,7 +36,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({ onModelChange, cur
       } catch (err) {
         console.error('Failed to fetch models:', err);
         setError('Failed to load models. Using default model.');
-        setModels([{ id: 'default', name: 'Default Model (glm-edge-1.5b-chat.Q5_K_M.gguf)', path: 'glm-edge-1.5b-chat.Q5_K_M.gguf' }]);
+        setModels([{ id: 'default', name: 'Default Model (GLM-4.7-Flash.i1-Q4_K_S.gguf)', path: 'GLM-4.7-Flash.i1-Q4_K_S.gguf' }]);
       } finally {
         setLoading(false);
       }

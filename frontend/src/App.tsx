@@ -204,7 +204,7 @@ function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const [selectedModel, setSelectedModel] = useState<string>('glm-edge-1.5b-chat.Q5_K_M.gguf');
+  const [selectedModel, setSelectedModel] = useState<string>('GLM-4.7-Flash.i1-Q4_K_S.gguf');
 
   if (!hash || hash === '#dashboard') return <Dashboard />;
 
