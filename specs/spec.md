@@ -8,247 +8,134 @@ Build a **personal external memory system** as an assistive cognitive tool using
 - **Tag-Walker Protocol**: Graph-based associative retrieval (Replacing legacy Vector Search).
 - **Mirror 2.0**: Tangible Knowledge Graph filesystem projections.
 - **Local-first LLM integration**: `node-llama-cpp` for GGUF support.
+- **Browser Paradigm**: Universal compatibility through selective loading and cross-platform design.
 
-**Current**: Node.js Monolith with CozoDB backend.
-**Tools**: Loaded via `PluginManager` from `plugins/` directory.
+## Core Architecture
 
-## Architecture Overview
+### 1. The Core (Node.js/C++ Hybrid Monolith)
+The engine runs as a single, efficient Node.js process with high-performance C++ native modules for critical path operations:
 
-### System Architecture (Tag-Walker)
+1.  **Ingestion (The Refiner)**:
+    * **Atomizer**: Splits text/code into logical units (accelerated with C++ native module).
+    * **Key Assassin**: Surgically removes JSON artifacts from code (Data Hygiene) (accelerated with C++ native module).
+    * **Fingerprint (SimHash)**: Generates locality-sensitive hashes for fuzzy deduplication (C++ native module).
+    * **Enricher**: Assigns `source_id`, `sequence`, and `provenance`.
+    * **Zero-Vector**: Stubs embedding slots to maintain schema compatibility without VRAM cost.
 
-```mermaid
-graph TD
-    subgraph "Interface Layer"
-        UI[Frontend (React)] -->|API| Server[Express Server]
-        Overlay[Desktop Overlay] -->|Loads| UI
-        Inbox[Inbox Directory] -.->|File Watch| Watcher[Watchdog Service]
-    end
+**Performance Benefits**:
+    * **2.3x faster** code processing compared to pure JavaScript
+    * **Zero-copy string processing** using `std::string_view` to reduce memory pressure
+    * **Sub-millisecond processing** for typical operations
+    * **Graceful fallback** to JavaScript implementations when native modules unavailable
 
-    subgraph "Core Engine (Node.js)"
-        Server --> Provider[LLM Provider]
-        Watcher --> Refiner[Refiner Service]
-        
-        subgraph "Ingestion Pipeline"
-            Refiner -->|Sanitize| Assassin[Key Assassin]
-            Assassin -->|Clean| Atomizer[Atomizer]
-            Atomizer -->|Zero-Vector Stub| Cozo
-        end
-        
-        subgraph "Inference System"
-            Provider -->|Routing| ChatWorker[ChatWorker (Chat Model)]
-            Provider -->|Tasks| Orch[OrchestratorWorker]
-        end
-        
-        subgraph "Context Manager"
-            Search[Tag-Walker Search] -->|FTS + Pivot| Slicer[Context Slicer]
-            Slicer -->|Assembly| Provider
-        end
-    end
+2.  **Retrieval (Tag-Walker)**:
+    * **Phase 1 (Anchors)**: Uses optimized FTS (Full Text Search) to find direct keyword matches (70% context budget).
+    * **Phase 2 (The Walk)**: Pivots via shared tags/buckets to find "Associative Neighbors" that share context but lack keywords (30% context budget).
 
-    subgraph "Persistence Layer"
-        Cozo[CozoDB (RocksDB)] -->|Mirror 2.0| Mirror[mirrored_brain/ @bucket/#tag]
-    end
+3.  **Persistence (CozoDB)**:
+    * Backed by **RocksDB** for high-performance local storage.
+    * Manages a Datalog graph of `*memory`, `*source`, and `*engrams`.
 
-    style ChatWorker fill:#f9f,stroke:#333
-    style Orch fill:#bbf,stroke:#333
-    style Cozo fill:#dfd,stroke:#333
-```
+### 2. The Browser Paradigm Implementation
+The system implements the "Browser Paradigm" for AI memory systems:
 
-### Context Assembly Flow (Tag-Walker)
+* **Universal Compatibility**: Runs on any device from smartphones to servers
+* **Selective Loading**: Only loads relevant "atoms" for current query instead of entire dataset
+* **Cross-Platform**: Consistent performance across different operating systems
+* **Local-First**: All data remains on user's device for privacy and sovereignty
 
-```mermaid
-graph LR
-    Query[User Query] --> FTS[Phase 1: Anchor FTS]
-    FTS --> Harvest[Phase 2: Tag Harvest]
-    Harvest --> Walk[Phase 3: Neighbor Walk]
-    
-    subgraph "Retrieval Layer"
-        FTS -->|70% Budget| Ranking
-        Walk -->|30% Budget| Ranking
-    end
-    
-    Ranking[Score-Based Mix] --> Budget{Token Budget?}
-    
-    Budget -->|Fit| FinalContext[Final Context Prompt]
-    Budget -->|Overflow| Slicing[Smart Slicing]
-    
-    subgraph "Smart Slicing"
-        Slicing --> Punctuation{Find Sentence End}
-        Punctuation -->|Found| Cut[Truncate]
-        Punctuation -->|Not Found| HardCut[Hard Cut]
-    end
-    
-    Cut --> FinalContext
-    HardCut --> FinalContext
-```
+## Enhanced Architecture Components
 
-## Hybrid Architecture: Node.js/C++ Integration
+### 3. Path Management System
+The `PathManager` provides centralized path resolution across all platform environments:
 
-**Performance-Critical Operations** - Native Module Acceleration
-- **Approach**: Critical path operations implemented in C++17 with N-API bindings
-- **Modules**:
-  - **Key Assassin**: High-performance text cleaning and JSON artifact removal
-  - **Atomizer**: Efficient text splitting with prose/code strategies
-  - **Fingerprint**: SimHash generation for fuzzy deduplication
-- **Benefits**: 2.3x performance improvement, zero-copy string processing, reduced GC pressure
-- **Fallback**: Graceful degradation to JavaScript implementations when native modules unavailable
+* **Purpose**: Ensures consistent path handling across all modules
+* **Features**: Platform-specific binary path resolution, database path management, notebook directory handling
+* **Location**: `src/utils/path-manager.ts`
 
-**Platform-Specific Notes**:
-- **Linux/macOS**: Full functionality with persistent CozoDB storage
-- **Windows**: Native modules functional; CozoDB requires binary placement at `C:\Users\ECE_Core\engine\cozo_node_prebuilt.node` for persistent storage
+### 4. Native Module Management System
+The `NativeModuleManager` provides robust loading and fallback mechanisms for native modules:
 
-## Graph Architecture: CozoDB
+* **Purpose**: Handles native module loading with graceful degradation
+* **Features**: Automatic fallback to JavaScript implementations, status tracking, cross-platform compatibility
+* **Location**: `src/utils/native-module-manager.ts`
 
-**Verifier Agent** - Truth Verification
-- **Role**: Fact-checking via Empirical Distrust
-- **Method**: Provenance-aware scoring (primary sources > summaries)
-- **Goal**: Reduce hallucinations, increase factual accuracy
+### 5. Bright Node Protocol
+The enhanced search system implements the "Bright Node Protocol" for graph-based reasoning:
 
-**Distiller Agent** - Memory Compression
-- **Role**: Memory summarization and compression
-- **Method**: LLM-assisted distillation with salience scoring
-- **Goal**: Maintain high-value context, prune noise
+* **Purpose**: Selective graph illumination for reasoning models
+* **Features**: `getBrightNodes` for focused graph traversal, `getStructuredGraph` for reasoning model input
+* **Location**: `src/services/search/search.ts`
 
-**Archivist Agent** - Memory Maintenance
-- **Role**: Knowledge base maintenance, freshness checks
-- **Method**: Scheduled verification, stale node detection
-- **Goal**: Keep memory graph current and trustworthy
+### 6. Resource Management System
+The `ResourceManager` provides memory optimization and monitoring:
 
-**Memory Weaver** - Automated Relationship Repair
-- **Role**: Automated graph relationship repair and optimization
-- **Method**: Tag-based similarity with audit trail (`auto_commit_run_id`)
-- **Goal**: Maintain graph integrity without vectors
+* **Purpose**: Optimize memory usage and prevent resource exhaustion
+* **Features**: Memory monitoring, garbage collection triggers, performance optimization
+* **Location**: `src/utils/resource-manager.ts`
 
-### Reasoning Architecture: Tag-Walker + CozoDB
+## The Application Layer
+* **API**: RESTful interface at `http://localhost:3000/v1/`.
+* **Frontend**: Focused Single-Column React + Vite dashboard.
+    *   **R1 Reasoning**: Displays a multi-stage thinking process (Initial -> Deepened -> Assess) before the answer.
+    *   **GlassPanel Layout**: Atomic cyberpunk aesthetic with high-fidelity glassmorphism.
+* **Desktop Overlay**: Electron "Thin Client" for Always-on-Top assistance.
 
-**Tag-Walker Reasoning Pattern**:
-1. **Anchor** - FTS match for direct entities
-2. **Pivot** - Extract tags from anchors
-3. **Walk** - Retrieve neighbors via shared tags
-4. **Boost** - Apply Sovereign provenance boosting
-5. **Synthesize** - Present multi-node context to LLM
+## Standards Compliance
 
-**Unified Memory**: Consolidated context management
-- **Hot Context**: Active session memories in CozoDB
-- **Mirrored Brain**: Filesystem projection via @bucket/#tag structure
+### Core Standards Implemented:
+- **Standard 074**: Native Module Acceleration (The "Iron Lung" Protocol)
+- **Standard 075**: macOS Native Build Configuration (Sequoia SDK Fix)
+- **Standard 076**: TypeScript Compilation and ES Module Compatibility
+- **Standard 051**: Service Module Path Resolution
+- **Standard 058**: UniversalRAG API
+- **Standard 059**: Reliable Ingestion (The "Ghost Data" Protocol)
+- **Standard 065**: Graph-Based Associative Retrieval (Semantic-Lite)
+- [Standard 069: Intelligent Query Expansion Protocol](standards/069-intelligent-query-expansion.md)
+- [Standard 082: Universal Topology (Text/Data Unification)](standards/082-universal-topology.md)
+- [Standard 083: Resilient Database Protocol (Auto-Purge)](standards/083-resilient-database.md)
+## Documentation Standards
 
-### Tool Architecture: UTCP Plugin System
+1. **Code is King**: Code is the only source of truth. Documentation is a map, not the territory.
+2. **Synchronous Testing**: EVERY feature or data change MUST include a matching update to the Test Suite.
+3. **Visuals over Text**: Prefer Mermaid diagrams to paragraphs.
+4. **Brevity**: Text sections must be <500 characters.
+5. **Pain into Patterns**: Every major bug must become a Standard.
 
-**Current Implementation**: Plugin-based UTCP (Simple Tool Mode)
-- Discovery via `plugins/` directory
-- Safety layers with whitelist/blacklist
-- Human confirmation flows for dangerous operations
+## Build System
 
-**Available Tools**:
-- `web_search` - DuckDuckGo with result limits
-- `filesystem_read` - File operations with path restrictions
-- `shell_execute` - Command execution with safety checks
-- `mgrep` - Semantic code search with context
+The project uses a hybrid build system:
+- **Frontend**: Vite with TypeScript compilation
+- **Engine**: TypeScript compilation with `tsc`
+- **Native Modules**: `node-gyp` for C++ compilation
+- **Desktop Overlay**: TypeScript compilation with Electron packaging
 
-## Infinite Context Pipeline
+## Testing Strategy
 
-### Phase 1: Hardware Foundation
-- **64k Context Windows**: All LLM servers boot with 65,536 token capacity
-- **GPU Optimization**: Full layer offload with Q8 quantized KV cache
-- **Flash Attention**: Enabled when available for optimal long-context performance
+Comprehensive test coverage across multiple levels:
+- **Unit Tests**: Individual function and class testing
+- **Integration Tests**: Module interaction testing
+- **System Tests**: End-to-end functionality verification
+- **Performance Tests**: Benchmarking and optimization validation
 
-### Phase 2: Context Rotation Protocol
-- **Monitoring**: ContextManager monitors total context length
-- **Trigger**: When context approaches 55k tokens (safety buffer for 64k window)
-- **Compression**: Distiller compresses old segments into "Narrative Gists"
-- **Storage**: Gists stored in Neo4j as `(:ContextGist)` nodes with `[:NEXT_GIST]` relationships
-- **Rewriting**: New context = `[System Prompt] + [Historical Gists Summary] + [Recent Context] + [New Input]`
+## Performance Characteristics
 
-### Phase 3: Graph-R1 Enhancement
-- **Historical Retrieval**: GraphReasoner includes `:ContextGist` nodes in retrieval
-- **Continuity Maintenance**: Reasoning flow maintained across context rotations
-- **Temporal Awareness**: Reasoning considers chronological relationships in gists
+- **Memory Usage**: Optimized for low-resource environments (MBs not GBs)
+- **Query Latency**: Millisecond retrieval of millions of tokens
+- **Cross-Platform**: Consistent performance across Windows, macOS, and Linux
+- **Native Acceleration**: 2.3x performance improvement for critical operations
 
-## API Specification
+## Security & Privacy
 
-### Core Endpoints (Port 8000)
+- **Local-First**: All data remains on user's device
+- **Encryption**: Optional encryption for sensitive data
+- **Access Controls**: Granular permissions for different data types
+- **Audit Trail**: Complete logging of all operations
 
-**Chat Interface**:
-- `POST /chat/stream` - Streaming conversation with full memory context
-- Request: `{"session_id": str, "message": str, "stream": bool}`
-- Response: Streaming SSE with full context injection
+## Future Evolution
 
-**Memory Operations**:
-- `POST /v1/memory/search` - Tag-Walker search
-- `GET /v1/buckets` - List active buckets
-- `POST /v1/ingest` - Manual atom ingestion
-- `GET /v1/backup` - Snapshot RocksDB state
-
-**Health & Info**:
-- `GET /health` - Server health check
-- `GET /v1/models` - Available models
-- `GET /health/memory` - Memory system status
-
-**MCP Integration** (when enabled):
-- `GET /mcp/tools` - Available memory tools
-- `POST /mcp/call` - Execute memory tools
-
-## Configuration
-
-### Required Parameters (in `.env` or sovereign.yaml)
-- `MODELS_DIR` - Path to GGUF model storage
-- `NOTEBOOK_DIR` - Root of the target brain for mirroring
-- `LLM_GPU_LAYERS` - GPU offload settings
-- `PORT` - Engine API port (default: 3000)
-
-### Optional Parameters
-- `ECE_REQUIRE_AUTH` - Enable API token authentication (default: false)
-- `ECE_API_KEY` - Static API key when auth enabled
-- `MCP_ENABLED` - Enable Model Context Protocol integration (default: true)
-- `VERIFIER_AGENT_ENABLED` - Enable truth-checking agent (default: true)
-- `ARCHIVIST_AGENT_ENABLED` - Enable memory maintenance agent (default: true)
-- `DISTILLER_AGENT_ENABLED` - Enable summarization agent (default: true)
-
-## Security
-
-### Authentication
-- Optional API token authentication (controlled by `ECE_REQUIRE_AUTH`)
-- Session isolation with UUID-based session IDs
-- Memory access limited to owner's session
-
-### Authorization
-- Path restrictions on filesystem operations
-- Command whitelisting for shell execution
-- Rate limiting on all endpoints
-- Input validation on all parameters
-
-### Data Protection
-- All data stored locally by default
-- End-to-end encryption for sensitive memories (optional)
-- Audit logging for all memory operations
-- Traceability for automated repairs and context rotations
-
-## Performance Optimization
-
-### Hardware Recommendations
-- **Minimum**: 16GB RAM, CUDA-capable GPU (RTX series)
-- **Recommended**: 32GB+ RAM, RTX 4090 or similar
-- **Context Windows**: 64k requires ~8GB VRAM for KV cache with 7B-14B models
-
-### Memory Management
-- **Hot Cache**: rocksdb backed CozoDB for all active session and entity memories.
-- **Mirrored Brain**: File-based projection in `@bucket/#tag` format for human audit.
-- **Cleanup Strategy**: Periodic vacuuming of FTS indices in CozoDB.
-- **Caching Strategy**: RocksDB block cache handles L1 performance; Mirror 2.0 provides L2 observability.
-
-## Integration Points
-
-### With Anchor CLI
-- HTTP API communication on configured port (default: 8000)
-- Streaming responses via Server-Sent Events
-- Memory operations through dedicated endpoints
-
-### With Browser Extension
-- HTTP API communication for context injection and memory saving
-- Streaming chat interface via Side Panel
-- Page content reading and memory ingestion
-
-### With LLM Servers
-- OpenAI-compatible API for LLM communication
-- Streaming response handling via SSE
-- Context window management with rotation protocol
+The architecture is designed for continuous evolution:
+- **Modular Design**: Components can be replaced or upgraded independently
+- **Plugin Architecture**: Support for custom modules and extensions
+- **API Stability**: Backward compatibility maintained across versions
+- **Community Driven**: Open standards and extensible architecture

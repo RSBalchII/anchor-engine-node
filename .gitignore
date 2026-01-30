@@ -22,6 +22,8 @@ models/
 node_modules/
 dist/
 build/
+engine/build/
+native/bin/
 .pnpm-store/
 
 # IDE & System

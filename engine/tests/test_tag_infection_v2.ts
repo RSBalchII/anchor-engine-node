@@ -1,6 +1,6 @@
 
 import { runDiscovery } from '../src/services/tags/discovery.js';
-import { runInfection } from '../src/services/tags/infector.js';
+import { runInfectionLoop } from '../src/services/tags/infector.js';
 import { db } from '../src/core/db.js';
 
 async function testInfectionProtocol() {
@@ -15,7 +15,7 @@ async function testInfectionProtocol() {
 
         // 2. Run Infection (The Student)
         console.log('Step 2: Infecting the graph...');
-        const result = await runInfection();
+        const result = await runInfectionLoop() as any;
         console.log(`Infection results: ${result.atomsUpdated} atoms updated in ${result.durationMs}ms`);
 
         if (discovered.length >= 0) {

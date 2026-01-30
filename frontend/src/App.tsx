@@ -8,6 +8,8 @@ import { Button } from './components/ui/Button';
 import { SearchColumn } from './components/features/SearchColumn';
 import { ResearchModal } from './components/features/ResearchModal';
 import { QuarantinePage } from './components/features/QuarantinePage';
+import { ChatInterface } from './components/Chat/ChatInterface';
+import { ModelSelector } from './components/Chat/ModelSelector';
 
 // ...
 
@@ -40,7 +42,7 @@ const Dashboard = () => (
 // --- SEARCH PAGE CONTAINER ---
 const SearchPage = () => {
   const [columns, setColumns] = useState<{ id: number; query?: string }[]>([{ id: 1 }]);
-  // Context/FullText states tracked for Copy functionality, 
+  // Context/FullText states tracked for Copy functionality,
   // but individual columns manage their own data now.
   const [columnContexts, setColumnContexts] = useState<Record<number, string>>({});
   const [columnFullTexts, setColumnFullTexts] = useState<Record<number, string>>({});
@@ -191,6 +193,8 @@ const SearchPage = () => {
   );
 };
 
+
+
 function App() {
   const [hash, setHash] = useState(window.location.hash);
 
@@ -200,22 +204,43 @@ function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
+  const [selectedModel, setSelectedModel] = useState<string>('glm-edge-1.5b-chat.Q5_K_M.gguf');
+
+  if (!hash || hash === '#dashboard') return <Dashboard />;
+
   return (
-    <>
+    <div className="h-screen w-screen flex flex-col bg-[#050507] overflow-hidden text-gray-300">
       <PerformanceMonitor />
-      {!hash || hash === '#dashboard' ? <Dashboard /> : (
-        <>
-          <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
-            <Button onClick={() => window.location.hash = '#dashboard'} style={{ fontSize: '1.2rem', padding: '0.4rem 0.8rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-              ←
-            </Button>
+
+      <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
+        <Button onClick={() => window.location.hash = '#dashboard'} style={{ fontSize: '1.2rem', padding: '0.4rem 0.8rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+          ←
+        </Button>
+      </div>
+
+      {hash === '#chat' ? (
+        <GlassPanel className="chat-page-container" style={{ margin: '1rem', padding: '1rem', height: 'calc(100% - 2rem)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0 }}>Sovereign Agent Chat</h2>
+            <div style={{ width: '300px' }}>
+              <ModelSelector
+                onModelChange={setSelectedModel}
+                currentModel={selectedModel}
+              />
+            </div>
           </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <ChatInterface model={selectedModel} />
+          </div>
+        </GlassPanel>
+      ) : (
+        <>
           {hash === '#search' ? <SearchPage /> :
             hash === '#quarantine' ? <QuarantinePage /> :
               <div style={{ padding: '4rem 2rem' }}>🚧 Module "{hash}" Under Construction</div>}
         </>
       )}
-    </>
+    </div>
   );
 }
 

@@ -63,3 +63,39 @@ python .\scripts\neo4j\repair\repair_missing_links_similarity_embeddings.py --dr
 
 ## Summary
 This design preserves both the raw, forensic truth and the usable, sanitized indexable text. We now have a robust path to identify token-soup failures, protect the graph's signal, and reprocess nodes to recover valid summaries with contextual tags.
+
+## System Boot & Initialization (Windows/Electron)
+
+### 1. "Health Check Failed" / White Screen
+**Symptoms:**
+- Electron window stays white or shows "Starting Engine..." indefinitely.
+- Console shows `[Electron] Health check response: 503`.
+- Engine logs show `[Health] System Unhealthy!`.
+
+**Root Cause:**
+Usually caused by `PathManager` failing to verify critical directories (`notebook`, `context`) or `native-modules` crashing.
+
+**Resolution:**
+1.  Check terminal output for the JSON error object.
+    -   `Filesystem`: Ensure `Projects/notebook` exists.
+    -   `Native`: Ensure `cozo_node_win32.node` works or fallback is active.
+2.  If `database` is unhealthy, check `context.db` permissions (locks).
+
+### 2. "Memory Usage Critical" / 503 Errors
+**Symptoms:**
+- Engine boots but quickly crashes or returns 503.
+- Logs show `[ResourceManager] Memory usage critical: >95%`.
+
+**Root Cause:**
+Node.js default garbage collection is too lazy for high-throughput string operations (like HTML ingestion).
+
+**Resolution:**
+- Ensure `start.bat` passes `--expose-gc` to Node.
+- Ensure `desktop-overlay/src/main.ts` passes `--expose-gc` in `spawn()`.
+
+### 3. Path Resolution on Windows
+**Standard:** Standard 051
+- The Engine considers `ECE_Core/engine` as its base.
+- Data resides in `Projects/notebook` (Sibling to ECE_Core).
+- Config resides in `ECE_Core/context` (Internal).
+- **Fix:** Use `pathManager.getNotebookDir()` (`../../notebook`) vs `pathManager.getContextDir()` (`../context`).

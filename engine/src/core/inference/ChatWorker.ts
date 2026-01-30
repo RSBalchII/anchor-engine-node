@@ -1,6 +1,6 @@
 
 import { parentPort, workerData } from 'worker_threads';
-import { getLlama, LlamaChatSession, LlamaContext, LlamaModel } from 'node-llama-cpp';
+import { getLlama, LlamaChatSession, LlamaContext, LlamaModel, LlamaGrammar } from 'node-llama-cpp';
 import os from 'os';
 
 // Worker state
@@ -105,12 +105,27 @@ async function handleChat(data: { prompt: string, options: any }) {
     }
 
     console.log(`[Worker] Chat Request Received. Pre-filling prompt (${data.prompt.length} chars)...`);
+
+    // Compile Grammar if provided
+    let grammar: LlamaGrammar | undefined;
+    if (data.options.grammar) {
+        try {
+            console.log("[Worker] Compiling GBNF Grammar...");
+            grammar = new LlamaGrammar(llama, {
+                grammar: data.options.grammar
+            });
+        } catch (e: any) {
+            console.error("[Worker] Grammar Compilation Failed:", e);
+        }
+    }
+
     let tokensReceived = 0;
 
     try {
         const response = await session.prompt(data.prompt, {
-            temperature: 0.7, // Higher temp for reasoning
+            temperature: data.options.temperature ?? 0.7,
             maxTokens: data.options.maxTokens || 2048,
+            grammar, // Pass the grammar
             onTextChunk: (chunk: string) => {
                 if (tokensReceived === 0) {
                     console.log(`[Worker] First token generated! Pre-fill took ${(Date.now() - startTime) / 1000}s`);

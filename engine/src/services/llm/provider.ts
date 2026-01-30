@@ -192,9 +192,20 @@ export async function runStreamingChat(
   prompt: string,
   onToken: (token: string) => void,
   systemInstruction = "You are a helpful assistant.",
-  options: any = {}
+  options: any = {},
+  requestedModel?: string
 ): Promise<string> {
   // Always use ClientWorker for Main Chat
+
+  // If a specific model is requested and it's not the current one, load it
+  if (requestedModel && requestedModel !== currentChatModelName) {
+    console.log(`[Provider] Requested model "${requestedModel}" differs from current "${currentChatModelName}". Loading...`);
+    await loadModel(requestedModel, {
+      ctxSize: options.ctxSize || config.MODELS.MAIN.CTX_SIZE,
+      gpuLayers: options.gpuLayers || config.MODELS.MAIN.GPU_LAYERS
+    }, 'chat');
+  }
+
   const targetWorker = clientWorker;
   const targetModel = currentChatModelName;
 
@@ -230,16 +241,33 @@ export async function runStreamingChat(
     worker.on('message', handler);
     worker.postMessage({
       type: 'chat',
-      data: { prompt, options: { ...options, systemPrompt: systemInstruction } }
+      data: { prompt, options: { ...options, onToken: undefined, systemPrompt: systemInstruction } }
     });
   });
 }
 
-export async function runSideChannel(prompt: string, systemInstruction = "You are a helpful assistant.", options: any = {}) {
+export async function runSideChannel(
+  prompt: string,
+  systemInstruction = "You are a helpful assistant.",
+  options: any = {},
+  requestedModel?: string
+) {
   // Use Orchestrator Worker if available, falling back to client
   // Robust Worker Selection
   let targetWorker: Worker | null = null;
   let targetModel: string = "";
+
+  // If a specific model is requested for side channel, we usually try to load it into the chat worker 
+  // since orchestrator is usually fixed for formatting? 
+  // Actually, for Agent thoughts, we might want to use the requested model if it's capable.
+
+  if (requestedModel && requestedModel !== currentChatModelName) {
+    console.log(`[Provider] SideChannel requested model "${requestedModel}". Updating chat worker...`);
+    await loadModel(requestedModel, {
+      ctxSize: options.ctxSize || config.MODELS.MAIN.CTX_SIZE,
+      gpuLayers: options.gpuLayers || config.MODELS.MAIN.GPU_LAYERS
+    }, 'chat');
+  }
 
   if (orchestratorWorker && currentOrchestratorModelName) {
     targetWorker = orchestratorWorker;
@@ -269,7 +297,10 @@ export async function runSideChannel(prompt: string, systemInstruction = "You ar
 
   return new Promise((resolve, _reject) => {
     const handler = (msg: any) => {
-      if (msg.type === 'chatResponse') {
+      if (msg.type === 'token') {
+        // Support streaming callbacks if provided in options
+        if (options.onToken) options.onToken(msg.token);
+      } else if (msg.type === 'chatResponse') {
         targetWorker?.off('message', handler);
         console.log(`[Provider] SideChannel: Response received (${msg.data?.length || 0} chars)`);
         resolve(msg.data);
@@ -280,9 +311,10 @@ export async function runSideChannel(prompt: string, systemInstruction = "You ar
       }
     };
     targetWorker?.on('message', handler);
+    const { onToken, ...workerOptions } = options;
     targetWorker?.postMessage({
       type: 'chat',
-      data: { prompt, options: { ...options, systemPrompt: systemInstruction } }
+      data: { prompt, options: { ...workerOptions, systemPrompt: systemInstruction } }
     });
   });
 }

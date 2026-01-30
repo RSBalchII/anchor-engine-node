@@ -1,8 +1,16 @@
-# ECE_Core - Sovereign Context Engine
+# ECE_Core## 🧠 Sovereign Context Engine
 
-> **Sovereign Context Engine (SCE)** - A local-first, graph-native memory system for cognitive augmentation.
+> **A Headless, Local-First Context Engine & Knowledge Graph**
 
-**Version**: 3.0.0 | **Architecture**: Tag-Walker (Graph-Native) | **Stack**: Node.js/C++ Hybrid + CozoDB (RocksDB)
+The Sovereign Context Engine (ECE) is a background service that acts as a "second brain" for your local environment. It manages memory, reasoning, and context retrieval without locking you into a specific interface.
+
+### 🌟 Architecture: Single Brain, Dual Interface
+The engine runs as a headless kernel, accessible via:
+
+1.  **GlassPanel UI** (Default): A focused web interface at `http://localhost:3000`.
+2.  **Neural Terminal**: A command-line chat tool (`npm run chat`).
+
+Both interfaces share the same persistent memory and R1 Reasoning capabilities.
 
 ---
 
@@ -20,6 +28,17 @@ ECE_Core implements a **hybrid architecture** combining Node.js orchestration wi
 - **Windows**: Native modules functional; CozoDB requires binary placement at `C:\Users\ECE_Core\engine\cozo_node_prebuilt.node` for persistent storage
 - **Native Module Performance**: Consistent across all platforms (2.3x improvement achieved)
 
+## 🌐 The Browser Paradigm for AI Memory
+
+ECE_Core implements what we call the "Browser Paradigm" for AI memory systems. Just as web browsers allow any machine to render the internet by downloading only the shards (HTML/CSS/JS) it needs for the current view, ECE allows any machine to process massive AI context by retrieving only the atoms required for the current thought.
+
+### Key Principles:
+- **Universal Compatibility**: Runs on any device from smartphones to servers
+- **Selective Loading**: Only load relevant "atoms" for current query instead of entire dataset
+- **Cross-Platform**: Consistent performance across different operating systems
+- **Local-First**: All data remains on user's device for privacy and sovereignty
+- **Decentralized Architecture**: No central authority or cloud dependency
+
 ## 🌟 Overview
 
 The **ECE_Core** is a sovereign memory engine that transforms your local file system into a structured, queryable knowledge graph. Unlike traditional RAG systems that rely on heavy, probabilistic vector embeddings, ECE uses a **deterministic "Tag-Walker" protocol** to navigate your data.
@@ -32,7 +51,7 @@ It runs 100% locally, protecting your privacy while enabling "Deep Context" retr
 * **👑 Sovereign Provenance**: Implements "Trust Hierarchy." Data created by you (Sovereign) receives a 3.0x retrieval boost over external scrapes.
 * **🪞 Mirror Protocol 2.0**: Projects your AI's internal graph onto your filesystem as readable Markdown files organized by `@bucket` and `#tag`.
 * **👻 Ghost Data Protocol**: "Read-After-Write" verification ensures zero data loss during high-velocity ingestion.
-* **⚛️ Atomic Ingestion**: Chemically splits content into "Atoms" (thoughts) rather than arbitrary text chunks, preserving semantic integrity.
+* **⚛️ Atomic Architecture (V4)**: Chemically splits content into a taxonomy of **Compounds** (Files), **Molecules** (Sentences), and **Atoms** (Concepts), enabling "Universal Data API" granularity.
 
 ---
 
@@ -41,18 +60,31 @@ It runs 100% locally, protecting your privacy while enabling "Deep Context" retr
 ### 1. The Core (Node.js/C++ Hybrid Monolith)
 The engine runs as a single, efficient Node.js process with high-performance C++ native modules for critical path operations:
 
-1.  **Ingestion (The Refiner)**:
-    * **Atomizer**: Splits text/code into logical units (accelerated with C++ native module).
+1.  **Ingestion (The Atomizer)**:
+    * **Compounder**: Identifies the main body of content (File/Compound).
+    * **Molecular Fission**: Splits content into semantic "Molecules" (Sentences) for granular retrieval.
     * **Key Assassin**: Surgically removes JSON artifacts from code (Data Hygiene) (accelerated with C++ native module).
-    * **Fingerprint (SimHash)**: Generates locality-sensitive hashes for fuzzy deduplication (C++ native module).
-    * **Enricher**: Assigns `source_id`, `sequence`, and `provenance`.
-    * **Zero-Vector**: Stubs embedding slots to maintain schema compatibility without VRAM cost.
+    * **Fingerprint (Molecular Signature)**: Generates locality-sensitive hashes (SimHash) for fuzzy deduplication (C++ native module).
+    * **Atomizer**: Extracts fundamental "Atoms" (Entities/Keywords) using sovereign tag lists.
 
 **Performance Benefits**:
     * **2.3x faster** code processing compared to pure JavaScript
     * **Zero-copy string processing** using `std::string_view` to reduce memory pressure
     * **Sub-millisecond processing** for typical operations
     * **Graceful fallback** to JavaScript implementations when native modules unavailable
+
+2.  **Enhanced Architecture Components**:
+    * **Path Manager**: Centralized path resolution across all platform environments
+    * **Native Module Manager**: Robust loading and fallback mechanisms for native modules
+    * **Bright Node Protocol**: Selective graph illumination for reasoning models
+    * **Resource Manager**: Memory optimization and monitoring system
+    * **Enhanced Health Checks**: Comprehensive system monitoring and reporting
+
+**Browser Paradigm Benefits**:
+    * **Universal Compatibility**: Runs on any device from smartphones to servers
+    * **Selective Loading**: Only load relevant "atoms" for current query instead of entire dataset
+    * **Cross-Platform**: Consistent performance across different operating systems
+    * **Local-First**: All data remains on user's device for privacy and sovereignty
 
 2.  **Retrieval (Tag-Walker)**:
     * **Phase 1 (Anchors)**: Uses optimized FTS (Full Text Search) to find direct keyword matches (70% context budget).
@@ -64,11 +96,22 @@ The engine runs as a single, efficient Node.js process with high-performance C++
 
 ### 2. The Application Layer
 * **API**: RESTful interface at `http://localhost:3000/v1/`.
-* **Frontend**: Modern React + Vite dashboard.
-    *   **Dual Copy**: "Copy Limit" (Context Window) vs "Copy All" (Full Results).
-    *   **Visual Context**: Visual indicators for when atoms fall outside the token budget.
+* **Frontend**: Modern React + Vite dashboard with **Focused Single-Column UI** (Standard 077).
+    *   **Reasoning-First**: Features the **R1 Reasoning Loop** providing transparency into AI thoughts.
+    *   **Glassmorphic Aesthetic**: High-fidelity UI using `GlassPanel` and Tailwind-blended styling.
+    *   **Focused Chat**: Single-column layout designed for distraction-free synthesis.
 * **Desktop Overlay**: Electron "Thin Client" for Always-on-Top assistance.
 
+### 3. R1 Reasoning Loop
+The system has transitioned from a tool-using orchestrator to a high-fidelity **Reasoning Engine**. This loop ensures depth and assessment before every response:
+
+1.  **Thought 1 (A1)**: Initial high-level analysis of the user objective.
+2.  **Thought 2 (A2)**: Critical evaluation and gap identification.
+3.  **Thought 3 (A3)**: Synthesis, contradiction resolution, and final assessment.
+4.  **Final Answer**: Definitive response delivered to the Operator.
+
+> [!NOTE]
+> Tool-calling capabilities (Search, Read, etc.) have been archived to maximize reasoning efficacy and UI simplicity. They remain available in the codebase for future re-integration.
 ---
 
 ## 🚀 Quick Start
@@ -161,8 +204,8 @@ pnpm start
 
 * **`engine/`**: The neural center.
 * `src/core/`: Database (CozoDB) and Batch processors.
-* `src/services/ingest/`: Watchdog, Refiner, and Atomizer.
-* `src/services/search/`: The **Tag-Walker** implementation.
+* `src/services/ingest/`: Watchdog, AtomizerService, and Atomic Ingest.
+* `src/services/search/`: The **Atomic Tag-Walker** implementation.
 * `src/services/mirror/`: Filesystem projection logic.
 
 

@@ -1,0 +1,49 @@
+[PathManager] Initialized. BasePath: C:\Users\rsbiiw\Projects\ECE_Core\engine, Platform: win32
+[PathManager] Singleton instance created.
+[PathManager] Resolving ece_native.node -> C:\Users\rsbiiw\Projects\ECE_Core\engine\build\Release\ece_native.node
+[NativeModuleManager] Successfully loaded ece_native from: C:\Users\rsbiiw\Projects\ECE_Core\engine\build\Release\ece_native.node
+[Config] Loaded settings from C:\Users\rsbiiw\Projects\ECE_Core\engine\user_settings.json
+[DB] Loading Config...
+[DB] Creating Require...
+[DB] Requiring cozo-node...
+[DB] Standard module load failed. Attempting local binary override for platform: win32...
+[PathManager] Resolving cozo_lib.node -> C:\Users\rsbiiw\Projects\ECE_Core\engine\cozo_node_win32.node
+[DB] Loading Cozo from: C:\Users\rsbiiw\Projects\ECE_Core\engine\cozo_node_win32.node
+[DB] Loaded cozo-node from local binary override (win32).
+≡ƒÜÇ Starting Pipeline Integrity Test...
+
+[0/5] Wiping old test DB...
+[1/5] Initializing Database...
+[DB] Attempting to open RocksDB backend: ./test_pipeline.db
+[DB] Initialized with RocksDB backend: ./test_pipeline.db
+[DB] Creating memory table from scratch...
+[DB] Memory table initialized
+[DB] 'source' table initialized.
+[DB] 'atoms' table initialized.
+[DB] 'molecules' table initialized.
+[DB] 'atom_edges' table initialized.
+[DB] 'compounds' table initialized (POML V4).
+Database initialized successfully
+    Existing Tables: atom_edges, atoms, compounds, engrams, memory, memory:content_fts, molecules, molecules:content_fts, parent_of, source, summary_node
+    Γ£à All tables present.
+
+[2/5] Atomizing Content...
+    Generated Compound: mem_566390c8946b5f4748ca086ec8acfd38
+    Generated Molecules: 9
+    Generated Atoms: 3
+
+[3/5] Persisting to Database...
+[AtomicIngest] Persisting topology for mem_566390c8946b5f4748ca086ec8acfd38...
+[AtomicIngest] Complete: 3 atoms, 9 molecules.
+    Γ£à Ingestion complete.
+
+[4/5] Verifying Relational Integrity...
+    Γ£à Source record found.
+    Γ£à Compound record found.
+    Γ£à Memory table contains 10 rows for this source.
+
+[5/5] Verifying Universal Topology...
+    Γ£à Found Data Molecule: "| 2024-01-01 | 5000 BPD  | OK     |"
+       Value: 5000, Unit: BPD
+
+≡ƒÄë PIPELINE INTEGRITY VERIFIED.

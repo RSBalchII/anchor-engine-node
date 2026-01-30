@@ -36,7 +36,20 @@ if [ ! -d "desktop-overlay/node_modules" ]; then
     cd ..
 fi
 
-# 4. Build
+# 4. Native Module Build (C++ KeyAssassin)
+if [ ! -f "engine/build/Release/ece_native.node" ]; then
+    echo "[INFO] Building Native Module (First Time)..."
+    cd engine
+    npx node-gyp rebuild
+    if [ $? -ne 0 ]; then
+        echo "[WARN] Native module build failed. Falling back to pure JS."
+    else
+        echo "[OK] Native module built successfully."
+    fi
+    cd ..
+fi
+
+# 5. Build
 echo ""
 echo "[INFO] Building Frontend & Engine..."
 pnpm build
@@ -52,9 +65,17 @@ cd ..
 
 # 5. Launch Electron
 echo ""
-echo "[INFO] Launching ECE Desktop Environment..."
-echo "[INFO] The Dashboard will open automatically when the Engine is ready."
-echo ""
+echo -e "${BLUE}[INFO] Launching ECE Desktop Environment...${NC}"
+echo -e "${BLUE}[INFO] The Dashboard will open automatically when the Engine is ready.${NC}"
+
+# Standard 078: Kill existing engine on port 3000
+echo -e "${YELLOW}[INFO] Harmonizing Process Lifecycle (Port 3000)...${NC}"
+PID=$(lsof -ti:3000)
+if [ ! -z "$PID" ]; then
+    echo -e "${RED}[WARN] Terminating background engine (PID: $PID)...${NC}"
+    kill -9 $PID > /dev/null 2>&1
+fi
 
 cd desktop-overlay
 npm start
+cd ..

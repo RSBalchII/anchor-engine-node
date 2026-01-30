@@ -8,9 +8,12 @@
     "start": "node engine/dist/index.js",
     "dev": "pnpm --filter sovereign-context-engine dev",
     "build": "pnpm --filter frontend build && pnpm --filter sovereign-context-engine build",
+    "build:universal": "bash build-universal.sh",
+    "build:native": "cd engine && node-gyp configure build",
     "test": "jest",
     "lint": "eslint . --ext .ts,.js",
-    "clean": "rimraf dist engine/dist frontend/dist"
+    "clean": "rimraf dist engine/dist frontend/dist",
+    "postinstall": "cd engine && npm install && npm run build"
   },
   "keywords": [
     "context",

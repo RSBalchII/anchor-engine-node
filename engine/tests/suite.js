@@ -396,6 +396,38 @@ async function runSuite() {
     });
 
     // ═══════════════════════════════════════════
+    // SECTION 9: Enhanced Native Module Tests
+    // ═══════════════════════════════════════════
+    console.log('\n─── Enhanced Native Module Tests ───');
+
+    try {
+        const { runEnhancedNativeTests } = await import('./test_enhanced_native_modules.js');
+        const result = await runEnhancedNativeTests();
+        passed += result.passed;
+        failed += result.failed;
+    } catch (e) {
+        console.log('❌ FAIL');
+        console.error(`     └─ Enhanced native module tests failed: ${e.message}`);
+        failed++;
+    }
+
+    // ═══════════════════════════════════════════
+    // SECTION 10: Bright Node Protocol Tests
+    // ═══════════════════════════════════════════
+    console.log('\n─── Bright Node Protocol Tests ───');
+
+    try {
+        const { runBrightNodeTests } = await import('./test_bright_node_protocol.js');
+        const result = await runBrightNodeTests();
+        passed += result.passed;
+        failed += result.failed;
+    } catch (e) {
+        console.log('❌ FAIL');
+        console.error(`     └─ Bright Node Protocol tests failed: ${e.message}`);
+        failed++;
+    }
+
+    // ═══════════════════════════════════════════
     // RESULTS
     // ═══════════════════════════════════════════
     console.log('\n╔════════════════════════════════════════╗');

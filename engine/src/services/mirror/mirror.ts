@@ -28,7 +28,14 @@ export async function createMirror() {
     // Wipe existing mirrored brain to ensure only latest state is present
     if (fs.existsSync(MIRRORED_BRAIN_PATH)) {
         console.log(`🪞 Mirror Protocol: Wiping stale mirror at ${MIRRORED_BRAIN_PATH}`);
-        fs.rmSync(MIRRORED_BRAIN_PATH, { recursive: true, force: true });
+        try {
+            fs.rmSync(MIRRORED_BRAIN_PATH, { recursive: true, force: true });
+        } catch (e: any) {
+            console.warn(`🪞 Mirror Protocol: Wipe failed (EPERM/Locked). Attempting to proceed without full wipe. Error: ${e.message}`);
+            // Retry once with small delay? Or just proceed.
+            // Proceeding is safer than crashing. 
+            // We might have stale files, but better than no mirror.
+        }
     }
 
     fs.mkdirSync(MIRRORED_BRAIN_PATH, { recursive: true });

@@ -9,7 +9,7 @@ import * as crypto from 'crypto';
 import { db } from '../core/db.js';
 
 // Import services and types
-import { executeSearch, smartChatSearch } from '../services/search/search.js';
+import { executeSearch, smartChatSearch, executeMoleculeSearch } from '../services/search/search.js';
 import { dream } from '../services/dreamer/dreamer.js';
 import { getState, clearState } from '../services/scribe/scribe.js';
 import { listModels, loadModel, runStreamingChat } from '../services/llm/provider.js';
@@ -17,6 +17,8 @@ import { createBackup, listBackups, restoreBackup } from '../services/backup/bac
 import { summarizeContext } from '../services/llm/reader.js';
 import { fetchAndProcess, searchWeb } from '../services/research/researcher.js';
 import { SearchRequest } from '../types/api.js';
+import { setupEnhancedRoutes } from './enhanced-api.js';
+import { AgentRuntime } from '../agent/runtime.js';
 
 export function setupRoutes(app: Application) {
   // Ingestion endpoint
@@ -59,7 +61,7 @@ export function setupRoutes(app: Application) {
             [], // epochs
             'external',
             "0", // simhash (default)
-            new Array(768).fill(0.0)
+            new Array(768).fill(0.1) // Zero-stub for now
           ]]
         }
       );
@@ -183,7 +185,7 @@ export function setupRoutes(app: Application) {
       updatedRow[7] = crypto.createHash('sha256').update(content).digest('hex');
 
       // Zero Embedding (Force re-embed)
-      updatedRow[13] = new Array(384).fill(0.0); // Index 13 is embedding now
+      updatedRow[13] = new Array(384).fill(0.1); // Index 13 is embedding now
 
       await db.run(
         `?[id, timestamp, content, source, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding] <- $data 
@@ -247,12 +249,14 @@ export function setupRoutes(app: Application) {
       const buckets = body.buckets || [];
       const allBuckets = bucketParam ? [...buckets, bucketParam] : buckets;
       const budget = (req.body as any).token_budget ? (req.body as any).token_budget * 4 : (body.max_chars || 20000);
+      const tags = (req.body as any).tags || [];
 
       // Use Smart Search Strategy
       const result = await smartChatSearch(
         body.query,
         allBuckets,
-        budget
+        budget,
+        tags
       );
 
       // Construct standard response
@@ -281,6 +285,54 @@ export function setupRoutes(app: Application) {
   // GET Search (Legacy support) - redirect to use POST effectively
   app.get('/v1/memory/search', async (_req: Request, res: Response) => {
     res.status(400).json({ error: "Use POST /v1/memory/search for complex queries." });
+  });
+
+  // POST Molecule Search endpoint - splits query into sentence-like chunks
+  app.post('/v1/memory/molecule-search', async (req: Request, res: Response) => {
+    try {
+      const body = req.body;
+      if (!body.query) {
+        res.status(400).json({ error: 'Query is required' });
+        return;
+      }
+
+      // Handle legacy params
+      const bucketParam = body.bucket;
+      const buckets = body.buckets || [];
+      const allBuckets = bucketParam ? [...buckets, bucketParam] : buckets;
+      const budget = body.token_budget ? body.token_budget * 4 : (body.max_chars || 2400); // Default to 2400 as specified
+      const tags = body.tags || [];
+
+      // Use Molecule Search Strategy - split query into sentence-like chunks
+      const result = await executeMoleculeSearch(
+        body.query,
+        undefined, // bucket
+        allBuckets,
+        budget,
+        false, // deep
+        'all', // provenance
+        tags
+      );
+
+      // Construct standard response
+      console.log(`[API] Molecule Search "${body.query}" -> Found ${result.results.length} results`);
+
+      res.status(200).json({
+        status: 'success',
+        context: result.context,
+        results: result.results,
+        strategy: 'molecule_split',
+        metadata: {
+          engram_hits: 0,
+          vector_latency: 0,
+          provenance_boost_active: true,
+          ...(result.metadata || {})
+        }
+      });
+    } catch (error: any) {
+      console.error('Molecule Search error:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Get all buckets
@@ -346,20 +398,10 @@ export function setupRoutes(app: Application) {
   });
 
   // GET /v1/backup (Legacy Dump) - Kept for compatibility or download
-  // Modifying to use createBackup logic but stream result?
-  // Current createBackup writes to disk.
-  // Let's redirect to disk file download if needed, or keep previous logic.
-  // The user wanted "Save to server".
-  // Let's keep the GET for downloading the LATEST backup or generating one on fly?
-  // Let's make GET just return text of latest? Or generate on fly?
-  // Let's generate on fly like before for "Dump".
   app.get('/v1/backup', async (_req: Request, res: Response) => {
-    // Return ID of new backup? Or stream content?
-    // Legacy behavior was stream content.
     try {
       const result = await createBackup();
       const path = await import('path');
-      // const fs = await import('fs'); // Unused
       const fpath = path.join(process.cwd(), 'backups', result.filename);
       res.download(fpath);
     } catch (e: any) {
@@ -449,10 +491,17 @@ export function setupRoutes(app: Application) {
     }
   });
 
-  // LLM: Chat Completions (Real Streaming + Reasoning Loop)
+  // LLM: Chat Completions (Agentic RAG)
   app.post('/v1/chat/completions', async (req: Request, res: Response) => {
     try {
-      const { messages, temperature = 0.7, max_tokens = 2048 } = req.body;
+      const { messages, model } = req.body;
+
+      // Get the last user message to use as the objective
+      const lastMessage = messages[messages.length - 1];
+      const objective = lastMessage.content;
+
+      console.log(`[API] Agent Request Objective: "${objective}" (Length: ${objective?.length})`);
+      console.log(`[API] Objective Type: ${typeof objective}`);
 
       // 1. Setup SSE
       res.setHeader('Content-Type', 'text/event-stream');
@@ -460,146 +509,71 @@ export function setupRoutes(app: Application) {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      // 2. Inject System Prompt
-      let systemContent = `You are an intelligent assistant connected to a Sovereign Context Engine.
-You have access to a semantic database.
-To search for information, output a search query wrapped in tags like this: <search budget="5000">your query here</search>.
-The 'budget' attribute (optional, default 5000) controls the max characters of context to retrieve. Use higher budget (e.g. 10000) for broad research, lower (e.g. 2000) for specific facts.
-Stop generating after outputting the tag.
-When you receive the search results, answer the user's question using that information.`;
-
-      // --- LOGIC LOOP START ---
-      // Deterministic "Code-First" Search before the model thinks
-      const userMsg = messages[messages.length - 1];
-      if (userMsg.role === 'user') {
-        // Stream "Thinking" / Logic events
-        res.write(`data: ${JSON.stringify({ type: 'tool', status: 'searching', query: userMsg.content, budget: 'Auto' })}\n\n`);
-
-        // 1. Smart Multi-Query Search (Markovian Context)
-        const searchRes = await smartChatSearch(userMsg.content, [], 20000); // 20k chars budget
-
-        if (searchRes.results.length > 0) {
-          const strategyName = (searchRes as any).strategy || 'standard';
-          const foundMsg = `Found ${searchRes.results.length} memories (Strategy: ${strategyName}). Reading...`;
-          res.write(`data: ${JSON.stringify({ type: 'tool_result', content: foundMsg, full_context: '[Reading Context...]' })}\n\n`);
-
-          // 2. Summary (Reader Service)
-          const summary = await summarizeContext(searchRes.results, userMsg.content);
-
-          // Inject Summary
-          systemContent += `\n\nCONTEXT SUMMARY:\n${summary}\n\n(This context was automatically retrieved and summarized. Use it to answer the user.)`;
-
-          // Stream Summary to UI (Visible to User)
-          res.write(`data: ${JSON.stringify({ type: 'tool_result', content: 'Context Summarized', full_context: summary })}\n\n`);
-        } else {
-          // 0 Results
-          res.write(`data: ${JSON.stringify({ type: 'tool_result', content: 'No memories found', full_context: 'No relevant memories found in database.' })}\n\n`);
-        }
-      }
-      // --- LOGIC LOOP END ---
-
-      const toolSystemMsg = {
-        role: 'system',
-        content: systemContent
-      };
-
-      const effectiveMessages = [toolSystemMsg, ...messages];
-      const MAX_TURNS = 5;
-      let turn = 0;
-
-      // 3. Reasoning Loop
-      while (turn < MAX_TURNS) {
-        turn++;
-        console.log(`\n[API] 🔄 Turn ${turn} (Thought Loop)`);
-
-        let bufferedResponse = "";
-        let fullPrompt = effectiveMessages.map((msg: any) => {
-          const role = msg.role || 'user';
-          const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || '');
-          if (role === 'system') return `<|system|>\n${content}`;
-          if (role === 'user') return `<|user|>\n${content}`;
-          if (role === 'assistant') return `<|assistant|>\n${content}`;
-          return `${role.charAt(0).toUpperCase() + role.slice(1)}: ${content}`;
-        }).join('\n\n');
-        fullPrompt += '\n\n<|assistant|>\n';
-
-        try {
-          await runStreamingChat(
-            fullPrompt,
-            (token: string) => {
-              // Stream to client
-              const chunk = {
+      // 2. Initialize Agent Runtime
+      const runtime = new AgentRuntime({
+        model,
+        verbose: true,
+        maxIterations: 5,
+        onEvent: (event) => {
+          // Map Agent Events to SSE
+          if (event.type === 'thought') {
+            // Use specific event type for UI to show "Thinking"
+            res.write(`data: ${JSON.stringify({ type: 'thought', content: event.content, id: event.id })}\n\n`);
+          } else if (event.type === 'token') {
+            // Send streaming tokens as assistant chunks
+            const chunk = {
+              id: `chatcmpl-${Date.now()}`,
+              object: "chat.completion.chunk",
+              created: Math.floor(Date.now() / 1000),
+              model: model || "ece-agent",
+              choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
+            };
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          } else if (event.type === 'answer') {
+            // Ensure any remaining content is sent before stop
+            if (event.content) {
+              const contentChunk = {
                 id: `chatcmpl-${Date.now()}`,
                 object: "chat.completion.chunk",
                 created: Math.floor(Date.now() / 1000),
-                model: "ece-core",
-                choices: [{ index: 0, delta: { content: token }, finish_reason: null }]
+                model: model || "ece-agent",
+                choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
               };
-              res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-              bufferedResponse += token;
-            },
-            "You are a helpful assistant.", // System prompt handled in fullPrompt structure for Qwen
-            { temperature, maxTokens: max_tokens }
-          );
-
-          console.log(`[API] Turn ${turn} Complete. Output Length: ${bufferedResponse.length}`);
-
-          // 4. Check for Tools (Regex updated for Budget)
-          const searchMatch = bufferedResponse.match(/<search(?: budget="(\d+)")?>(.*?)<\/search>/s);
-          if (searchMatch) {
-            const budget = searchMatch[1] ? parseInt(searchMatch[1]) : 5000;
-            const query = searchMatch[2].trim();
-            console.log(`[API] 🔍 Tool Call: Search("${query}") | Budget: ${budget}`);
-
-            // Notify Client of Tool Usage (Simulating a "Thought" or "Tool" event)
-            res.write(`data: ${JSON.stringify({ type: 'tool', status: 'searching', query, budget })}\n\n`);
-
-            // Execute Search (Internal Function)
-            const searchResult = await executeSearch(query, undefined, undefined, budget, false, 'all');
-
-            let toolOutput = "";
-            let toolDisplay = ""; // Concise version for UI
-
-            if (searchResult.results.length > 0) {
-              toolDisplay = `Found ${searchResult.results.length} memories (Total ${searchResult.context.length} chars).`;
-              toolOutput = `[Found ${searchResult.results.length} memories]:\n` +
-                searchResult.results.map(r => `- (${new Date(r.timestamp).toISOString()}) ${r.content.substring(0, 150)}...`).join('\n');
-            } else {
-              toolDisplay = `No memories found.`;
-              toolOutput = `[No memories found for "${query}"]`;
+              // We only send this if we think we missed tokens, otherwise it might double print. 
+              // Actually, Basic Chat streams tokens. sending full answer again is bad.
+              // let's just log it for debug
+              console.log(`[API] Agent finished. Final Answer length: ${event.content.length}`);
             }
 
-            // Stream Result to Client
-            res.write(`data: ${JSON.stringify({ type: 'tool_result', content: toolDisplay, full_context: toolOutput })}\n\n`);
-
-            // Append to context
-            effectiveMessages.push({ role: 'assistant', content: bufferedResponse });
-            effectiveMessages.push({ role: 'system', content: `TOOL OUTPUT: ${toolOutput}\nNow answer.` });
-
-            // Continue Loop
-            continue;
-
-          } else {
-            // No tool call -> Done
-            break;
+            // Final stop chunk
+            const chunk = {
+              id: `chatcmpl-${Date.now()}`,
+              object: "chat.completion.chunk",
+              created: Math.floor(Date.now() / 1000),
+              model: model || "ece-agent",
+              choices: [{ index: 0, delta: { content: "" }, finish_reason: "stop" }]
+            };
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+          } else if (event.type === 'error') {
+            res.write(`data: ${JSON.stringify({ error: event.content })}\n\n`);
           }
-
-        } catch (streamingError: any) {
-          console.error("[API] Streaming Error:", streamingError);
-          res.write(`data: ${JSON.stringify({ error: streamingError.message })}\n\n`);
-          // Force break loop
-          break;
         }
-      }
+      });
 
-      // 5. Finish
+      // 3. Run the Agent Loop (Prompt -> Thought -> Thought -> Assess -> Answer)
+      await runtime.runLoop(objective);
+
+      // 4. Finish
       res.write('data: [DONE]\n\n');
       res.end();
 
     } catch (e: any) {
       console.error("Chat API Error", e);
       if (!res.headersSent) res.status(500).json({ error: e.message });
-      else res.end();
+      else {
+        res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+        res.end();
+      }
     }
   });
 
@@ -640,4 +614,145 @@ When you receive the search results, answer the user's question using that infor
       }
     });
   });
+
+  // Terminal Command Execution Endpoint
+  app.post('/v1/terminal/exec', async (req: Request, res: Response) => {
+    try {
+      const { command } = req.body;
+
+      if (!command) {
+        return res.status(400).json({ error: 'Command is required' });
+      }
+
+      // For now, we'll simulate command execution for security
+      // In a real implementation, you'd want to use a secure sandbox
+      console.log(`[Terminal] Executing command: ${command}`);
+
+      // Validate command to prevent dangerous operations
+      const dangerousCommands = ['rm', 'del', 'format', 'mkfs', 'dd', 'shutdown', 'reboot', 'poweroff'];
+      const commandParts = command.toLowerCase().split(' ');
+      const isDangerous = dangerousCommands.some(dc => commandParts.includes(dc));
+
+      if (isDangerous) {
+        return res.status(400).json({
+          error: 'Command contains potentially dangerous operations',
+          stderr: 'ERROR: Dangerous command blocked by security policy'
+        });
+      }
+
+      // Special handling for 'clear' command
+      if (command.trim().toLowerCase() === 'clear') {
+        return res.status(200).json({
+          command: command,
+          stdout: '', // Empty stdout for clear command
+          stderr: '',
+          code: 0
+        });
+      }
+
+      // For now, return mock response - in a real implementation you'd execute securely
+      const mockResponses: Record<string, { stdout?: string, stderr?: string, code?: number }> = {
+        'ls': { stdout: 'file1.txt\nfile2.md\nfolder1/\nfolder2/' },
+        'dir': { stdout: 'file1.txt\nfile2.md\nfolder1/\nfolder2/' },
+        'pwd': { stdout: '/home/user/project' },
+        'whoami': { stdout: 'user' },
+        'echo hello': { stdout: 'hello' },
+        'cat README.md': { stdout: '# Project README\n\nThis is a sample readme file.' },
+        'type README.md': { stdout: '# Project README\n\nThis is a sample readme file.' },
+        'help': { stdout: 'Available commands: ls, pwd, whoami, echo, cat/type, help' },
+        'cls': { stdout: '' }
+      };
+
+      // Check if we have a predefined response
+      const normalizedCmd = command.toLowerCase().trim();
+      let response = mockResponses[normalizedCmd];
+
+      // If no exact match, try partial matches
+      if (!response) {
+        if (normalizedCmd.startsWith('ls') || normalizedCmd.startsWith('dir')) {
+          response = { stdout: 'file1.txt\nfile2.md\nfolder1/\nfolder2/' };
+        } else if (normalizedCmd.startsWith('cat ') || normalizedCmd.startsWith('type ')) {
+          response = { stdout: 'Sample file content for: ' + command.split(' ')[1] };
+        } else {
+          response = {
+            stdout: `Command executed: ${command}\n(Output simulated for security)`,
+            stderr: command.includes('error') ? 'Simulated error for testing' : undefined
+          };
+        }
+      }
+
+      res.status(200).json({
+        command: command,
+        stdout: response.stdout || '',
+        stderr: response.stderr || '',
+        code: response.code !== undefined ? response.code : 0
+      });
+
+    } catch (error: any) {
+      console.error('Terminal execution error:', error);
+      res.status(500).json({
+        error: error.message,
+        stderr: `Execution failed: ${error.message}`
+      });
+    }
+  });
+
+  // Graph Data Endpoint for Context Visualization
+  app.post('/v1/graph/data', async (req: Request, res: Response) => {
+    try {
+      const { query, limit = 20 } = req.body;
+
+      if (!query) {
+        return res.status(400).json({ error: 'Query is required' });
+      }
+
+      // This would normally call the search service to get real data
+      // For now, we'll return mock data based on the query
+      console.log(`[Graph] Generating visualization data for query: ${query}`);
+
+      // Generate mock nodes and links based on the query
+      const nodes = [
+        { id: 'query', label: query, type: 'search', x: 400, y: 300, size: 20, color: '#646cff' },
+        { id: 'atom1', label: 'Project Notes', type: 'document', x: 200, y: 150, size: 15, color: '#22d3ee' },
+        { id: 'atom2', label: 'Code Snippet', type: 'code', x: 600, y: 150, size: 15, color: '#8b5cf6' },
+        { id: 'atom3', label: 'Research Paper', type: 'document', x: 200, y: 450, size: 15, color: '#22d3ee' },
+        { id: 'atom4', label: 'Configuration', type: 'config', x: 600, y: 450, size: 15, color: '#10b981' },
+        { id: 'tag1', label: '#typescript', type: 'tag', x: 300, y: 100, size: 12, color: '#f59e0b' },
+        { id: 'tag2', label: '#ai', type: 'tag', x: 500, y: 100, size: 12, color: '#f59e0b' },
+        { id: 'tag3', label: '#graph', type: 'tag', x: 300, y: 500, size: 12, color: '#f59e0b' },
+        { id: 'tag4', label: '#memory', type: 'tag', x: 500, y: 500, size: 12, color: '#f59e0b' },
+      ];
+
+      const links = [
+        { source: 'query', target: 'atom1', strength: 0.8 },
+        { source: 'query', target: 'atom2', strength: 0.7 },
+        { source: 'query', target: 'atom3', strength: 0.6 },
+        { source: 'query', target: 'atom4', strength: 0.5 },
+        { source: 'atom1', target: 'tag1', strength: 0.9 },
+        { source: 'atom1', target: 'tag2', strength: 0.6 },
+        { source: 'atom2', target: 'tag1', strength: 0.7 },
+        { source: 'atom2', target: 'tag2', strength: 0.8 },
+        { source: 'atom3', target: 'tag3', strength: 0.9 },
+        { source: 'atom3', target: 'tag4', strength: 0.6 },
+        { source: 'atom4', target: 'tag3', strength: 0.7 },
+        { source: 'atom4', target: 'tag4', strength: 0.8 },
+      ];
+
+      res.status(200).json({
+        nodes: nodes.slice(0, limit),
+        links: links.slice(0, limit * 2), // More links than nodes typically
+        query: query,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error: any) {
+      console.error('Graph data error:', error);
+      res.status(500).json({
+        error: error.message
+      });
+    }
+  });
+
+  // Include enhanced routes
+  setupEnhancedRoutes(app);
 }

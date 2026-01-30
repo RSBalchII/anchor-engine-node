@@ -6,7 +6,7 @@
     "main": "src/index.js",
     "bin": "src/index.js",
     "scripts": {
-        "start": "node dist/index.js",
+        "start": "node --expose-gc dist/index.js",
         "dev": "ts-node src/index.ts",
         "migrate": "node src/migrate_history.js",
         "read-all": "node src/read_all.js",
@@ -18,8 +18,11 @@
         "test:context": "node tests/context_experiments.js",
         "benchmark": "node tests/benchmark.js",
         "build": "tsc",
+        "build:native": "node-gyp configure build",
         "build:standalone": "tsc && pkg .",
+        "build:universal": "npm run build && npm run build:native",
         "lint": "eslint src/ --ext .ts,.js",
+        "chat": "ts-node tools/chat.ts",
         "lint:fix": "eslint src/ --ext .ts,.js --fix"
     },
     "pkg": {

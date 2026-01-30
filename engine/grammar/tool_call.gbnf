@@ -1,0 +1,10 @@
+root ::= tool-call
+tool-call ::= "{" ws "\"tool\"" ws ":" ws tool-name "," ws "\"params\"" ws ":" ws object "}"
+tool-name ::= "\"search_memory\"" | "\"read_file\"" | "\"list_dir\""
+object ::= "{" ws ( member ("," ws member)* )? "}"
+member ::= string ":" ws value
+value ::= string | number | object | array | "true" | "false" | "null"
+string ::= "\"" ( [^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F]{4}) )* "\""
+number ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? ([eE] [-+]? [0-9]+)?
+array ::= "[" ws ( value ("," ws value)* )? "]"
+ws ::= [ \t\n\r]*

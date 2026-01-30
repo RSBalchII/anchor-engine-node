@@ -12,7 +12,6 @@ import * as crypto from 'crypto';
 import { db } from '../../core/db.js';
 import { NOTEBOOK_DIR } from '../../config/paths.js';
 import { ingestAtoms } from './ingest.js';
-import { refineContent } from './refiner.js';
 
 let watcher: chokidar.FSWatcher | null = null;
 const IGNORE_PATTERNS = /(^|[\/\\])\../; // Ignore dotfiles
@@ -56,6 +55,13 @@ export async function startWatchdog() {
     // .on('unlink', (path) => deleteFile(path)); // Implement delete logic later
 }
 
+import { AtomizerService } from './atomizer-service.js';
+import { AtomicIngestService } from './ingest-atomic.js';
+
+// Singleton Services
+const atomizer = new AtomizerService();
+const atomicIngest = new AtomicIngestService();
+
 async function processFile(filePath: string, event: string) {
     if (!filePath.endsWith('.md') && !filePath.endsWith('.txt') && !filePath.endsWith('.yaml')) return;
     if (filePath.includes('mirrored_brain')) return;
@@ -66,133 +72,87 @@ async function processFile(filePath: string, event: string) {
         const buffer = await fs.promises.readFile(filePath);
         if (buffer.length === 0) return;
 
-        // 1. Calculate File Hash (Raw for Change Detection)
+        // 1. Calculate File Hash (Raw)
         const fileHash = crypto.createHash('sha256').update(buffer).digest('hex');
         const relativePath = path.relative(NOTEBOOK_DIR, filePath);
+        const content = buffer.toString('utf8');
 
-        // 2. Check Source Table
+        // 2. Check Source Table (Change Detection)
         const sourceQuery = `?[path, hash] := *source{path, hash}, path = $path`;
         const sourceResult = await db.run(sourceQuery, { path: relativePath });
 
-        let shouldIngest = true;
         if (sourceResult.rows && sourceResult.rows.length > 0) {
             const [_path, existingHash] = sourceResult.rows[0];
             if (existingHash === fileHash) {
                 console.log(`[Watchdog] File unchanged (hash match): ${relativePath}`);
-                shouldIngest = false;
+                return;
             }
         }
 
-        if (!shouldIngest) return;
+        console.log(`[Watchdog] Atomic Pipeline: ${relativePath}`);
 
-        console.log(`[Watchdog] Refinement Pipeline: ${relativePath}`);
-
-        // 3. Smart Refinement (Dry Run)
-        // Parse atoms WITHOUT generating embeddings first
-        const { enrichAtoms } = await import('./refiner.js');
-        const dryRunAtoms = await refineContent(buffer, relativePath, { skipEmbeddings: true });
-
-        const sourceId = crypto.createHash('md5').update(relativePath).digest('hex');
-
-        // 4. Fetch Existing Atoms from DB for this source
-        // We need ID and Hash to compare
-        const existingQuery = `?[id, hash] := *memory{id, source_id, hash}, source_id = $sid`;
-        const existingResult = await db.run(existingQuery, { sid: sourceId });
-
-        const existingMap = new Map<string, string>(); // ID -> Hash
-        if (existingResult.rows) {
-            existingResult.rows.forEach((r: any) => existingMap.set(r[0], r[1]));
+        // 3. ATOMIZE
+        // Determine provenance
+        let provenance: 'internal' | 'external' = 'external';
+        if (relativePath.includes('inbox') && !relativePath.includes('external-inbox')) {
+            provenance = 'internal';
         }
 
-        // 5. Calculate Diff
-        // New Atoms: Present in dryRun but NOT in DB (by ID) OR Hash mismatch
-        // Deleted Atoms: Present in DB but NOT in dryRun (by ID)
+        const topology = await atomizer.atomize(content, relativePath, provenance);
 
-        const atomsToIngest: any[] = [];
-        const atomIdsToKeep = new Set<string>();
+        // 4. CLEANUP (Full Refresh Strategy)
+        // Find existing chunks for this file and wipe them to prevent ghosts
+        // We look for anything linked to this source path
+        const existingQuery = `?[id] := *memory{id, source_id}, source_id = $sid`;
+        // Note: We use the compound ID as the source_id anchor for molecules? 
+        // Or atomic ingest sets source_id = compound.id.
+        // Wait, standard Refiner set source_id = MD5(path).
+        // Atomizer uses MD5(path+content) for compound ID.
+        // We should query by `source` column which is the PATH.
 
-        for (const atom of dryRunAtoms) {
-            atomIdsToKeep.add(atom.id);
-            const existingHash = existingMap.get(atom.id);
+        const pathQuery = `?[id] := *memory{id, source}, source = $src`;
+        const existingResult = await db.run(pathQuery, { src: relativePath });
 
-            // If it's new (not in DB) or changed (hash mismatch), we need to ingest it
-            // Note: Atom ID includes hash in standard refiner, so usually ID change = content change.
-            // But if we change ID generation later, comparing hashes is safer.
-            if (!existingHash) {
-                atomsToIngest.push(atom);
-            } else if (existingHash !== atom.id.replace('atom_', '')) {
-                // Fallback check if hash isn't explicit
-                atomsToIngest.push(atom);
-            }
+        if (existingResult.rows && existingResult.rows.length > 0) {
+            const idsToDelete = existingResult.rows.map((r: any) => r[0]);
+            console.log(`[Watchdog] Cleaning up ${idsToDelete.length} stale fragments...`);
+            await db.run(`?[id] <- $ids :delete memory {id}`, { ids: idsToDelete.map((id: string) => [id]) });
         }
 
-        const idsToDelete: string[] = [];
-        for (const [id] of existingMap) {
-            if (!atomIdsToKeep.has(id)) {
-                idsToDelete.push(id);
-            }
+        // 5. INGEST (Atomic)
+        // Determine Bucket
+        const parts = relativePath.split(path.sep);
+        let bucket = 'notebook';
+        if (parts.length >= 2) {
+            bucket = parts[0] === 'inbox' && parts.length > 2 ? parts[1] : parts[0];
         }
 
-        console.log(`[Watchdog] Smart Diff for ${relativePath}: +${atomsToIngest.length} / -${idsToDelete.length} / =${atomIdsToKeep.size - atomsToIngest.length}`);
+        await atomicIngest.ingestResult(
+            topology.compound,
+            topology.molecules,
+            topology.atoms,
+            [bucket]
+        );
 
-        // 6. Execute Updates
-
-        // A. DELETE orphans
-        if (idsToDelete.length > 0) {
-            await db.run(`?[id] <- $ids :delete memory {id}`, { ids: idsToDelete.map(id => [id]) });
-        }
-
-        // B. ENRICH & INSERT new/changed
-        if (atomsToIngest.length > 0) {
-            // Now we pay the cost of embedding ONLY for the new stuff
-            const enrichedAtoms = await enrichAtoms(atomsToIngest);
-
-            // Improved Bucket Logic for Subfolders
-            const parts = relativePath.split(path.sep);
-            let bucket = 'notebook';
-
-            if (parts.length >= 2) {
-                // Check if it's inside 'inbox'
-                if (parts[0] === 'inbox') {
-                    // inbox/subfolder/file.md -> use 'subfolder'
-                    // inbox/file.md -> use 'inbox'
-                    bucket = parts.length > 2 ? parts[1] : 'inbox';
-                } else {
-                    // other_folder/file.md -> use 'other_folder'
-                    bucket = parts[0];
-                }
-            }
-
-            const bucketList = [bucket];
-
-            await ingestAtoms(enrichedAtoms, relativePath, bucketList, []);
-        }
-
-        // 7. Update Source Table - ONLY if we reached here without error
+        // 6. Update Source Table
         await db.run(
             `?[path, hash, total_atoms, last_ingest] <- [[$path, $hash, $total, $last]] 
              :put source {path, hash, total_atoms, last_ingest}`,
             {
                 path: relativePath,
                 hash: fileHash,
-                total: dryRunAtoms.length, // Total is now current valid count
+                total: topology.molecules.length, // Track molecules count
                 last: Date.now()
             }
         );
 
-        if (atomsToIngest.length > 0 || idsToDelete.length > 0) {
-            console.log(`[Watchdog] Sync Complete: ${relativePath}`);
+        console.log(`[Watchdog] Sync Complete: ${relativePath}`);
 
-            // Trigger Mirror Protocol for Near-Real-Time visibility
-            try {
-                const { createMirror } = await import('../mirror/mirror.js');
-                await createMirror();
-            } catch (mirrorError: any) {
-                console.error(`[Watchdog] Mirror Protocol trigger failed:`, mirrorError.message);
-            }
-        } else {
-            console.log(`[Watchdog] No atom changes detected (Metadata update only).`);
-        }
+        // Trigger Mirror
+        try {
+            const { createMirror } = await import('../mirror/mirror.js');
+            await createMirror();
+        } catch (e: any) { console.error(`[Watchdog] Mirror trigger failed:`, e.message); }
 
     } catch (e: any) {
         console.error(`[Watchdog] Error processing ${filePath}:`, e.message);

@@ -1,5 +1,5 @@
-import { runInfectionLoop } from '../src/services/tags/infector.ts';
-import { db } from '../src/core/db.ts';
+import { runInfectionLoop } from '../src/services/tags/infector.js';
+import { db } from '../src/core/db.js';
 
 async function test() {
     console.log("Initializing DB...");

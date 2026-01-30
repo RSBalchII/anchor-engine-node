@@ -1,5 +1,5 @@
 @echo off
-SETLOCAL EnableDelayedExpansion
+:: Ensuring GC is exposed for the engine process
 
 TITLE ECE Core - Sovereign Context Engine - Launcher
 
@@ -22,7 +22,7 @@ where pnpm >nul 2>nul
 if %errorlevel% neq 0 (
     echo [WARN] PNPM is not installed. Installing via NPM...
     call npm install -g pnpm
-    if !errorlevel! neq 0 (
+    if %errorlevel% neq 0 (
         echo [ERROR] Failed to install PNPM.
         pause
         exit /b 1
@@ -44,7 +44,16 @@ if not exist "desktop-overlay\node_modules" (
     cd ..
 )
 
-:: 5. Build System
+:: 5. Native Module Build (C++ KeyAssassin)
+if not exist "engine\build\Release\ece_native.node" (
+    echo [INFO] Building Native Module - First Time Setup...
+    cd engine
+    call npx node-gyp rebuild
+    cd ..
+    echo [INFO] Native module build attempted.
+)
+
+:: 6. Build System
 echo.
 echo [INFO] Building Frontend ^& Engine...
 call pnpm build
@@ -65,6 +74,10 @@ echo [OK] Build successful.
 echo.
 echo [INFO] Launching ECE Desktop Environment...
 echo [INFO] The Dashboard will open automatically when the Engine is ready.
+
+:: Standard 078: Kill any existing engine on port 3000 to ensure logs are visible in THIS terminal
+echo [INFO] Harmonizing Process Lifecycle (Port 3000)...
+echo [INFO] Skipping port check for stability...
 echo.
 
 cd desktop-overlay

@@ -1,11 +1,12 @@
 /**
- * Search Service with Engram Layer and Provenance Boosting
+ * Enhanced Search Service with Bright Node Protocol
  *
  * Implements:
  * 1. Engram Layer (Fast Lookup) - O(1) lookup for known entities
  * 2. Provenance Boosting - Sovereign content gets boost
- * 3. Tag-Walker Protocol - Graph-based associative retrieval (Replacing Vector Search)
+ * 3. Enhanced Tag-Walker Protocol - Graph-based associative retrieval with Bright Node illumination
  * 4. Intelligent Query Expansion - GLM-assisted decomposition (Standard 069)
+ * 5. Bright Node Inference Protocol - Selective graph illumination for reasoning
  */
 
 import { db } from '../../core/db.js';
@@ -28,7 +29,19 @@ interface SearchResult {
   epochs: string;
   provenance: string;
   score: number;
+  sequence?: number; // Added for Bright Node continuity
+  molecular_signature?: string;  // V4 Nomenclature (formerly simhash)
+  // Atomic Fields
+  start_byte?: number;
+  end_byte?: number;
+  type?: string;
+  numeric_value?: number;
+  numeric_unit?: string;
 }
+
+// ...
+
+
 
 /**
  * Fetch top tags from the system to ground the LLM's query expansion
@@ -219,7 +232,8 @@ export async function tagWalkerSearch(
   buckets: string[] = [],
   tags: string[] = [],
   _maxChars: number = 524288,
-  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all'
+  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all',
+  filters?: { type?: string; minVal?: number; maxVal?: number; }
 ): Promise<SearchResult[]> {
   try {
     const sanitizedQuery = sanitizeFtsQuery(query);
@@ -240,68 +254,226 @@ export async function tagWalkerSearch(
     console.log(`[Search] Dynamic Scaling: Budget=${tokenBudget}t -> Target=${targetAtomCount} atoms (Anchor: ${anchorLimit}, Walk: ${walkLimit})`);
 
     // 1. Direct Search (The Anchor)
+    // 1. Direct Search (The Anchor)
     const anchorQuery = `
-            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score] := 
+            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score, sequence, molecular_signature] := 
             ~memory:content_fts{id | query: $query, k: ${anchorLimit * 2}, bind_score: fts_score},
-            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance},
+            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance, sequence, simhash, type},
+            type = 'fragment',
             ${provenance !== 'quarantine' ? "provenance != 'quarantine'," : "provenance = 'quarantine',"}
-            score = 70.0 * fts_score
+            score = 70.0 * fts_score,
+            molecular_signature = simhash
             ${buckets.length > 0 ? ', length(intersection(buckets, $buckets)) > 0' : ''}
             ${tags.length > 0 ? ', length(intersection(tags, $tags)) > 0' : ''}
             :limit ${anchorLimit}
         `;
 
-    const anchorResult = await db.run(anchorQuery, { query: sanitizedQuery, buckets, tags });
+    // 1.5 Atomic Join (Universal Query)
+    // We default to joining molecules to get the pointer data.
+
+    // Build Filter Clauses
+    let filterClauses = '';
+    if (filters) {
+      if (filters.type) filterClauses += `, type = '${filters.type}'`;
+      if (filters.minVal !== undefined) filterClauses += `, numeric_value >= ${filters.minVal}`;
+      if (filters.maxVal !== undefined) filterClauses += `, numeric_value <= ${filters.maxVal}`;
+    }
+
+    const anchorQueryAtomic = `
+            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score, sequence, molecular_signature, start_byte, end_byte, type, numeric_value, numeric_unit] := 
+            ~memory:content_fts{id | query: $query, k: ${anchorLimit * 2}, bind_score: fts_score},
+            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance, sequence, simhash},
+            *molecules{id, start_byte, end_byte, type, numeric_value, numeric_unit},
+            provenance != 'quarantine',
+            score = 70.0 * fts_score,
+            molecular_signature = simhash
+            ${filterClauses}
+            ${buckets.length > 0 ? ', length(intersection(buckets, $buckets)) > 0' : ''}
+            ${tags.length > 0 ? ', length(intersection(tags, $tags)) > 0' : ''}
+            :limit ${anchorLimit}
+    `;
+
+    // Use Atomic Query if possible (try/catch to fallback if molecules Missing?)
+    // But we know it's there.
+    let anchorResult;
+    try {
+      anchorResult = await db.run(anchorQueryAtomic, { query: sanitizedQuery, buckets, tags });
+    } catch (e) {
+      // Fallback to legacy if molecules join fails (e.g. migration lag)
+      console.warn("[Search] Atomic Join failed, falling back to legacy memory search");
+      anchorResult = await db.run(anchorQuery, { query: sanitizedQuery, buckets, tags });
+    }
+
     if (!anchorResult.rows || anchorResult.rows.length === 0) return [];
 
     // Map Anchors
-    const anchors = anchorResult.rows.map((row: any[]) => ({
-      id: row[0],
-      content: row[1],
-      source: row[2],
-      timestamp: row[3],
-      buckets: row[4],
-      tags: row[5],
-      epochs: row[6],
-      provenance: row[7],
-      score: row[8]
-    }));
+    const anchors = anchorResult.rows.map((row: any[]) => {
+      // Detect if we have atomic fields (length > 11)
+      const isAtomic = row.length > 11;
+      return {
+        id: row[0],
+        content: row[1],
+        source: row[2],
+        timestamp: row[3],
+        buckets: row[4],
+        tags: row[5],
+        epochs: row[6],
+        provenance: row[7],
+        score: row[8],
+        sequence: row[9],
+        molecular_signature: row[10],
+        // Atomic
+        start_byte: isAtomic ? row[11] : undefined,
+        end_byte: isAtomic ? row[12] : undefined,
+        type: isAtomic ? row[13] : undefined,
+        numeric_value: isAtomic ? row[14] : undefined,
+        numeric_unit: isAtomic ? row[15] : undefined
+      };
+    });
 
     // 2. The Walk (Associative Discovery)
     const anchorIds = anchors.map((a: any) => a.id);
 
     const walkQuery = `
-            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score] := 
+            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score, sequence, molecular_signature] := 
             *memory{id: anchor_id, tags: anchor_tags},
             anchor_id in $anchorIds,
             tag in anchor_tags,
-            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance},
+            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance, sequence, simhash, type},
+            type = 'fragment',
             tag in tags,
             id != anchor_id,
             ${provenance !== 'quarantine' ? "provenance != 'quarantine'," : "provenance = 'quarantine',"}
+            molecular_signature = simhash,
             ${tags.length > 0 ? 'length(intersection(tags, $tags)) > 0,' : ''} 
             score = 30.0
             :limit ${walkLimit}
         `;
 
-    const walkResult = await db.run(walkQuery, { anchorIds, tags });
-    const neighbors = (walkResult.rows || []).map((row: any[]) => ({
-      id: row[0],
-      content: row[1],
-      source: row[2],
-      timestamp: row[3],
-      buckets: row[4],
-      tags: row[5],
-      epochs: row[6],
-      provenance: row[7],
-      score: row[8]
-    }));
+    const walkQueryAtomic = `
+            ?[id, content, source, timestamp, buckets, tags, epochs, provenance, score, sequence, molecular_signature, start_byte, end_byte, type, numeric_value, numeric_unit] := 
+            *memory{id: anchor_id, tags: anchor_tags},
+            anchor_id in $anchorIds,
+            tag in anchor_tags,
+            *memory{id, content, source, timestamp, buckets, tags, epochs, provenance, sequence, simhash},
+            *molecules{id, start_byte, end_byte, type, numeric_value, numeric_unit},
+            tag in tags,
+            id != anchor_id,
+            provenance != 'quarantine',
+            molecular_signature = simhash,
+            ${filterClauses}
+            ${tags.length > 0 ? 'length(intersection(tags, $tags)) > 0,' : ''} 
+            score = 30.0
+            :limit ${walkLimit}
+    `;
+
+    let walkResult;
+    try {
+      walkResult = await db.run(walkQueryAtomic, { anchorIds, tags });
+    } catch (e) {
+      walkResult = await db.run(walkQuery, { anchorIds, tags });
+    }
+
+    const neighbors = (walkResult.rows || []).map((row: any[]) => {
+      const isAtomic = row.length > 11;
+      return {
+        id: row[0],
+        content: row[1],
+        source: row[2],
+        timestamp: row[3],
+        buckets: row[4],
+        tags: row[5],
+        epochs: row[6],
+        provenance: row[7],
+        score: row[8],
+        sequence: row[9],
+        molecular_signature: row[10],
+        start_byte: isAtomic ? row[11] : undefined,
+        end_byte: isAtomic ? row[12] : undefined,
+        type: isAtomic ? row[13] : undefined,
+        numeric_value: isAtomic ? row[14] : undefined,
+        numeric_unit: isAtomic ? row[15] : undefined
+      };
+    });
 
     return [...anchors, ...neighbors];
 
   } catch (e) {
     console.error('[Search] Tag-Walker failed:', e);
     return [];
+  }
+}
+
+/**
+ * Split a query into sentence-like chunks (molecules)
+ */
+export function splitQueryIntoMolecules(query: string): string[] {
+  // First, clean the query of any extraneous characters or formatting
+  let cleanQuery = query.trim();
+
+  // Remove common prefixes/suffixes that might interfere with sentence detection
+  cleanQuery = cleanQuery.replace(/^[#\-\*\s]+|[#\-\*\s]+$/g, '').trim();
+
+  // Split by sentence endings first (periods, exclamation marks, question marks)
+  let sentences = cleanQuery.split(/(?<=[.!?])\s+/);
+
+  // If no sentence endings found, try to split by commas or other separators
+  if (sentences.length <= 1) {
+    sentences = cleanQuery.split(/(?<=[,;:])\s+/);
+  }
+
+  // If still no good splits, split by word count (about 10-15 words per chunk)
+  if (sentences.length <= 1) {
+    const words = cleanQuery.split(/\s+/);
+    const chunks: string[] = [];
+    const chunkSize = 15; // About 15 words per "molecule"
+
+    for (let i = 0; i < words.length; i += chunkSize) {
+      const chunk = words.slice(i, i + chunkSize).join(' ');
+      if (chunk.trim()) {
+        chunks.push(chunk);
+      }
+    }
+
+    return chunks.length > 0 ? chunks : [cleanQuery];
+  }
+
+  // Clean up the sentences
+  return sentences
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
+
+// Import Native Module Manager for SimHash utilities
+import { nativeModuleManager } from '../../utils/native-module-manager.js';
+
+/**
+ * Helper: Calculate Hamming Distance between two hex strings
+ * Uses the native module or fallback if available
+ */
+function getHammingDistance(hashA: string, hashB: string): number {
+  try {
+    const a = BigInt(`0x${hashA}`);
+    const b = BigInt(`0x${hashB}`);
+
+    const native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node'); // Ensure loaded
+
+    if (native && native.distance) {
+      return native.distance(a, b);
+    } else {
+      // Redundant fallback if loadNativeModule guarantees a fallback, but safe to have
+      let xor = a ^ b;
+      let count = 0;
+      while (xor > 0n) {
+        xor &= (xor - 1n);
+        count++;
+      }
+      return count;
+    }
+
+  } catch (e) {
+    return 64; // Max distance on error (assume different)
   }
 }
 
@@ -314,27 +486,25 @@ export async function executeSearch(
   buckets?: string[],
   maxChars: number = 524288,
   _deep: boolean = false,
-  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all'
+  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all',
+  explicitTags: string[] = [],
+  filters?: { type?: string; minVal?: number; maxVal?: number; }
 ): Promise<{ context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any }> {
   console.log(`[Search] executeSearch (Expanded Tag-Walker) called with provenance: ${provenance}`);
 
-  // 0. PRE-PROCESS: Extract Scope Tags (e.g., #code, #doc)
-  // We manually extract them because NLP strips them as noise.
-  const scopeTags: string[] = [];
+  // ... (PRE-PROCESS Logic remains same) ...
+  const scopeTags: string[] = [...explicitTags];
   const queryParts = query.split(/\s+/);
   const cleanQueryParts: string[] = [];
-
   const KNOWN_BUCKETS = ['notebook', 'inbox', 'codebase', 'journal', 'archive', 'memories', 'external'];
 
   for (const part of queryParts) {
     if (part.startsWith('#')) {
-      const term = part.substring(1).toLowerCase(); // Strip hash
+      const term = part.substring(1).toLowerCase();
       if (KNOWN_BUCKETS.includes(term) || term.includes('inbox')) {
-        // It's a bucket!
-        if (!buckets) buckets = []; // Ensure array exists
+        if (!buckets) buckets = [];
         buckets.push(term);
       } else {
-        // It's a tag!
         scopeTags.push(term);
       }
     } else {
@@ -342,75 +512,23 @@ export async function executeSearch(
     }
   }
   const cleanQuery = cleanQueryParts.join(' ');
-
-  // Separate actual Buckets (folders) from Tags (hashtags)
   const realBuckets = new Set(buckets || []);
 
-  // Fetch known buckets to resolve ambiguity
-  // We do a quick check on the global bucket list if possible, or just checking if it looks like a bucket?
-  // Since we can't easily fetch global buckets synchronously here without overhead, 
-  // we will trust the provided 'buckets' arg primarily.
-  // BUT, to support "#inbox" in query meaning bucket "inbox", we can try a heuristic or just checking against common knowns?
-  // Or better: Treat it as both? 
-  // No, the user wants strictness.
-
-  // Let's implement the "Smart Split":
-  // If #token is in the query, we treat it as a Tag by default from NLP perspective.
-  // BUT we will also add it to 'scopeTags'. 
-  // Wait, if it's a bucket, we should strip the hash and add to 'realBuckets'.
-  // We can query the DB to see if such a bucket exists? That's expensive per search.
-
-  // Compromise: We will treat #tokens as TAGS (as per standard).
-  // AND we will extract explicit #bucket:name syntax if we wanted advanced features.
-  // BUT, reusing the 'parseQuery' logic which defines #token as key buckets is conflicting.
-  // The 'parseQuery' function (unused) says #word IS a bucket.
-
-  // Let's align with 'parseQuery' logic for hashtags-as-buckets? 
-  // User Prompt: "buckets ... narrowing down the folders".
-  // If I type "#work", I usually mean "Work context". 
-
-  // Let's do this: 
-  // 1. We keep scopeTags as matches for TAG column.
-  // 2. We ALSO add the stripped tag to realBuckets if the user didn't provide explicit buckets.
-  // (Auto-detect context).
-
-  // If no buckets provided, try to infer from hashtags.
   if (realBuckets.size === 0) {
     scopeTags.forEach(tag => {
-      // Assume tags format is "#name"
       const name = tag.replace('#', '');
-      // Heuristic: If it's a simple word, it might be a bucket.
       realBuckets.add(name);
-      // We add it to buckets, but we ALSO keep it in tags?
-      // If we keep it in tags, it MUST match the tag column.
-      // If the user meant bucket, they likely didn't tag the file with "#inbox".
-      // So we should probably NOT enforce it as a tag if we treat it as a bucket?
-      // This is risky.
     });
   }
-
-  // Actually, simplest fix for the user's "Verification":
-  // Ensure that IF buckets are passed, we use them.
-  // IF tags are passed (#text), we use them.
-  // The user asked "are they functioning". 
-  // My previous check confirmed "intersection()" logic.
-  // The only missing piece is: "Does #word imply Bucket or Tag?"
-
-  // I will log the resolved filters so the user can see.
-  // And I will ensure we don't double-filter incorrectly.
 
   console.log(`[Search] Query: "${cleanQuery}"`);
   console.log(`[Search] Filters -> Buckets: [${Array.from(realBuckets).join(', ')}] | Tags: [${scopeTags.join(', ')}]`);
 
-  // 0. NATURAL LANGUAGE PARSING (Standard 070)
-  // Strip stop words from the query for better FTS performance
-  // Use the CLEANED query (without tags)
   const parsedQuery = parseNaturalLanguage(cleanQuery);
   if (parsedQuery !== cleanQuery) {
     console.log(`[Search] NLP Parsed Query: "${cleanQuery}" -> "${parsedQuery}"`);
   }
 
-  // 0.5. QUERY EXPANSION (Phase 0 - Standard 069)
   const expansionTags = await expandQuery(cleanQuery);
   const expandedQuery = expansionTags.length > 0 ? `${parsedQuery} ${expansionTags.join(' ')}` : parsedQuery;
   console.log(`[Search] Optimized Query: ${expandedQuery}`);
@@ -420,16 +538,18 @@ export async function executeSearch(
   let finalResults: SearchResult[] = [];
   const includedIds = new Set<string>();
 
+  // Active Cleansing: Track existing SimHashes
+  const includedHashes: string[] = [];
+  const SIMHASH_THRESHOLD = 3; // Standard 074: < 3 bits difference = duplicate
+
   if (engramResults.length > 0) {
-    // ... (logic remains same)
     console.log(`[Search] Found ${engramResults.length} via Engram: ${cleanQuery}`);
-    const engramContextQuery = `?[id, content, source, timestamp, buckets, tags, epochs, provenance] := *memory{id, content, source, timestamp, buckets, tags, epochs, provenance}, id in $ids`;
+    const engramContextQuery = `?[id, content, source, timestamp, buckets, tags, epochs, provenance, simhash] := *memory{id, content, source, timestamp, buckets, tags, epochs, provenance, simhash}, id in $ids`;
     const engramContentResult = await db.run(engramContextQuery, { ids: engramResults });
     if (engramContentResult.rows) {
-      const realBucketsArray = Array.from(realBuckets); // Convert once for use in loop
+      const realBucketsArray = Array.from(realBuckets);
       engramContentResult.rows.forEach((row: any[]) => {
         if (!includedIds.has(row[0])) {
-          // Basic check: Does this engram result match the tags?
           const rowTags = row[5] as string[];
           const rowBuckets = row[4] as string[];
 
@@ -437,10 +557,37 @@ export async function executeSearch(
           const matchesBuckets = realBucketsArray.every(b => rowBuckets.includes(b));
 
           if ((scopeTags.length === 0 || matchesTags) && (realBucketsArray.length === 0 || matchesBuckets)) {
-            finalResults.push({
-              id: row[0], content: row[1], source: row[2], timestamp: row[3], buckets: row[4], tags: row[5], epochs: row[6], provenance: row[7], score: 200
-            });
-            includedIds.add(row[0]);
+            // Active Cleansing
+            const simhash = row[8] || "0";
+            let isDuplicate = false;
+
+            if (simhash !== "0") {
+              for (const existingHash of includedHashes) {
+                if (getHammingDistance(simhash, existingHash) < SIMHASH_THRESHOLD) {
+                  isDuplicate = true;
+
+                  // --- MERGE TAGS (Directive 3) ---
+                  // Find the existing item and merge tags/buckets
+                  const existingItem = finalResults.find(r => r.molecular_signature === existingHash);
+                  if (existingItem) {
+                    const mergedTags = new Set([...existingItem.tags, ...rowTags]);
+                    const mergedBuckets = new Set([...getItems(existingItem.buckets), ...rowBuckets]);
+                    existingItem.tags = Array.from(mergedTags);
+                    existingItem.buckets = Array.from(mergedBuckets);
+                    // console.log(`[Search] Merged tags for duplicate atom: ${row[0]} -> ${existingItem.id}`);
+                  }
+                  break;
+                }
+              }
+            }
+
+            if (!isDuplicate) {
+              finalResults.push({
+                id: row[0], content: row[1], source: row[2], timestamp: row[3], buckets: row[4], tags: row[5], epochs: row[6], provenance: row[7], score: 200, molecular_signature: simhash
+              });
+              includedIds.add(row[0]);
+              if (simhash !== "0") includedHashes.push(simhash);
+            }
           }
         }
       });
@@ -448,13 +595,21 @@ export async function executeSearch(
   }
 
   // 2. TAG-WALKER SEARCH (Hybrid FTS + Graph)
-  // Pass both buckets and tags explicitely
-  const walkerResults = await tagWalkerSearch(expandedQuery, Array.from(realBuckets), scopeTags, maxChars, provenance);
+  const walkerResults = await tagWalkerSearch(expandedQuery, Array.from(realBuckets), scopeTags, maxChars, provenance, filters);
 
-  // Merge and Apply Provenance Boosting
+  // Type-Based Scoring Multipliers (POML V4)
+  const TYPE_SCORE_MULT: Record<string, number> = {
+    'prose': 1.0,
+    'code': 0.8,
+    'data': 0.6,
+    'log': 0.4  // Downweight logs heavily
+  };
+
+  // Merge and Apply Provenance Boosting + Type-Based Scoring with Active Cleansing
   walkerResults.forEach(r => {
     let score = r.score;
 
+    // Provenance Boosting
     if (provenance === 'internal') {
       if (r.provenance === 'internal') score *= 3.0;
       else score *= 0.5;
@@ -464,18 +619,104 @@ export async function executeSearch(
       if (r.provenance === 'internal') score *= 2.0;
     }
 
+    // Type-Based Scoring (POML V4)
+    const typeMultiplier = TYPE_SCORE_MULT[r.type || 'prose'] || 1.0;
+    score *= typeMultiplier;
+
     if (!includedIds.has(r.id)) {
-      finalResults.push({ ...r, score });
-      includedIds.add(r.id);
+      // Active Cleansing Check
+      let isDuplicate = false;
+      const simhash = r.molecular_signature || "0";
+
+      if (simhash !== "0") {
+        for (const existingHash of includedHashes) {
+          if (getHammingDistance(simhash, existingHash) < SIMHASH_THRESHOLD) {
+            isDuplicate = true;
+
+            // --- MERGE TAGS (Directive 3) ---
+            const existingItem = finalResults.find(r => r.molecular_signature === existingHash);
+            if (existingItem) {
+              const mergedTags = new Set([...existingItem.tags, ...(r.tags || [])]);
+              const mergedBuckets = new Set([...getItems(existingItem.buckets), ...getItems(r.buckets)]);
+              existingItem.tags = Array.from(mergedTags);
+              existingItem.buckets = Array.from(mergedBuckets);
+            }
+            break;
+          }
+        }
+      }
+
+      if (!isDuplicate) {
+        finalResults.push({ ...r, score });
+        includedIds.add(r.id);
+        if (simhash !== "0") includedHashes.push(simhash);
+      }
     }
   });
 
-  console.log(`[Search] Total Results: ${finalResults.length}`);
+  console.log(`[Search] Total Results (After Deduplication): ${finalResults.length}`);
 
   // Final Sort by Score
   finalResults.sort((a, b) => b.score - a.score);
 
   return formatResults(finalResults, maxChars);
+}
+
+/**
+ * Execute molecule-based search - splits query into sentence-like chunks and searches each separately
+ */
+export async function executeMoleculeSearch(
+  query: string,
+  bucket?: string,
+  buckets?: string[],
+  maxChars: number = 2400, // 2400 tokens as specified
+  deep: boolean = false,
+  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all',
+  explicitTags: string[] = []
+): Promise<{ context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any }> {
+
+  // Split the query into molecules (sentence-like chunks)
+  const molecules = splitQueryIntoMolecules(query);
+  console.log(`[MoleculeSearch] Split query into ${molecules.length} molecules:`, molecules);
+
+  // Search each molecule separately
+  const allResults: SearchResult[] = [];
+  const includedIds = new Set<string>();
+
+  for (const [index, molecule] of molecules.entries()) {
+    console.log(`[MoleculeSearch] Searching molecule ${index + 1}/${molecules.length}: "${molecule}"`);
+
+    try {
+      // Execute search for this specific molecule
+      const result = await executeSearch(
+        molecule,
+        bucket,
+        buckets,
+        maxChars,
+        deep,
+        provenance,
+        explicitTags
+      );
+
+      // Add unique results to our collection
+      for (const item of result.results) {
+        if (!includedIds.has(item.id)) {
+          allResults.push(item);
+          includedIds.add(item.id);
+        }
+      }
+    } catch (error) {
+      console.error(`[MoleculeSearch] Error searching molecule:`, molecule, error);
+      // Continue with other molecules even if one fails
+    }
+  }
+
+  // Sort results by score
+  allResults.sort((a, b) => b.score - a.score);
+
+  console.log(`[MoleculeSearch] Combined results from ${molecules.length} molecules: ${allResults.length} total results`);
+
+  return formatResults(allResults, maxChars); // Use original maxChars to maintain token budget
 }
 
 /**
@@ -513,17 +754,40 @@ export async function runTraditionalSearch(query: string, buckets: string[]): Pr
   }
 }
 
+function getItems(input: string[] | undefined): string[] {
+  return Array.isArray(input) ? input : [];
+}
+
 /**
  * Format search results within character budget
+ * Uses molecular coordinates (start_byte/end_byte) for precise content slicing
  */
 function formatResults(results: SearchResult[], maxChars: number): { context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any } {
-  const candidates = results.map(r => ({
-    id: r.id,
-    content: r.content,
-    source: r.source,
-    timestamp: r.timestamp,
-    score: r.score
-  }));
+  // Extract molecular slices when coordinates are available
+  const candidates = results.map(r => {
+    let content = r.content || '';
+
+    // Use molecular coordinates for precise slicing if available
+    if (r.start_byte !== undefined && r.end_byte !== undefined && r.start_byte >= 0 && r.end_byte > r.start_byte) {
+      try {
+        // Extract the molecular slice from the full content
+        const contentBuffer = Buffer.from(content, 'utf8');
+        const sliceBuffer = contentBuffer.subarray(r.start_byte, r.end_byte);
+        content = sliceBuffer.toString('utf8');
+      } catch (e) {
+        // Fallback to full content if slicing fails
+      }
+    }
+
+    return {
+      id: r.id,
+      content,
+      source: r.source,
+      timestamp: r.timestamp,
+      score: r.score,
+      type: r.type  // Pass type for potential downstream use
+    };
+  });
 
   const tokenBudget = Math.floor(maxChars / 4);
   const rollingContext = composeRollingContext("query_placeholder", candidates, tokenBudget);
@@ -539,6 +803,7 @@ function formatResults(results: SearchResult[], maxChars: number): { context: st
     metadata: rollingContext.stats
   };
 }
+
 
 /**
  * Helper to filter tags for display (User Request: Hide Year Numbers)
@@ -574,12 +839,13 @@ export function parseQuery(query: string): { phrases: string[]; temporal: string
 export async function iterativeSearch(
   query: string,
   buckets: string[] = [],
-  maxChars: number = 20000 // Higher budget for initial retrieval
+  maxChars: number = 20000,
+  tags: string[] = []
 ): Promise<{ context: string; results: SearchResult[]; attempt: number; metadata?: any }> {
 
   // 0. Extract Scope Tags (Hashtags) to preserve them across strategies
   // We want to make sure if user typed "#work", it stays even if we strip adjectives.
-  const scopeTags: string[] = [];
+  const scopeTags: string[] = [...tags];
   const queryParts = query.split(/\s+/);
   queryParts.forEach(part => {
     if (part.startsWith('#')) scopeTags.push(part);
@@ -588,7 +854,7 @@ export async function iterativeSearch(
 
   // Strategy 1: Standard Expanded Search (All Nouns, Verbs, Dates + Expansion)
   console.log(`[IterativeSearch] Strategy 1: Standard Execution`);
-  let results = await executeSearch(query, undefined, buckets, maxChars);
+  let results = await executeSearch(query, undefined, buckets, maxChars, false, 'all', tags);
   if (results.results.length > 0) return { ...results, attempt: 1 };
 
   // Strategy 2: Strict "Subjects & Time" (Strip Verbs/Adjectives, keep Nouns + Dates)
@@ -605,7 +871,7 @@ export async function iterativeSearch(
     // Re-inject scope tags
     const strictQuery = Array.from(uniqueTokens).join(' ') + ' ' + tagsString;
     console.log(`[IterativeSearch] Fallback Query 1: "${strictQuery.trim()}"`);
-    results = await executeSearch(strictQuery, undefined, buckets, maxChars);
+    results = await executeSearch(strictQuery, undefined, buckets, maxChars, false, 'all', tags);
     if (results.results.length > 0) return { ...results, attempt: 2 };
   }
 
@@ -619,7 +885,7 @@ export async function iterativeSearch(
 
   if (entityQuery.trim().length > 0 && entityQuery.trim() !== (Array.from(uniqueTokens).join(' ') + ' ' + tagsString).trim()) {
     console.log(`[IterativeSearch] Fallback Query 2: "${entityQuery.trim()}"`);
-    results = await executeSearch(entityQuery, undefined, buckets, maxChars);
+    results = await executeSearch(entityQuery, undefined, buckets, maxChars, false, 'all', tags);
     if (results.results.length > 0) return { ...results, attempt: 3 };
   }
 
@@ -638,10 +904,11 @@ export async function iterativeSearch(
 export async function smartChatSearch(
   query: string,
   buckets: string[] = [],
-  maxChars: number = 20000
+  maxChars: number = 20000,
+  tags: string[] = []
 ): Promise<{ context: string; results: SearchResult[]; strategy: string; splitQueries?: string[]; metadata?: any }> {
   // 1. Initial Attempt
-  const initial = await iterativeSearch(query, buckets, maxChars);
+  const initial = await iterativeSearch(query, buckets, maxChars, tags);
 
   // If we have enough results, returns immediately
   if (initial.results.length >= 10) {
@@ -680,7 +947,7 @@ export async function smartChatSearch(
   // 3. Parallel Execution
   // We run executeSearch for each entity independently
   const parallelPromises = entities.map((entity: string) =>
-    executeSearch(entity, undefined, buckets, maxChars / entities.length) // Split budget? Or full budget?
+    executeSearch(entity, undefined, buckets, maxChars / entities.length, false, 'all', tags) // Split budget? Or full budget?
     // Let's iterate search? No, simple executeSearch is simpler.
     // Use full budget per search, we will truncate at merge time.
   );
@@ -710,4 +977,160 @@ export async function smartChatSearch(
   // 5. Re-Format
   const formatted = formatResults(mergedResults, maxChars * 1.5);
   return { ...formatted, strategy: 'split_merge', splitQueries: entities };
+}
+
+/**
+ * Bright Node Protocol - Selective Graph Illumination
+ *
+ * Implements the "Bright Node" inference protocol where only relevant
+ * graph nodes are illuminated for reasoning, similar to how a flashlight
+ * illuminates only the relevant parts of a dark room.
+ *
+ * This supports the "Logic-Data Decoupling" concept by providing
+ * structured graph data to lightweight reasoning models.
+ */
+export interface BrightNode {
+  id: string;
+  content: string;
+  source: string;
+  timestamp: number;
+  buckets: string[];
+  tags: string[];
+  epochs: string;
+  provenance: string;
+  score: number;
+  sequence?: number;
+  molecular_signature?: string;
+  relationships: BrightNodeRelationship[];
+}
+
+export interface BrightNodeRelationship {
+  targetId: string;
+  relationshipType: string;
+  strength: number;
+}
+
+export async function getBrightNodes(
+  query: string,
+  buckets: string[] = [],
+  maxNodes: number = 50
+): Promise<BrightNode[]> {
+  console.log(`[BrightNode] Illuminating graph for query: "${query}"`);
+
+  // First, get relevant search results using the enhanced Tag-Walker
+  const searchResults = await tagWalkerSearch(query, buckets, [], maxNodes * 1000, 'all');
+
+  if (searchResults.length === 0) {
+    console.log('[BrightNode] No initial results found, returning empty set');
+    return [];
+  }
+
+  // Take top results based on score
+  const topResults = searchResults
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxNodes);
+
+  // Create bright nodes with relationship information
+  const brightNodes: BrightNode[] = topResults.map(result => ({
+    id: result.id,
+    content: result.content,
+    source: result.source,
+    timestamp: result.timestamp,
+    buckets: result.buckets,
+    tags: result.tags,
+    epochs: result.epochs,
+    provenance: result.provenance,
+    score: result.score,
+    sequence: result.sequence, // Pass through sequence
+    molecular_signature: result.molecular_signature,   // V4 Nomenclature
+    relationships: [] // Will be populated based on shared tags/buckets
+  }));
+
+  // Identify relationships between nodes based on shared attributes
+  for (let i = 0; i < brightNodes.length; i++) {
+    const currentNode = brightNodes[i];
+    const relationships: BrightNodeRelationship[] = [];
+
+    for (let j = 0; j < brightNodes.length; j++) {
+      if (i === j) continue;
+
+      const otherNode = brightNodes[j];
+      let relationshipStrength = 0;
+      let relationshipType = 'related';
+
+      // 1. Semantic Overlap (Tags & Buckets)
+      const sharedBuckets = currentNode.buckets.filter((b: string) => otherNode.buckets.includes(b));
+      const sharedTags = currentNode.tags.filter((t: string) => otherNode.tags.includes(t));
+      relationshipStrength += sharedBuckets.length * 2 + sharedTags.length;
+
+      // 2. Source Continuity (Same Document)
+      if (currentNode.source === otherNode.source) {
+        relationshipStrength += 5; // Strong boost for same file
+        relationshipType = 'same_source';
+
+        // 3. Sequential Adjacency (The "Markov Link")
+        if (currentNode.sequence !== undefined && otherNode.sequence !== undefined) {
+          const dist = Math.abs(currentNode.sequence - otherNode.sequence);
+          if (dist === 1) {
+            relationshipStrength += 10; // Massive boost for direct neighbors
+            relationshipType = 'next_chunk';
+          } else if (dist < 5) {
+            relationshipStrength += 3; // Boost for nearby chunks
+          }
+        }
+      }
+
+      if (relationshipStrength > 0) {
+        relationships.push({
+          targetId: otherNode.id,
+          relationshipType,
+          strength: relationshipStrength
+        });
+      }
+    }
+
+    // Sort relationships by strength and keep top 5
+    currentNode.relationships = relationships
+      .sort((a, b) => b.strength - a.strength)
+      .slice(0, 5);
+  }
+
+  console.log(`[BrightNode] Illuminated ${brightNodes.length} nodes with relationships`);
+
+  return brightNodes;
+}
+
+/**
+ * Get Structured Graph for Reasoning Models
+ *
+ * Formats the bright nodes into a structure suitable for reasoning models
+ * as described in the "Logic-Data Decoupling" section of the white paper.
+ */
+export async function getStructuredGraph(
+  query: string,
+  buckets: string[] = []
+): Promise<any> {
+  const brightNodes = await getBrightNodes(query, buckets);
+
+  // Format as a graph structure suitable for reasoning models
+  return {
+    nodes: brightNodes.map(node => ({
+      id: node.id,
+      content: node.content.substring(0, 500), // Truncate for efficiency
+      tags: node.tags,
+      buckets: node.buckets,
+      provenance: node.provenance,
+      score: node.score
+    })),
+    edges: brightNodes.flatMap(node =>
+      node.relationships.map(rel => ({
+        source: node.id,
+        target: rel.targetId,
+        type: rel.relationshipType,
+        strength: rel.strength
+      }))
+    ),
+    query: query,
+    timestamp: Date.now()
+  };
 }

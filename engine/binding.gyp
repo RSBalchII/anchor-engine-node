@@ -8,7 +8,9 @@
         "./src/native/main.cpp",
         "./src/native/key_assassin.cpp",
         "./src/native/atomizer.cpp",
-        "./src/native/fingerprint.cpp"
+        "./src/native/fingerprint.cpp",
+        "./src/native/html_ingestor.cpp",
+        "./src/native/agent/tool_executor.cpp"
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",

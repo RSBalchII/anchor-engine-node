@@ -4,6 +4,8 @@ interface SearchParams {
     max_chars: number;
     token_budget: number;
     provenance: 'internal' | 'all';
+    buckets?: string[];
+    tags?: string[];
 }
 
 interface SearchResult {
@@ -52,6 +54,22 @@ export const api = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, category })
+        }).then(r => r.json()),
+
+    getModels: () => fetch('/v1/models').then(r => r.json()),
+
+    loadModel: (model: string, options?: any) =>
+        fetch('/v1/inference/load', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, options })
+        }).then(r => r.json()),
+
+    getGraphData: (query: string, limit: number = 20) =>
+        fetch('/v1/graph/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, limit })
         }).then(r => r.json())
 } as const;
 

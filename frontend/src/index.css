@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Premium Dark Theme Palette */
   --bg-primary: #0a0a0c;
@@ -5,6 +9,7 @@
   --bg-tertiary: #1c1c1f;
 
   --accent-primary: #646cff;
+  --accent-secondary: #535bf2;
   --accent-hover: #7b83ff;
   --accent-glow: rgba(100, 108, 255, 0.4);
 
@@ -12,7 +17,7 @@
   --text-secondary: #a1a1aa;
   --text-dim: #52525b;
 
-  --border-subtle: #27272a;
+  --border-subtle: rgba(255, 255, 255, 0.1);
   --border-active: #3f3f46;
 
   --glass-bg: rgba(28, 28, 31, 0.7);
@@ -52,6 +57,23 @@ body {
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--radius-lg);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 108, 255, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 108, 255, 0.5);
 }
 
 .btn-primary {
@@ -99,15 +121,21 @@ body {
     transform: translateY(0);
   }
 }
-  
+
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .hourglass-spin {
   animation: spin 2s linear infinite;
-  display: inline-block; /* Required for transform */
+  display: inline-block;
+  /* Required for transform */
 }
 
 .animate-fade-in {
@@ -190,5 +218,6 @@ body {
   overflow-x: auto;
   overflow-y: hidden;
   height: 100%;
-  padding-bottom: 0.5rem; /* Scrollbar space */
+  padding-bottom: 0.5rem;
+  /* Scrollbar space */
 }

@@ -40,7 +40,9 @@ export const SearchColumn = memo(({
     const [activeMode, setActiveMode] = useState(false);
     const [sovereignBias, setSovereignBias] = useState(true);
     const [metadata, setMetadata] = useState<any>(null);
-    const [scope, setScope] = useState<'all' | 'code' | 'docs'>('all');
+    const [activeBuckets, setActiveBuckets] = useState<string[]>([]);
+    const [activeTags, setActiveTags] = useState<string[]>([]);
+    const [autoSplit, setAutoSplit] = useState(false);
 
     // Sync context to parent
     useEffect(() => {
@@ -54,7 +56,7 @@ export const SearchColumn = memo(({
             if (query.trim()) handleSearch();
         }, 500);
         return () => clearTimeout(timer);
-    }, [query, activeMode, tokenBudget, sovereignBias, scope]);
+    }, [query, activeMode, tokenBudget, sovereignBias, activeBuckets, activeTags]);
 
     const handleQuarantine = async (atomId: string) => {
         if (!confirm('Quarantine this atom? It will be tagged #manually_quarantined.')) return;
@@ -75,10 +77,12 @@ export const SearchColumn = memo(({
         console.log(`[SearchColumn-${id}] Searching: "${query}" | Budget: ${tokenBudget}`);
         try {
             const data = await api.search({
-                query: scope === 'all' ? query : `${query} ${scope === 'code' ? '#code' : '#doc'}`,
+                query: query,
                 max_chars: tokenBudget * 4,
                 token_budget: tokenBudget,
-                provenance: sovereignBias ? 'internal' : 'all'
+                provenance: sovereignBias ? 'internal' : 'all',
+                buckets: activeBuckets,
+                tags: activeTags
             });
 
             if (data.results) {
@@ -91,7 +95,7 @@ export const SearchColumn = memo(({
                     onFullUpdate(id, fullText);
                 }
 
-                if (data.split_queries && data.split_queries.length > 0) {
+                if (autoSplit && data.split_queries && data.split_queries.length > 0) {
                     data.split_queries.forEach((q: string) => {
                         setTimeout(() => onAddColumn(q), 100);
                     });
@@ -122,25 +126,36 @@ export const SearchColumn = memo(({
     return (
         <GlassPanel style={{ flex: 1, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-secondary)', minWidth: '300px', overflow: 'hidden' }}>
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '0.3rem' }}>
-                    {(['all', 'code', 'docs'] as const).map(s => (
-                        <Button
-                            key={s}
-                            variant="primary" // Logic handled by inline style overriding mostly, let's clean this up
-                            style={{
-                                fontSize: '0.7rem', padding: '0.2rem 0.5rem',
-                                background: scope === s ? 'var(--accent-primary)' : 'transparent',
-                                border: scope === s ? 'none' : '1px solid var(--border-subtle)',
-                                opacity: scope === s ? 1 : 0.7
-                            }}
-                            onClick={() => setScope(s)}
-                        >
-                            {s.toUpperCase()}
-                        </Button>
-                    ))}
+            {/* Header: Filters & Buckets */}
+            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', maxWidth: '85%' }}>
+                    {/* Dynamic Buckets (All available buckets) */}
+                    {availableBuckets.filter(b => !/^\d{4}$/.test(b)).map(bucket => {
+                        const isActive = activeBuckets.includes(bucket);
+                        return (
+                            <Button
+                                key={`bucket-${bucket}`}
+                                variant="primary"
+                                style={{
+                                    fontSize: '0.7rem', padding: '0.2rem 0.5rem',
+                                    background: isActive ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)',
+                                    border: isActive ? 'none' : '1px solid var(--border-subtle)',
+                                    opacity: isActive ? 1 : 0.6
+                                }}
+                                onClick={() => {
+                                    setActiveBuckets(prev =>
+                                        prev.includes(bucket)
+                                            ? prev.filter(b => b !== bucket)
+                                            : [...prev, bucket]
+                                    );
+                                }}
+                            >
+                                {bucket.toUpperCase()}
+                            </Button>
+                        );
+                    })}
                 </div>
+
                 {!isOnly && (
                     <Button variant="icon" onClick={() => onRemove(id)}>✕</Button>
                 )}
@@ -160,15 +175,14 @@ export const SearchColumn = memo(({
                     checked={sovereignBias}
                     onChange={(e) => setSovereignBias(e.target.checked)}
                     label="Sov"
-                // Custom color logic needed for label? Input component supports simple label. 
-                // Re-implementing custom style for Sov label color:
                 />
-                {/* Overriding Input label color for 'Sov' is tricky with current Input component... 
-            Actually, the Input component just uses var(--accent-primary) for checked state.
-            The original code had '#FFD700' for Sov. 
-            For now, let's iterate on the Input component or just accept standard color.
-            I'll use the Input component as is (blue accent) for consistency.
-         */}
+                <Input
+                    variant="checkbox"
+                    checked={autoSplit}
+                    onChange={(e) => setAutoSplit(e.target.checked)}
+                    label="Split"
+                    title="Automatically split complex queries into multiple columns"
+                />
 
                 <div style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{tokenBudget} tks</span>
@@ -196,14 +210,34 @@ export const SearchColumn = memo(({
                 </div>
             )}
 
-            {/* Badges */}
+            {/* Semantic Tags (Toggleable) */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '60px', overflowY: 'auto' }}>
-                {availableBuckets.filter(b => !/^\d{4}$/.test(b)).map(b => (
-                    <Badge key={b} label={b} variant="bucket" onClick={() => setQuery(prev => prev + ` #${b}`)} />
-                ))}
-                {availableTags.filter(t => !/^\d{4}$/.test(t)).map(t => (
-                    <Badge key={t} label={t} variant="tag" onClick={() => setQuery(prev => prev + ` #${t}`)} />
-                ))}
+                {availableTags.filter(t => !/^\d{4}$/.test(t) && t !== 'semantic_tag_placeholder').map(t => {
+                    const isActive = activeTags.includes(t);
+                    return (
+                        <Button
+                            key={`tag-${t}`}
+                            variant="primary"
+                            style={{
+                                fontSize: '0.7rem', padding: '0.1rem 0.4rem',
+                                borderRadius: '12px', // Pill shape for tags
+                                background: isActive ? 'var(--accent-secondary)' : 'rgba(255,255,255,0.03)',
+                                border: isActive ? 'none' : '1px solid var(--border-subtle)',
+                                color: isActive ? '#fff' : 'var(--text-dim)',
+                                opacity: isActive ? 1 : 0.7
+                            }}
+                            onClick={() => {
+                                setActiveTags(prev =>
+                                    prev.includes(t)
+                                        ? prev.filter(tag => tag !== t)
+                                        : [...prev, t]
+                                );
+                            }}
+                        >
+                            #{t}
+                        </Button>
+                    );
+                })}
             </div>
 
             {/* Input */}

@@ -62,11 +62,42 @@ export async function ingestContent(
     throw new Error('Content is required for ingestion');
   }
 
+  // --- NATIVE ACCELERATION: HTML Parsing ---
+  // Use the "Iron Lung" native parser for HTML/Web content
+  let processedContent = content;
+  let processedTags = [...tags];
+
+  if (type === 'html' || type === 'web_page') {
+    try {
+      const { nativeModuleManager } = await import('../../utils/native-module-manager.js');
+      const native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node');
+
+      if (native && native.HtmlIngestor) {
+        console.log('[Ingest] Engaging Native HTML Parser ⚡');
+
+        // 1. Extract Clean Text
+        const cleanText = native.HtmlIngestor.extractContent(content);
+        if (cleanText && cleanText.length > 0) {
+          processedContent = cleanText;
+        }
+
+        // 2. Extract Metadata
+        const metadata = native.HtmlIngestor.extractMetadata(content);
+        if (metadata) {
+          if (metadata.title) processedTags.push(`meta:title:${metadata.title.replace(/[:,\s]+/g, '_')}`);
+          // Add other metadata as needed
+        }
+      }
+    } catch (e) {
+      console.warn('[Ingest] Native HTML parsing failed, using raw content:', e);
+    }
+  }
+
   // Auto-assign provenance based on source
   const provenance = determineProvenance(source, type);
 
-  // Generate hash for content deduplication
-  const hash = crypto.createHash('md5').update(content).digest('hex');
+  // Generate hash for content deduplication (using processed content)
+  const hash = crypto.createHash('md5').update(processedContent).digest('hex');
 
   // Check if content with same hash already exists
   const existingQuery = `?[id] := *memory{id, hash}, hash = $hash`;
@@ -83,7 +114,7 @@ export async function ingestContent(
   // Generate unique ID
   const id = `mem_${Date.now()}_${crypto.randomBytes(8).toString('hex').substring(0, 16)}`;
   const timestamp = Date.now();
-  const tagsJson = tags; // Pass as array, Cozo Napi handles it
+  const tagsJson = processedTags; // Pass as array, Cozo Napi handles it
   const bucketsArray = Array.isArray(buckets) ? buckets : [buckets];
   const epochsJson: string[] = []; // Pass as array
 
@@ -92,7 +123,7 @@ export async function ingestContent(
   const insertQuery = `?[id, timestamp, content, source, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding] <- $data :put memory {id, timestamp, content, source, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding}`;
 
   await db.run(insertQuery, {
-    data: [[id, timestamp, content, source, source, 0, type, hash, bucketsArray, epochsJson, tagsJson, provenance, "0", new Array(config.MODELS.EMBEDDING_DIM).fill(0.1)]]
+    data: [[id, timestamp, processedContent, source, source, 0, type, hash, bucketsArray, epochsJson, tagsJson, provenance, "0", new Array(config.MODELS.EMBEDDING_DIM).fill(0.1)]]
   });
 
   // Strict Read-After-Write Verification (Standard 059)

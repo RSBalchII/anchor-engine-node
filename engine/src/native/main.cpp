@@ -2,6 +2,8 @@
 #include "key_assassin.hpp"
 #include "atomizer.hpp"
 #include "fingerprint.hpp"
+#include "html_ingestor.hpp"
+#include "agent/tool_executor.hpp"
 
 // The Wrapper Function
 Napi::String CleanseWrapped(const Napi::CallbackInfo& info) {
@@ -68,10 +70,10 @@ Napi::Value DistanceWrapped(const Napi::CallbackInfo& info) {
         Napi::TypeError::New(env, "Two arguments expected").ThrowAsJavaScriptException();
         return Napi::Number::New(env, 64);
     }
-    
-    bool lossless; 
+
+    bool lossless;
     // Note: JS BigInt -> C++ uint64_t
-    uint64_t a = 0; 
+    uint64_t a = 0;
     uint64_t b = 0;
 
     // Robust casting
@@ -82,12 +84,31 @@ Napi::Value DistanceWrapped(const Napi::CallbackInfo& info) {
     return Napi::Number::New(env, dist);
 }
 
+// ToolExecutor Wrapper
+Napi::Value ExecuteToolWrapped(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() < 1 || !info[0].IsString()) {
+        Napi::TypeError::New(env, "String expected").ThrowAsJavaScriptException();
+        return Napi::String::New(env, "Error: Invalid input");
+    }
+
+    std::string json_command = info[0].As<Napi::String>().Utf8Value();
+    std::string result = ece::ToolExecutor::Execute(json_command);
+
+    return Napi::String::New(env, result);
+}
+
 // The Initialization (Like module.exports)
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set(Napi::String::New(env, "cleanse"), Napi::Function::New(env, CleanseWrapped));
     exports.Set(Napi::String::New(env, "atomize"), Napi::Function::New(env, AtomizeWrapped));
     exports.Set(Napi::String::New(env, "fingerprint"), Napi::Function::New(env, FingerprintWrapped));
     exports.Set(Napi::String::New(env, "distance"), Napi::Function::New(env, DistanceWrapped));
+    exports.Set(Napi::String::New(env, "executeTool"), Napi::Function::New(env, ExecuteToolWrapped));
+
+    // Initialize HtmlIngestor class
+    ece::HtmlIngestor::Init(env, exports);
+
     return exports;
 }
 
