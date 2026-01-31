@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECE_Core Monitoring Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 5px solid #667eea;
+        }
+        .status-card.healthy {
+            border-left-color: #4CAF50;
+        }
+        .status-card.degraded {
+            border-left-color: #FFC107;
+        }
+        .status-card.unhealthy {
+            border-left-color: #F44336;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            height: 300px;
+        }
+        .component-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        .component-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .component-item:last-child {
+            border-bottom: none;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .status-healthy {
+            background-color: #4CAF50;
+        }
+        .status-degraded {
+            background-color: #FFC107;
+        }
+        .status-unhealthy {
+            background-color: #F44336;
+        }
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+        .last-updated {
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <h1>🧠 ECE_Core Monitoring Dashboard</h1>
+            <p>Real-time system health and performance monitoring</p>
+        </header>
+        
+        <button id="refreshBtn" class="refresh-btn">🔄 Refresh Data</button>
+        <div id="lastUpdated" class="last-updated">Last updated: Never</div>
+        
+        <div class="status-grid" id="statusGrid">
+            <!-- Status cards will be inserted here -->
+        </div>
+        
+        <div class="metric-grid">
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="resourceChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="component-list">
+            <h3>🔧 System Components</h3>
+            <div id="componentList">
+                <!-- Component list will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chart instances
+        let performanceChart = null;
+        let resourceChart = null;
+        
+        // DOM elements
+        const refreshBtn = document.getElementById('refreshBtn');
+        const statusGrid = document.getElementById('statusGrid');
+        const componentList = document.getElementById('componentList');
+        const lastUpdatedEl = document.getElementById('lastUpdated');
+        
+        // API endpoints
+        const endpoints = {
+            health: '/health',
+            metrics: '/monitoring/metrics',
+            performance: '/monitoring/performance',
+            resources: '/monitoring/resources'
+        };
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            
+            // Set up refresh button
+            refreshBtn.addEventListener('click', fetchData);
+            
+            // Refresh every 30 seconds
+            setInterval(fetchData, 30000);
+        });
+        
+        // Fetch all data
+        async function fetchData() {
+            try {
+                // Fetch all endpoints in parallel
+                const [healthRes, metricsRes, perfRes, resourcesRes] = await Promise.all([
+                    fetch(endpoints.health),
+                    fetch(endpoints.metrics),
+                    fetch(endpoints.performance),
+                    fetch(endpoints.resources)
+                ]);
+                
+                const healthData = await healthRes.json();
+                const metricsData = await metricsRes.json();
+                const perfData = await perfRes.json();
+                const resourcesData = await resourcesRes.json();
+                
+                // Update UI with fetched data
+                updateStatusCards(healthData);
+                updateComponentList(healthData.components);
+                updatePerformanceChart(perfData);
+                updateResourceChart(resourcesData);
+                
+                // Update last updated time
+                lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                
+                console.log('Dashboard data updated');
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                alert('Error fetching dashboard data. Please check the console for details.');
+            }
+        }
+        
+        // Update status cards
+        function updateStatusCards(healthData) {
+            statusGrid.innerHTML = '';
+            
+            // Overall system status
+            const overallCard = document.createElement('div');
+            overallCard.className = `status-card ${healthData.status}`;
+            overallCard.innerHTML = `
+                <h3>📊 Overall System Status</h3>
+                <p><strong>Status:</strong> <span class="status-${healthData.status}">${healthData.status}</span></p>
+                <p><strong>Uptime:</strong> ${formatUptime(healthData.uptime)}</p>
+                <p><strong>Timestamp:</strong> ${new Date(healthData.timestamp).toLocaleString()}</p>
+            `;
+            statusGrid.appendChild(overallCard);
+            
+            // Component counts
+            const healthyCount = healthData.components.filter(c => c.status === 'healthy').length;
+            const degradedCount = healthData.components.filter(c => c.status === 'degraded').length;
+            const unhealthyCount = healthData.components.filter(c => c.status === 'unhealthy').length;
+            
+            const summaryCard = document.createElement('div');
+            summaryCard.className = 'status-card';
+            summaryCard.innerHTML = `
+                <h3>📋 Component Summary</h3>
+                <p><strong>Healthy:</strong> <span class="status-healthy">${healthyCount}</span></p>
+                <p><strong>Degraded:</strong> <span class="status-degraded">${degradedCount}</span></p>
+                <p><strong>Unhealthy:</strong> <span class="status-unhealthy">${unhealthyCount}</span></p>
+                <p><strong>Total:</strong> ${healthData.components.length}</p>
+            `;
+            statusGrid.appendChild(summaryCard);
+            
+            // Performance summary
+            if (healthData.metrics) {
+                const perfCard = document.createElement('div');
+                perfCard.className = 'status-card';
+                perfCard.innerHTML = `
+                    <h3>⚡ Performance Summary</h3>
+                    <p><strong>Operations Tracked:</strong> ${Object.keys(healthData.metrics).length}</p>
+                    <p><strong>Busiest Operation:</strong> ${getBusiestOperation(healthData.metrics)}</p>
+                    <p><strong>Slowest Operation:</strong> ${getSlowestOperation(healthData.metrics)}</p>
+                `;
+                statusGrid.appendChild(perfCard);
+            }
+        }
+        
+        // Update component list
+        function updateComponentList(components) {
+            componentList.innerHTML = '';
+            
+            components.forEach(component => {
+                const item = document.createElement('div');
+                item.className = 'component-item';
+                
+                const statusClass = `status-${component.status}`;
+                const statusIndicator = `<span class="status-indicator ${statusClass}"></span>`;
+                
+                item.innerHTML = `
+                    <div>
+                        <strong>${component.name}</strong>
+                        <div>${component.message || 'No message'}</div>
+                    </div>
+                    <div>
+                        ${statusIndicator}
+                        <span class="${statusClass}">${component.status}</span>
+                    </div>
+                `;
+                
+                componentList.appendChild(item);
+            });
+        }
+        
+        // Update performance chart
+        function updatePerformanceChart(perfData) {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            
+            if (performanceChart) {
+                performanceChart.destroy();
+            }
+            
+            const labels = [];
+            const data = [];
+            
+            if (perfData.performance && perfData.performance.allStats) {
+                const stats = perfData.performance.allStats;
+                for (const [name, stat] of Object.entries(stats)) {
+                    labels.push(name.substring(0, 20)); // Truncate long names
+                    data.push(stat.averageDuration || 0);
+                }
+            }
+            
+            performanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Average Duration (ms)',
+                        data: data,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update resource chart
+        function updateResourceChart(resourcesData) {
+            const ctx = document.getElementById('resourceChart').getContext('2d');
+            
+            if (resourceChart) {
+                resourceChart.destroy();
+            }
+            
+            // Prepare data for memory usage pie chart
+            const totalMemory = resourcesData.system ? resourcesData.system.totalMemory : 0;
+            const usedMemory = totalMemory - (resourcesData.system ? resourcesData.system.freeMemory : 0);
+            const freeMemory = resourcesData.system ? resourcesData.system.freeMemory : 0;
+            
+            resourceChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Used Memory', 'Free Memory'],
+                    datasets: [{
+                        data: [usedMemory, freeMemory],
+                        backgroundColor: [
+                            'rgba(244, 67, 54, 0.6)',
+                            'rgba(76, 175, 80, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(244, 67, 54, 1)',
+                            'rgba(76, 175, 80, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Memory Usage'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Helper functions
+        function formatUptime(uptime) {
+            const seconds = Math.floor(uptime / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days}d ${hours % 24}h`;
+            if (hours > 0) return `${hours}h ${minutes % 60}m`;
+            if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+            return `${seconds}s`;
+        }
+        
+        function getBusiestOperation(metrics) {
+            let busiest = null;
+            let maxCount = 0;
+            
+            for (const [name, stat] of Object.entries(metrics)) {
+                if (stat.count > maxCount) {
+                    maxCount = stat.count;
+                    busiest = name;
+                }
+            }
+            
+            return busiest || 'None';
+        }
+        
+        function getSlowestOperation(metrics) {
+            let slowest = null;
+            let maxAvg = 0;
+            
+            for (const [name, stat] of Object.entries(metrics)) {
+                const avg = stat.averageTime || 0;
+                if (avg > maxAvg) {
+                    maxAvg = avg;
+                    slowest = name;
+                }
+            }
+            
+            return slowest || 'None';
+        }
+    </script>
+</body>
+</html>
