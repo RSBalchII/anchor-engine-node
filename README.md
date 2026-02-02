@@ -24,14 +24,9 @@ pnpm install
 pnpm build
 ```
 
-### Platform-Specific Setup (CRITICAL)
-**Important**: Due to the hybrid architecture, you need to place the CozoDB binary for your OS in the engine root:
-
-1. Locate the CozoDB binary after installation: `node_modules/.pnpm/cozo-node@*/native/`
-2. Copy the appropriate binary to the `engine/` folder:
-   - **Windows**: `engine/cozo_node_win32.node`
-   - **macOS**: `engine/cozo_node_darwin.node`
-   - **Linux**: `engine/cozo_node_linux.node`
+### Platform-Specific Setup
+*   **Universal**: No manual binary placement required. The engine uses **PGlite** (Postgres in WASM) for universal compatibility.
+*   **Native Modules**: Automatically built via `npm run build:native`.
 
 ### Running the Engine
 ```bash
@@ -193,8 +188,7 @@ ECE_Core implements a **hybrid architecture** combining Node.js orchestration wi
 - **Graceful Degradation**: Falls back to JavaScript implementations if native modules unavailable
 
 ### Platform Notes
-- **Linux/macOS**: Full functionality with persistent CozoDB storage
-- **Windows**: Native modules functional; CozoDB requires binary placement at `C:\Users\ECE_Core\engine\cozo_node_prebuilt.node` for persistent storage
+- **Linux/macOS/Windows**: Full functionality with PGlite (Postgres WASM).
 - **Native Module Performance**: Consistent across all platforms (2.3x improvement achieved)
 
 ## 🌟 Overview
@@ -248,9 +242,9 @@ The engine runs as a single, efficient Node.js process with high-performance C++
     * **Phase 1 (Anchors)**: Uses optimized FTS (Full Text Search) to find direct keyword matches (70% context budget).
     * **Phase 2 (The Walk)**: Pivots via shared tags/buckets to find "Associative Neighbors" that share context but lack keywords (30% context budget).
 
-3.  **Persistence (CozoDB)**:
-    * Backed by **RocksDB** for high-performance local storage.
-    * Manages a Datalog graph of `*memory`, `*source`, and `*engrams`.
+3.  **Persistence (PGlite)**:
+    * Backed by **Postgres WASM** for universal compatibility.
+    * Manages relational tables for `*atoms`, `*molecules`, and `*compounds`.
 
 ### 2. The Application Layer
 * **API**: RESTful interface at `http://localhost:3000/v1/`.
@@ -382,7 +376,7 @@ pnpm start
 ## 📂 Project Structure (For LLM Developers)
 
 * **`engine/`**: The neural center.
-* `src/core/`: Database (CozoDB) and Batch processors.
+* `src/core/`: Database (PGlite) and Batch processors.
 * `src/services/ingest/`: Watchdog, AtomizerService, and Atomic Ingest.
 * `src/services/search/`: The **Atomic Tag-Walker** implementation.
 * `src/services/mirror/`: Filesystem projection logic.
