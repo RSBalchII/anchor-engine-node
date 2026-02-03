@@ -84,9 +84,17 @@ export class AtomicIngestService {
         const memoryRows: any[] = [];
 
         // A. The Compound (File)
+        // Truncate content for 'atoms' table to avoid PGlite tsvector limit (~1MB)
+        // The full content is preserved in the 'compounds' table.
+        const MAX_ATOM_CONTENT_SIZE = 500 * 1024; // 500KB safe limit
+        let atomContent = compound.compound_body;
+        if (atomContent.length > MAX_ATOM_CONTENT_SIZE) {
+            atomContent = atomContent.substring(0, MAX_ATOM_CONTENT_SIZE) + '... [TRUNCATED]';
+        }
+
         memoryRows.push([
             compound.id,
-            compound.compound_body, // content
+            atomContent, // content (Truncated)
             compound.path, // source_path
             compound.timestamp,
             compound.molecular_signature || "0", // simhash
@@ -97,7 +105,7 @@ export class AtomicIngestService {
             // New Inflation Fields
             compound.id, // compound_id (self)
             0, // start_byte
-            compound.compound_body.length // end_byte
+            compound.compound_body.length // end_byte (Keep original length)
         ]);
 
         // B. The Molecules (Sentences/Fragments)
