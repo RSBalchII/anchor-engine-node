@@ -15,9 +15,8 @@ Napi::String CleanseWrapped(const Napi::CallbackInfo& info) {
         return Napi::String::New(env, "");
     }
 
-    // 2. Get arguments from JS using string_view to minimize copies
-    Napi::String inputString = info[0].As<Napi::String>();
-    std::string_view input(inputString.Utf8Value().c_str(), inputString.Utf8Value().length());
+    // 2. Get arguments from JS
+    std::string input = info[0].As<Napi::String>().Utf8Value();
 
     // 3. Call C++ Logic
     std::string output = ECE::KeyAssassin::Cleanse(input);
@@ -35,8 +34,7 @@ Napi::Array AtomizeWrapped(const Napi::CallbackInfo& info) {
         return Napi::Array::New(env);
     }
 
-    Napi::String inputString = info[0].As<Napi::String>();
-    std::string_view input(inputString.Utf8Value().c_str(), inputString.Utf8Value().length());
+    std::string input = info[0].As<Napi::String>().Utf8Value();
     
     std::string strategy = "prose";
     if (info.Length() > 1 && info[1].IsString()) {
@@ -61,8 +59,7 @@ Napi::Value FingerprintWrapped(const Napi::CallbackInfo& info) {
         return Napi::BigInt::New(env, (uint64_t)0);
     }
     
-    Napi::String inputString = info[0].As<Napi::String>();
-    std::string_view input(inputString.Utf8Value().c_str(), inputString.Utf8Value().length());
+    std::string input = info[0].As<Napi::String>().Utf8Value();
     
     uint64_t hash = ECE::Fingerprint::Generate(input);
     return Napi::BigInt::New(env, hash);

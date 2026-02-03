@@ -106,9 +106,7 @@ namespace ECE {
             return Napi::String::New(env, "");
         }
 
-        // Zero-Copy-ish: Get pointer to V8 string data
-        Napi::String inputString = info[0].As<Napi::String>();
-        std::string_view input(inputString.Utf8Value().c_str(), inputString.Utf8Value().length());
+        std::string input = info[0].As<Napi::String>().Utf8Value();
 
         // Execute
         std::string result = ECE::KeyAssassin::Cleanse(input);
