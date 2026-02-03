@@ -51,8 +51,18 @@ export class AtomizerService {
         // Add System Atoms to global map
         systemAtoms.forEach(a => allAtomsMap.set(a.id, a));
 
+        // Timestamp Context: Start with file timestamp (modification time)
+        // As we scan molecules, if we find a date in the content (e.g. log timestamp),
+        // we update this context so subsequent atoms inherit it.
+        let currentTimestamp = timestamp;
+
         moleculeParts.forEach((part, idx) => {
-            const { content: text, start, end } = part;
+            const { content: text, start, end, timestamp: partTimestamp } = part;
+
+            // Update time context if this part has a specific timestamp
+            if (partTimestamp) {
+                currentTimestamp = partTimestamp;
+            }
 
             // Scan for concepts in this specific molecule
             const conceptAtoms = this.scanAtoms(text);
@@ -95,7 +105,8 @@ export class AtomizerService {
                 type: molType,
                 numeric_value: numericVal,
                 numeric_unit: numericUnit,
-                molecular_signature: this.generateSimHash(text)
+                molecular_signature: this.generateSimHash(text),
+                timestamp: currentTimestamp // Assign context-aware timestamp
             });
         });
 
@@ -107,7 +118,7 @@ export class AtomizerService {
             molecules: molecules.map(m => m.id),
             atoms: allAtoms.map(a => a.id),
             path: sourcePath,
-            timestamp: timestamp,
+            timestamp: timestamp, // Compound keeps file timestamp
             provenance: provenance,
             molecular_signature: this.generateSimHash(cleanContent)
         };
@@ -367,11 +378,23 @@ export class AtomizerService {
     }
 
     /**
-     * Splits content into molecules with byte offsets.
+     * Splits content into molecules with byte offsets and extracted timestamps.
      * Enhanced with Type awareness (Prose vs Code vs Data).
      */
-    private splitIntoMolecules(text: string, type: 'prose' | 'code' | 'data' = 'prose', maxSize: number = 1024): { content: string, start: number, end: number }[] {
-        const results: { content: string, start: number, end: number }[] = [];
+    private splitIntoMolecules(text: string, type: 'prose' | 'code' | 'data' = 'prose', maxSize: number = 1024): { content: string, start: number, end: number, timestamp?: number }[] {
+        const results: { content: string, start: number, end: number, timestamp?: number }[] = [];
+
+        // Helper to extract timestamp from a chunk
+        const extractTimestamp = (chunk: string): number | undefined => {
+            // Match ISO timestamps: 2026-01-25T03:43:54.405Z or 2026-01-25 03:43:54
+            const isoRegex = /\b(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?)\b/;
+            const match = chunk.match(isoRegex);
+            if (match) {
+                const ts = Date.parse(match[1]);
+                if (!isNaN(ts)) return ts;
+            }
+            return undefined;
+        };
 
         // --- STRATEGY: CODE (AST BLOCKS) ---
         if (type === 'code') {
@@ -397,13 +420,13 @@ export class AtomizerService {
                 // End of a top-level block?
                 if (braceDepth === 0 && prevDepth > 0) {
                     // Just closed a root block (function/class)
-                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen });
+                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen, timestamp: extractTimestamp(currentBlock) });
                     currentBlock = '';
                     blockStart = currentCursor + lineLen;
                 }
                 // Double newline in root scope -> likely separate statements?
                 else if (braceDepth === 0 && line.trim() === '' && currentBlock.trim().length > 0) {
-                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen });
+                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen, timestamp: extractTimestamp(currentBlock) });
                     currentBlock = '';
                     blockStart = currentCursor + lineLen;
                 }
@@ -412,7 +435,7 @@ export class AtomizerService {
             }
 
             if (currentBlock.trim().length > 0) {
-                results.push({ content: currentBlock, start: blockStart, end: currentCursor });
+                results.push({ content: currentBlock, start: blockStart, end: currentCursor, timestamp: extractTimestamp(currentBlock) });
             }
         }
         else if (type === 'data') {
@@ -423,7 +446,7 @@ export class AtomizerService {
             for (const line of lines) {
                 const len = line.length;
                 if (line.trim().length > 0) {
-                    results.push({ content: line, start: cursor, end: cursor + len });
+                    results.push({ content: line, start: cursor, end: cursor + len, timestamp: extractTimestamp(line) });
                 }
                 cursor += len + 1;
             }
@@ -460,7 +483,7 @@ export class AtomizerService {
                                 if (part.trim().length === 0) continue;
                                 const partStart = text.indexOf(part, proseCursor);
                                 if (partStart !== -1) {
-                                    results.push({ content: part, start: partStart, end: partStart + part.length });
+                                    results.push({ content: part, start: partStart, end: partStart + part.length, timestamp: extractTimestamp(part) });
                                     proseCursor = partStart + part.length;
                                 }
                             }
@@ -468,7 +491,7 @@ export class AtomizerService {
                     }
 
                     // The code fence itself (will be typed as 'code' in molecule enrichment)
-                    results.push({ content: fence.match, start: fence.start, end: fence.end });
+                    results.push({ content: fence.match, start: fence.start, end: fence.end, timestamp: extractTimestamp(fence.match) });
                     cursor = fence.end;
                 }
 
@@ -482,7 +505,7 @@ export class AtomizerService {
                             if (part.trim().length === 0) continue;
                             const partStart = text.indexOf(part, proseCursor);
                             if (partStart !== -1) {
-                                results.push({ content: part, start: partStart, end: partStart + part.length });
+                                results.push({ content: part, start: partStart, end: partStart + part.length, timestamp: extractTimestamp(part) });
                                 proseCursor = partStart + part.length;
                             }
                         }
@@ -499,7 +522,7 @@ export class AtomizerService {
                     const realStart = text.indexOf(part, searchCursor); // Find next occurrence
 
                     if (realStart !== -1) {
-                        results.push({ content: part, start: realStart, end: realStart + len });
+                        results.push({ content: part, start: realStart, end: realStart + len, timestamp: extractTimestamp(part) });
                         searchCursor = realStart + len;
                     }
                 }
@@ -507,7 +530,7 @@ export class AtomizerService {
         }
 
         // --- ENFORCE SIZE LIMIT (POST-PROCESS) ---
-        const finalResults: { content: string, start: number, end: number }[] = [];
+        const finalResults: { content: string, start: number, end: number, timestamp?: number }[] = [];
 
         for (const item of results) {
             if (item.content.length <= maxSize) {
@@ -519,10 +542,12 @@ export class AtomizerService {
 
                 while (remaining.length > 0) {
                     const chunk = remaining.substring(0, maxSize);
+                    // Inherit timestamp for all chunks if the original item had one
                     finalResults.push({
                         content: chunk,
                         start: currentStart,
-                        end: currentStart + chunk.length
+                        end: currentStart + chunk.length,
+                        timestamp: item.timestamp
                     });
 
                     remaining = remaining.substring(maxSize);
