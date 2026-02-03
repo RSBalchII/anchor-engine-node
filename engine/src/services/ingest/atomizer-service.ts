@@ -34,6 +34,8 @@ export class AtomizerService {
                 // Generator approach for memory efficiency
                 for (const chunk of this.chunkedSanitize(content, sourcePath, CHUNK_SIZE)) {
                     cleanContent += chunk;
+                    // Yield to event loop to keep server responsive
+                    await new Promise(resolve => setImmediate(resolve));
                 }
             } else {
                 cleanContent = this.sanitize(content, sourcePath);
@@ -68,8 +70,15 @@ export class AtomizerService {
             // we update this context so subsequent atoms inherit it.
             let currentTimestamp = timestamp;
 
-            moleculeParts.forEach((part, idx) => {
+            // Process molecules in batches to yield to event loop
+            for (let i = 0; i < moleculeParts.length; i++) {
+                const part = moleculeParts[i];
                 const { content: text, start, end, timestamp: partTimestamp } = part;
+
+                // Yield every 100 molecules
+                if (i % 100 === 0) {
+                    await new Promise(resolve => setImmediate(resolve));
+                }
 
                 // Update time context if this part has a specific timestamp
                 if (partTimestamp) {
@@ -85,7 +94,7 @@ export class AtomizerService {
                 // Add concepts to global map
                 conceptAtoms.forEach(a => allAtomsMap.set(a.id, a));
 
-                const molId = `mol_${crypto.createHash('md5').update(compoundId + idx + text).digest('hex').substring(0, 12)}`;
+                const molId = `mol_${crypto.createHash('md5').update(compoundId + i + text).digest('hex').substring(0, 12)}`;
 
                 // Re-Determine Type locally (e.g. code block in markdown)
                 // Use the passed type as default, but refined per chunk if needed
@@ -106,7 +115,7 @@ export class AtomizerService {
                     id: molId,
                     content: text,
                     atoms: moleculeAtoms.map(a => a.id),
-                    sequence: idx,
+                    sequence: i,
                     compoundId: fullCompoundId,
 
                     // Universal Coordinates
@@ -120,7 +129,7 @@ export class AtomizerService {
                     molecular_signature: this.generateSimHash(text),
                     timestamp: currentTimestamp // Assign context-aware timestamp
                 });
-            });
+            }
 
             const allAtoms = Array.from(allAtomsMap.values());
 
