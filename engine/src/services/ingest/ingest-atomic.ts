@@ -43,7 +43,8 @@ export class AtomicIngestService {
                 m.numeric_value ?? null,
                 m.numeric_unit ?? null,
                 m.molecular_signature || "0",
-                this.zeroVector()
+                this.zeroVector(),
+                m.timestamp
             ]);
 
             await this.batchWriteMolecules(molRows);
@@ -112,7 +113,7 @@ export class AtomicIngestService {
                 m.id,
                 m.content,
                 compound.path, // source_path
-                compound.timestamp, // Share timestamp
+                m.timestamp, // Use molecule's context-aware timestamp
                 m.molecular_signature || this.generateHash(m.content), // simhash
                 this.zeroVector(), // embedding
                 compound.provenance,
@@ -173,8 +174,8 @@ export class AtomicIngestService {
 
             for (const row of chunk) {
                 await db.run(
-                    `INSERT INTO molecules (id, content, compound_id, sequence, start_byte, end_byte, type, numeric_value, numeric_unit, molecular_signature, embedding)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    `INSERT INTO molecules (id, content, compound_id, sequence, start_byte, end_byte, type, numeric_value, numeric_unit, molecular_signature, embedding, timestamp)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                      ON CONFLICT (id) DO UPDATE SET
                        content = EXCLUDED.content,
                        compound_id = EXCLUDED.compound_id,
@@ -185,7 +186,8 @@ export class AtomicIngestService {
                        numeric_value = EXCLUDED.numeric_value,
                        numeric_unit = EXCLUDED.numeric_unit,
                        molecular_signature = EXCLUDED.molecular_signature,
-                       embedding = EXCLUDED.embedding`,
+                       embedding = EXCLUDED.embedding,
+                       timestamp = EXCLUDED.timestamp`,
                     row
                 );
             }

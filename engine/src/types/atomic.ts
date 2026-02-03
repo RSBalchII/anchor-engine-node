@@ -35,6 +35,9 @@ export interface Molecule {
 
     // Deduplication (SimHash)
     molecular_signature?: string;
+
+    // Temporal Context
+    timestamp: number;
 }
 
 export interface Compound {

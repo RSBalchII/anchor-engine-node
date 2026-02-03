@@ -170,7 +170,8 @@ export class Database {
           numeric_value REAL,
           numeric_unit TEXT,
           molecular_signature TEXT,
-          embedding TEXT
+          embedding TEXT,
+          timestamp REAL
         );
       `);
 
@@ -214,6 +215,24 @@ export class Database {
       console.log("[DB] 'engrams' table initialized.");
     } catch (e: any) {
       console.error("[DB] Error creating engrams table:", e);
+      throw e;
+    }
+
+    // Create Summary Nodes Table (Dreamer Abstractions)
+    try {
+      await this.run(`
+        CREATE TABLE IF NOT EXISTS summary_nodes (
+          id TEXT PRIMARY KEY,
+          type TEXT,
+          content TEXT,
+          span_start REAL,
+          span_end REAL,
+          embedding TEXT
+        );
+      `);
+      console.log("[DB] 'summary_nodes' table initialized.");
+    } catch (e: any) {
+      console.error("[DB] Error creating summary_nodes table:", e);
       throw e;
     }
 
