@@ -95,18 +95,17 @@ The native modules use N-API for Node.js integration:
 // atomizer.hpp
 class Atomizer {
 public:
-  static std::vector<std::string> Atomize(std::string_view content, const std::string& strategy);
+  static std::vector<std::string> Atomize(const std::string& content, const std::string& strategy);
 private:
-  static std::vector<std::string> SplitCode(std::string_view content);
-  static std::vector<std::string> SplitProse(std::string_view content);
+  static std::vector<std::string> SplitCode(const std::string& content);
+  static std::vector<std::string> SplitProse(const std::string& content);
 };
 ```
 
-### Zero-Copy Operations
-Using `std::string_view` to avoid unnecessary memory allocation:
-- **Performance**: Eliminates copy overhead
-- **Memory Efficiency**: Reduces pressure on garbage collector
-- **Safety**: Maintains string lifetime management
+### Memory Safety & Object Lifetime
+*   **Safety Over Speed**: While `std::string_view` offers zero-copy performance, it poses severe Use-After-Free (UAF) risks in async Node.js environments where the V8 garbage collector may move or free the underlying string buffer.
+*   **Standard Protocol**: Native modules MUST accept `const std::string&` (forcing a safe copy) unless the buffer lifespan is explicitly managed and guaranteed.
+*   **Crash Prevention**: Preventing process-level crashes (Segfaults) takes precedence over micro-optimizations.
 
 ## Error Handling Patterns
 

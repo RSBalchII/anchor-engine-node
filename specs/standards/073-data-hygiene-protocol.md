@@ -66,10 +66,12 @@ Context is derived from the filesystem path, not just the content.
 **Context**: Large language models often hallucinate their own previous outputs (e.g., "[Source: ...]" headers) into new content if not sanitized.
 *   **Protocol**: All content must be scrubbed of provenance artifacts **before** atomization.
 *   **Regex Targets**:
-    *   `[Source: ...]` headers (Non-greedy safety: `.*?`).
-    *   YAML keys: `response_content: |-`, `content: |-`, `thinking_content:`.
+    *   `[Source: ...]` headers (Recursive metadata).
+    *   YAML keys: `response_content`, `thinking_content`, `content`, `message`.
     *   LLM Role Markers: `<|user|>`, `<|assistant|>`.
-*   **Safety Rule**: Regex must be non-greedy to prevent "Access Violation" memory crashes on large files.
+*   **Safety Rule 1 (Chunking)**: Large files (>2MB) MUST be processed in chunks (e.g., 1MB) to prevent V8 string length overflow and Regex Denial of Service (ReDoS).
+*   **Safety Rule 2 (Alignment)**: Chunks must align to newlines to prevent slicing keys or values in half.
+*   **Newline Normalization**: All `\r\n` and literal `\\r\\n` strings must be normalized to `\n` to prevent UI artifacts.
 
 ---
 

@@ -35,3 +35,12 @@
     *   Files at `inbox/project-a/note.md` -> Bucket: `project-a`.
     *   *Purpose:* This allows users to pre-organize content without it getting lost in a generic "inbox" tag.
 *   **Transient Tag Cleanup:** The "inbox" tag is considered transient. The Dreamer/Organization Agents MUST remove the `inbox` tag after processing/tagging, but MUST preserve specific subfolder tags (e.g. `project-a`) to respect user intent.
+
+## 8. The Infinite File Protocol (Streaming & Safety)
+**Context**: Ingesting multi-megabyte files (logs, backups) causes Node.js memory spikes and Native Module segfaults if processed as a single string.
+*   **Streaming First**: All file reads MUST use streams or chunked buffers, never `fs.readFile` for files > 10MB.
+*   **Chunked Sanitization**: The "Key Assassin" (Scrubber) must operate on 1MB chunks, yielding cleaned segments to the Atomizer.
+*   **Native Module Guardrails**:
+    *   **Disable on Danger**: Native modules (C++) MUST be disabled or wrapped in strict try-catch blocks when processing complex nested structures (YAML/JSON) to prevent stack overflows.
+    *   **JS Fallback**: A high-performance pure JavaScript fallback MUST be available for all native operations (Sanitization, Atomization, Fingerprinting).
+*   **Database Truncation**: Search indexes (`tsvector`) have hard limits (1MB). Content written to the `atoms` search table MUST be truncated (e.g., 500KB), while the full content is preserved in the `compounds` table.
