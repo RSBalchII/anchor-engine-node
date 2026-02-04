@@ -143,6 +143,14 @@ export class ContextInflator {
 
                     // Read from Disk
                     let filePath = win.source;
+
+                    // Skip inflation for virtual sources
+                    if (filePath === 'atom_source' || filePath === 'internal' || filePath === 'memory') {
+                        // console.log(`[ContextInflator] Skipping virtual source: ${filePath}`);
+                        inflatedResults.push(...win.originalResults);
+                        continue;
+                    }
+
                     if (!path.isAbsolute(filePath)) {
                         // Resolve relative path against Notebook Directory
                         filePath = path.join(pathManager.getNotebookDir(), filePath);

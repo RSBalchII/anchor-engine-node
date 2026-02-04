@@ -1,6 +1,6 @@
 /**
  * API Routes for Sovereign Context Engine
- * 
+ *
  * Standardized API Interface implementing UniversalRAG architecture.
  */
 
@@ -9,17 +9,15 @@ import * as crypto from 'crypto';
 import { db } from '../core/db.js';
 
 // Import services and types
-import { executeSearch, smartChatSearch, executeMoleculeSearch } from '../services/search/search.js';
+import { executeSearch } from '../services/search/search.js';
 import { SemanticIngestionService } from '../services/semantic/semantic-ingestion-service.js';
 import { dream } from '../services/dreamer/dreamer.js';
 import { getState, clearState } from '../services/scribe/scribe.js';
-import { listModels, loadModel, runStreamingChat } from '../services/llm/provider.js';
+import { listModels, loadModel } from '../services/llm/provider.js';
 import { createBackup, listBackups, restoreBackup } from '../services/backup/backup.js';
-import { summarizeContext } from '../services/llm/reader.js';
 import { fetchAndProcess, searchWeb } from '../services/research/researcher.js';
 import { SearchRequest } from '../types/api.js';
 import { setupEnhancedRoutes } from './enhanced-api.js';
-import { AgentRuntime } from '../agent/runtime.js';
 
 export function setupRoutes(app: Application) {
   // Ingestion endpoint (Semantic Shift Architecture)
@@ -202,12 +200,17 @@ export function setupRoutes(app: Application) {
 
   // POST Search endpoint (Standard UniversalRAG + Iterative Logic)
   app.post('/v1/memory/search', async (req: Request, res: Response) => {
+    console.log('[API] Received search request at /v1/memory/search');
+
     try {
       const body = req.body as SearchRequest;
       if (!body.query) {
+        console.log('[API] Search request missing query parameter');
         res.status(400).json({ error: 'Query is required' });
         return;
       }
+
+      console.log(`[API] Processing search request for query: "${body.query.substring(0, 50)}..."`);
 
       // Handle legacy params
       const bucketParam = (req.body as any).bucket;
@@ -228,54 +231,73 @@ export function setupRoutes(app: Application) {
       let result;
       if (isSemanticQuery) {
         // Use semantic search for relationship/narrative queries
+        console.log('[API] Using semantic search for relationship query');
         const { executeSemanticSearch } = await import('../services/semantic/semantic-search.js');
-        const semanticResult = await executeSemanticSearch(
+        result = await executeSemanticSearch(
           body.query,
           allBuckets,
           budget,
           (req.body as any).provenance || 'all',
           tags
         );
-
-        // Ensure semantic result conforms to expected format
-        result = {
-          context: semanticResult.context,
-          results: semanticResult.results,
-          strategy: semanticResult.strategy || 'semantic_relationship',
-          splitQueries: semanticResult.splitQueries || [],
-          metadata: semanticResult.metadata || {}
-        };
       } else {
-        // Use traditional smart search for other queries
-        result = await smartChatSearch(
-          body.query,
-          allBuckets,
-          budget,
-          tags
-        );
+        // Use traditional search for other queries
+        console.log('[API] Using traditional search');
+        const { executeSearch } = await import('../services/search/search.js');
+
+        // Wrap the executeSearch call in additional error handling to catch any crashes
+        try {
+          result = await executeSearch(
+            body.query,
+            undefined, // bucket
+            allBuckets,
+            budget,
+            false, // deep
+            (req.body as any).provenance || 'all',
+            tags
+          );
+        } catch (searchError: any) {
+          console.error('[API] executeSearch failed:', searchError);
+          // Ensure we return a proper response even if search fails
+          res.status(500).json({
+            error: 'Search service temporarily unavailable',
+            details: searchError.message
+          });
+          return;
+        }
       }
 
       // Construct standard response
-      console.log(`[API] ${isSemanticQuery ? 'Semantic' : 'Traditional'} Search "${body.query}" -> Found ${result.results.length} results (Strategy: ${result.strategy})`);
+      console.log(`[API] ${isSemanticQuery ? 'Semantic' : 'Traditional'} Search "${body.query}" -> Found ${result.results.length} results (Strategy: ${(result as any).strategy || 'unknown'})`);
 
-      res.status(200).json({
-        status: 'success',
-        context: result.context,
-        results: result.results,
-        strategy: result.strategy,
-        attempt: (result as any).attempt || 1,
-        split_queries: result.splitQueries || [],
-        metadata: {
-          engram_hits: 0,
-          vector_latency: 0,
-          provenance_boost_active: true,
-          search_type: isSemanticQuery ? 'semantic' : 'traditional',
-          ...(result.metadata || {})
-        }
-      });
+      // Ensure response is sent even if there are issues with result formatting
+      if (!res.headersSent) {
+        res.status(200).json({
+          status: 'success',
+          context: result.context,
+          results: result.results,
+          strategy: (result as any).strategy || 'traditional',
+          attempt: (result as any).attempt || 1,
+          split_queries: (result as any).splitQueries || [],
+          metadata: {
+            engram_hits: 0,
+            vector_latency: 0,
+            provenance_boost_active: true,
+            search_type: isSemanticQuery ? 'semantic' : 'traditional',
+            ...((result as any).metadata || {})
+          }
+        });
+      }
     } catch (error: any) {
-      console.error('Search error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('[API] Search error:', error);
+
+      // Check if headers have already been sent to avoid duplicate responses
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal server error during search',
+          details: error.message
+        });
+      }
     }
   });
 
@@ -301,6 +323,7 @@ export function setupRoutes(app: Application) {
       const tags = body.tags || [];
 
       // Use Molecule Search Strategy - split query into sentence-like chunks
+      const { executeMoleculeSearch } = await import('../services/search/search.js');
       const result = await executeMoleculeSearch(
         body.query,
         undefined, // bucket
@@ -335,8 +358,8 @@ export function setupRoutes(app: Application) {
   // Get all buckets
   app.get('/v1/buckets', async (_req: Request, res: Response) => {
     try {
-      // Unnesting ALL atoms crashes WASM memory. We fetch raw arrays and dedupe in JS.
-      const result = await db.run('SELECT buckets FROM atoms WHERE buckets IS NOT NULL LIMIT 5000');
+      // Improved Bucket Retrieval: Get distinct arrays first to avoid scanning all rows
+      const result = await db.run('SELECT DISTINCT buckets FROM atoms WHERE buckets IS NOT NULL');
       const allBuckets = new Set<string>();
 
       if (result.rows) {
@@ -357,11 +380,24 @@ export function setupRoutes(app: Application) {
     }
   });
 
-  // Get all tags
-  app.get('/v1/tags', async (_req: Request, res: Response) => {
+  // Get all tags (Faceted by Bucket)
+  app.get('/v1/tags', async (req: Request, res: Response) => {
     try {
+      const bucketsParam = req.query['buckets'] as string;
+      const buckets = bucketsParam ? bucketsParam.split(',') : [];
+
+      let query = 'SELECT tags FROM atoms WHERE tags IS NOT NULL';
+      const params: any[] = [];
+
+      if (buckets.length > 0) {
+        query += ` AND EXISTS (SELECT 1 FROM unnest(buckets) as b WHERE b = ANY($1))`;
+        params.push(buckets);
+      }
+
+      query += ' LIMIT 5000';
+
       // Unnesting ALL atoms crashes WASM memory. We fetch raw arrays and dedupe in JS.
-      const result = await db.run('SELECT tags FROM atoms WHERE tags IS NOT NULL LIMIT 5000');
+      const result = await db.run(query, params);
       const allTags = new Set<string>();
 
       if (result.rows) {
@@ -527,6 +563,7 @@ export function setupRoutes(app: Application) {
       console.log(`[API] Objective Type: ${typeof objective}`);
 
       // 1. Retrieve context from ECE search API
+      const { executeSearch } = await import('../services/search/search.js');
       const searchResults = await executeSearch(objective, undefined, [], 20000, false, 'all', []); // query, bucket, buckets, maxChars, deep, provenance, tags
       const contextBlock = searchResults.context || '';
 
@@ -546,6 +583,7 @@ export function setupRoutes(app: Application) {
       let fullResponse = '';
 
       // 3. Initialize Agent Runtime with contextual messages
+      const { AgentRuntime } = await import('../agent/runtime.js');
       const runtime = new AgentRuntime({
         model,
         verbose: true,

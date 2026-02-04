@@ -1,5 +1,5 @@
 
-import { db } from '../src/core/db.js';
+import { db } from '../dist/core/db.js';
 import { PGlite } from "@electric-sql/pglite";
 
 async function runStabilityTest() {

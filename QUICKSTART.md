@@ -1,222 +1,169 @@
-# ECE_Core - Quick Start Guide (LLM Developer Edition)
+# Quickstart Guide - User Workflow Reference
 
-> **The Browser Paradigm for AI Memory**: Just as web browsers allow any device to access the internet by loading only needed content, ECE allows any device to process massive AI context by retrieving only relevant "atoms" for current thought.
+**Status:** Active | **Authority:** Human-Locked | **Domain:** User Onboarding
 
-> **The Semantic Shift**: The ECE now implements Standard 084 - transforming from a keyword indexer to a semantic graph with relationship narrative discovery capabilities.
-
-## 🚀 Quick Start
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- Python 3.x (for native module compilation)
-- Build tools (Visual Studio Build Tools on Windows, Xcode on macOS)
+- Node.js v18+
+- PNPM package manager
+- Windows 10+ / macOS 10.15+ / Linux Ubuntu 20.04+
 
-### New in Semantic Shift Architecture (v3.0)
-The ECE Core now implements the Semantic Shift Architecture (Standard 084) that transforms the system from a keyword indexer to a semantic graph with relationship narrative discovery capabilities.
-
-**Key New Features:**
-- **Semantic Categories**: High-level tags (`#Relationship`, `#Narrative`, `#Technical`) instead of granular entity tags
-- **Entity Co-occurrence Detection**: Automatically finds when entities appear together to form relationships
-- **Relationship Narrative Discovery**: Extracts relationship stories from entity co-occurrence patterns
-- **Stateless Contextual Chat**: Each query gets fresh context from ECE search results without session memory
-- **Universal Application**: Same architecture works for personal relationships, industrial data, and technical documentation
-
-### Installation
-
+### Initial Setup
 ```bash
 # Clone the repository
-git clone https://github.com/External-Context-Engine/ECE_Core.git
+git clone <repository-url>
 cd ECE_Core
 
 # Install dependencies
 pnpm install
 
-# Build the engine
+# Build the project
 pnpm build
 ```
 
-### Platform-Specific Setup
-
-**Important**: Due to the hybrid architecture, you need to place the CozoDB binary for your OS in the engine root:
-
-1. Locate the CozoDB binary after installation: `node_modules/.pnpm/cozo-node@*/native/`
-2. Copy the appropriate binary to the `engine/` folder:
-   - **Windows**: `engine/cozo_node_win32.node`
-   - **macOS**: `engine/cozo_node_darwin.node`
-   - **Linux**: `engine/cozo_node_linux.node`
-
-### Running the Engine
-
+### Launching the System
 ```bash
-# Start the engine
-pnpm start
+# Using the launcher script (recommended)
+./start.sh    # Linux/macOS
+.\start.bat   # Windows
 
-# Health check
-curl http://localhost:3000/health
+# Or launch directly
+cd engine && node dist/index.js
 ```
 
-## 🌐 The Browser Paradigm
+## Core Workflows
 
-ECE implements a revolutionary approach to AI memory systems inspired by web browsers:
+### Data Ingestion Methods
+1. **File Drop**: Place files in `context/` directory for automatic ingestion
+2. **API Ingestion**: Send content to `POST /v1/ingest`
+3. **Corpus Ingestion**: Use `read_all.js` output format
+4. **Backup Restore**: Import from `backups/` directory
 
-### Traditional Approach (Monolithic Centralization)
-- Load entire vector index into memory
-- Requires high-spec servers with lots of RAM
-- Proprietary "Black Box" systems
-- Vendor lock-in and privacy concerns
+### Search & Retrieval
+- Use `POST /v1/memory/search` for semantic queries
+- Apply bucket filtering for targeted searches
+- Leverage tag-based filtering for precision
+- Utilize temporal filters for time-based queries
 
-### ECE Approach (Browser Paradigm)
-- **Selective Loading**: Only load relevant "atoms" for current query
-- **Universal Compatibility**: Runs on any device (smartphone to server)
-- **Open Architecture**: Sovereign, local-first design
-- **Privacy Preserving**: All data stays on your device
+### Backup & Restore
+- Export data using backup endpoints
+- Restore from backup files in `backups/` directory
+- Verify integrity after restoration
+- Resume sessions with restored context
 
-## 🔧 Architecture Overview
+## Troubleshooting Common Issues
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Node.js Layer                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐   │
-│  │   API       │  │   Search    │  │   Ingestion      │   │
-│  │  Service    │  │  Service    │  │   Pipeline     │   │
-│  └─────────────┘  └─────────────┘  └──────────────────┘   │
-└─────────────┬──────────────────────────────────────────────┘
-              │
-              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 N-API Boundary                            │
-└─────────────┬──────────────────────────────────────────────┘
-              │
-              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   C++ Performance Layer                   │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐   │
-│  │  Atomizer   │  │ Key Assassin│  │   Fingerprint    │   │
-│  │             │  │             │  │    (SimHash)     │   │
-│  └─────────────┘  └─────────────┘  └──────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
+### ECONNREFUSED Error (RESOLVED - Standard 088)
+**Problem**: Electron wrapper fails to connect to engine with "ECONNREFUSED" error
+**Cause**: Improper startup sequence where database initialization blocked server startup
+**Solution**: Server now starts immediately, with database initialization running in background
+**Verification**: Server binds to port 3000 before database initialization completes
 
-### Key Components
+### UI Access Issues
+**Problem**: UI not accessible through Electron wrapper
+**Solution**: Direct access available at http://localhost:3000
+**Note**: Electron wrapper may have longer initialization time (up to 15 seconds)
 
-1. **Node.js Shell**: Handles networking, OS integration, and orchestration
-2. **N-API Boundary**: Stable interface between JavaScript and C++
-3. **C++ Performance Layer**: Critical operations for speed and efficiency
+### Performance Considerations
+- First startup may take longer due to database initialization
+- Subsequent startups are faster with initialized database
+- Large datasets may require extended processing time
+- Monitor resource usage during intensive operations
 
-## 🎯 Core Features
+## Daily Workflow Patterns
 
-### 1. Tag-Walker Protocol
-- Graph-based associative retrieval instead of vector search
-- Millisecond retrieval of millions of tokens
-- Deterministic results (no probabilistic failures)
+### Morning Routine
+1. Launch system with `./start.sh` or `.\start.bat`
+2. Verify health status at `GET /health`
+3. Check monitoring dashboard at `/monitoring`
+4. Begin data ingestion or search operations
 
-### 2. Data Atomization
-- Breaks content into semantic "atoms" (thought units)
-- Preserves meaning while enabling efficient retrieval
-- Supports both code and prose atomization
+### Data Processing
+1. Ingest new content via API or file drop
+2. Monitor processing status through logs
+3. Verify data availability through search
+4. Adjust tags or buckets as needed
 
-### 3. SimHash Deduplication
-- 64-bit fingerprints for O(1) deduplication
-- Identifies near-duplicate content across large corpora
-- Reduces storage and processing requirements
+### End-of-Day Procedures
+1. Review system performance metrics
+2. Backup important data if needed
+3. Graceful shutdown using Ctrl+C
+4. Verify clean process termination
 
-### 4. Bright Node Protocol
-- Selective graph illumination for reasoning
-- Only relevant nodes loaded into memory
-- Enables "Logic-Data Decoupling"
+## Search Patterns
 
-## 📖 Usage Examples
+### Basic Queries
+- Simple keyword searches: `GET /v1/memory/search?q=term`
+- Phrase searches: Enclose in quotes
+- Boolean operators: AND, OR, NOT support
+- Wildcard matching: Use asterisk (*) for partial matches
 
-### Searching Your Context
-```bash
-curl -X POST http://localhost:3000/v1/memory/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "my project status",
-    "max_chars": 20000
-  }'
-```
+### Advanced Queries
+- Tag-based filtering: `#tagname` syntax
+- Temporal filtering: Specify date ranges
+- Bucket restriction: Limit to specific data sources
+- Semantic expansion: Natural language queries
 
-### Ingesting New Content
+## System Maintenance
+
+### Regular Tasks
+- Monitor database growth and performance
+- Clean up old logs periodically
+- Update configuration as needed
+- Verify backup integrity regularly
+
+### Performance Tuning
+- Adjust worker thread counts
+- Configure cache sizes appropriately
+- Optimize database indices
+- Fine-tune memory allocation
+
+## API Usage Examples
+
+### Ingest Content
 ```bash
 curl -X POST http://localhost:3000/v1/ingest \
   -H "Content-Type: application/json" \
-  -d '{
-    "content": "Project update: Completed the initial design phase...",
-    "source": "project_notes",
-    "tags": ["#project", "#update"]
-  }'
+  -d '{"content": "Your content here", "source": "manual", "buckets": ["inbox"]}'
 ```
 
-### Getting Bright Nodes (Graph Structure)
+### Search Memory
 ```bash
-curl -X POST http://localhost:3000/v1/memory/bright-nodes \
+curl -X POST http://localhost:3000/v1/memory/search \
   -H "Content-Type: application/json" \
-  -d '{
-    "query": "machine learning research",
-    "maxNodes": 30
-  }'
+  -d '{"query": "search terms", "buckets": ["inbox"]}'
 ```
 
-## 🏗️ Development
-
-### Building Native Modules
+### Check Health
 ```bash
-# Build the native modules
-cd engine
-npm run build:native
-
-# Build everything
-npm run build:universal
+curl http://localhost:3000/health
 ```
 
-### Running Tests
-```bash
-npm test
-```
+## Error Recovery
 
-## 🤝 Contributing
+### Common Recovery Steps
+1. Check system logs for error details
+2. Verify database connectivity
+3. Restart services if needed
+4. Contact support for persistent issues
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+### Known Issues & Solutions
+- **Slow startup**: Normal for first initialization after fresh install
+- **Memory usage**: Increases with dataset size; monitor and scale accordingly
+- **UI delays**: May occur during heavy processing; wait for completion
+- **Connection timeouts**: Usually resolve automatically after initialization
 
-### Development Philosophy
-- **Simplicity**: Prefer simple solutions over complex ones
-- **Universality**: Code should run on any platform
-- **Privacy**: All data stays with the user
-- **Openness**: Transparent, auditable codebase
+## Support Resources
 
-## 📄 License
+### Documentation
+- Full API documentation at `/docs`
+- Architecture specs in `/specs/`
+- Standards and guidelines in `/specs/standards/`
+- Troubleshooting guides in `/docs/troubleshooting/`
 
-This project is licensed under the Elastic License 2.0. See the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by the universal accessibility of web browsers
-- Built with the power of Node.js and C++ N-API
-- Designed for cognitive sovereignty and privacy
-
----
-
-*Part of the Sovereign Context Protocol initiative to democratize AI memory systems.*
-
-## LLM Developer Quick Reference
-
-### Common API Endpoints
-*   `POST /v1/ingest` - Content ingestion with atomic processing
-*   `POST /v1/memory/search` - Tag-Walker semantic search
-*   `GET /health` - System health and component status
-*   `GET /monitoring/metrics` - Performance metrics and system resources
-*   `GET /v1/models` - Available LLM models and capabilities
-
-### Key Data Structures
-*   **Compound**: Document-level entity with full content and metadata
-*   **Molecule**: Semantic segment with byte coordinates and relationship data
-*   **Atom**: Atomic semantic unit with entity recognition and tagging
-*   **Tag-Walker**: Graph traversal protocol for associative retrieval
-*   **SimHash**: Fingerprinting algorithm for deduplication
-
-### Native Module Functions
-*   `fingerprint(content)` - Generate SimHash for content
-*   `atomize(content, strategy)` - Split content into semantic molecules
-*   `cleanse(content)` - Remove artifacts and normalize content
-*   `distance(hash1, hash2)` - Compute similarity between fingerprints
+### Community Support
+- GitHub issues for bug reports
+- Discussion forums for feature requests
+- Contributing guidelines for developers
+- Code of conduct for community interactions

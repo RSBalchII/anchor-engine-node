@@ -51,7 +51,9 @@ export async function startWatchdog() {
 
     watcher
         .on('add', (path) => processFile(path, 'add'))
-        .on('change', (path) => processFile(path, 'change'));
+        .on('change', (path) => processFile(path, 'change'))
+        .on('addDir', (path) => console.log(`[Watchdog] Detected new directory: ${path}`));
+
     // .on('unlink', (path) => deleteFile(path)); // Implement delete logic later
 }
 
@@ -63,7 +65,7 @@ const atomizer = new AtomizerService();
 const atomicIngest = new AtomicIngestService();
 
 async function processFile(filePath: string, event: string) {
-    if (!filePath.endsWith('.md') && !filePath.endsWith('.txt') && !filePath.endsWith('.yaml')) return;
+    if (!filePath.endsWith('.md') && !filePath.endsWith('.txt') && !filePath.endsWith('.yaml') && !filePath.endsWith('.csv') && !filePath.endsWith('.json')) return;
     if (filePath.includes('mirrored_brain')) return;
 
     console.log(`[Watchdog] Detected ${event}: ${filePath}`);

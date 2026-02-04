@@ -42,49 +42,82 @@ export class NativeModuleManager {
    */
   public loadNativeModule(moduleName: string, binaryName: string): any {
     if (this.modules.has(moduleName)) {
-      return this.modules.get(moduleName);
+      const existingModule = this.modules.get(moduleName);
+      // Check if we previously marked this module as problematic
+      const status = this.status.get(moduleName);
+      if (status && status.fallbackActive) {
+        console.log(`[NativeModuleManager] Returning cached fallback for ${moduleName}`);
+        return existingModule;
+      }
+      return existingModule;
     }
 
     let nativeModule: any = null;
     let fallbackActive = false;
     let errorMessage: string | undefined;
 
-    try {
-      // 1. Try standard path resolution
-      const nativePath = pathManager.getNativePath(binaryName);
+    // Check if we should skip native module loading entirely for safety
+    // This could be based on a config or previous crash detection
+    const shouldUseFallbackOnly = this.shouldUseFallbackOnly(moduleName);
 
-      if (require && typeof require === 'function') {
-        nativeModule = require(nativePath);
-        console.log(`[NativeModuleManager] Successfully loaded ${moduleName} from: ${nativePath}`);
-      } else {
-        throw new Error('Require function not available');
-      }
-    } catch (e1: any) {
-      console.warn(`[NativeModuleManager] Standard load failed for ${moduleName}:`, e1.message);
-
-      // 2. Try alternative paths (debug builds, etc.)
+    if (shouldUseFallbackOnly) {
+      console.log(`[NativeModuleManager] Skipping native module ${moduleName} due to safety mode`);
+      fallbackActive = true;
+      nativeModule = this.createFallbackModule(moduleName);
+    } else {
       try {
-        const debugPath = pathManager.getNativePath(binaryName).replace('Release', 'Debug');
-        nativeModule = require(debugPath);
-        console.log(`[NativeModuleManager] Loaded ${moduleName} from debug build: ${debugPath}`);
-      } catch (e2: any) {
-        console.warn(`[NativeModuleManager] Debug load failed for ${moduleName}:`, e2.message);
+        // 1. Try standard path resolution
+        const nativePath = pathManager.getNativePath(binaryName);
 
-        // 3. Try development fallback path
+        if (require && typeof require === 'function') {
+          nativeModule = require(nativePath);
+          console.log(`[NativeModuleManager] Successfully loaded ${moduleName} from: ${nativePath}`);
+
+          // Perform a quick safety test to make sure the module doesn't crash
+          if (moduleName === 'ece_native' && nativeModule && typeof nativeModule.distance === 'function') {
+            try {
+              // Quick test with safe values
+              const testResult = nativeModule.distance(BigInt(1), BigInt(2));
+              if (typeof testResult !== 'number') {
+                throw new Error('Native distance function returned unexpected type');
+              }
+              console.log(`[NativeModuleManager] Native module ${moduleName} passed safety test`);
+            } catch (testError) {
+              console.error(`[NativeModuleManager] Native module ${moduleName} failed safety test:`, testError);
+              fallbackActive = true;
+              nativeModule = this.createFallbackModule(moduleName);
+            }
+          }
+        } else {
+          throw new Error('Require function not available');
+        }
+      } catch (e1: any) {
+        console.warn(`[NativeModuleManager] Standard load failed for ${moduleName}:`, e1.message);
+
+        // 2. Try alternative paths (debug builds, etc.)
         try {
-          const devPath = path.resolve(__dirname, `../../build/Release/${binaryName}`);
-          nativeModule = require(devPath);
-          console.log(`[NativeModuleManager] Loaded ${moduleName} from dev path: ${devPath}`);
-        } catch (e3: any) {
-          console.warn(`[NativeModuleManager] Dev path load failed for ${moduleName}:`, e3.message);
+          const debugPath = pathManager.getNativePath(binaryName).replace('Release', 'Debug');
+          nativeModule = require(debugPath);
+          console.log(`[NativeModuleManager] Loaded ${moduleName} from debug build: ${debugPath}`);
+        } catch (e2: any) {
+          console.warn(`[NativeModuleManager] Debug load failed for ${moduleName}:`, e2.message);
 
-          // 4. Activate fallback implementation
-          fallbackActive = true;
-          errorMessage = `Native module ${moduleName} failed to load: ${e3.message}`;
-          console.warn(`[NativeModuleManager] Activating fallback for ${moduleName}`);
+          // 3. Try development fallback path
+          try {
+            const devPath = path.resolve(__dirname, `../../build/Release/${binaryName}`);
+            nativeModule = require(devPath);
+            console.log(`[NativeModuleManager] Loaded ${moduleName} from dev path: ${devPath}`);
+          } catch (e3: any) {
+            console.warn(`[NativeModuleManager] Dev path load failed for ${moduleName}:`, e3.message);
 
-          // Return a fallback object with the same interface as the native module
-          nativeModule = this.createFallbackModule(moduleName);
+            // 4. Activate fallback implementation
+            fallbackActive = true;
+            errorMessage = `Native module ${moduleName} failed to load: ${e3.message}`;
+            console.warn(`[NativeModuleManager] Activating fallback for ${moduleName}`);
+
+            // Return a fallback object with the same interface as the native module
+            nativeModule = this.createFallbackModule(moduleName);
+          }
         }
       }
     }
@@ -104,6 +137,22 @@ export class NativeModuleManager {
     this.status.set(moduleName, status);
 
     return nativeModule;
+  }
+
+  /**
+   * Determine if we should use fallback only for a particular module
+   * This could be based on previous crashes or configuration
+   */
+  private shouldUseFallbackOnly(moduleName: string): boolean {
+    // For stability, force fallback for ece_native to prevent crashes
+    // This addresses the ECONNRESET issue caused by native module segfaults
+    if (moduleName === 'ece_native') {
+      console.log(`[NativeModuleManager] Forcing fallback for ${moduleName} to prevent crashes`);
+      return true;
+    }
+    // For now, we'll return false for other modules, but this could be enhanced to check
+    // for crash history or user configuration
+    return false;
   }
 
   /**
@@ -209,12 +258,21 @@ export class NativeModuleManager {
             // Hamming Distance
             const xor = a ^ b;
             let count = 0;
-            // Kernighan's Algorithm for bit counting
+            // Kernighan's Algorithm for bit counting with safety limit
             let n = xor;
-            while (n > 0n) {
+            const MAX_BITS = 64; // Maximum possible bits for our fingerprint
+
+            while (n > 0n && count < MAX_BITS) {
               n &= (n - 1n);
               count++;
             }
+
+            // Safety check in case of unexpected behavior
+            if (count >= MAX_BITS) {
+              console.warn('[NativeModuleManager] Hamming distance reached maximum bit count, returning 64');
+              return 64;
+            }
+
             return count;
           }
         };

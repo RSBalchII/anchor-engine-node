@@ -43,6 +43,30 @@ export const SearchColumn = memo(({
     const [activeTags, setActiveTags] = useState<string[]>([]);
     const [autoSplit, setAutoSplit] = useState(false);
 
+    // Local Faceted Tags State
+    const [localTags, setLocalTags] = useState<string[]>(availableTags);
+
+    // Fetch tags when activeBuckets changes
+    useEffect(() => {
+        const fetchFacetedTags = async () => {
+            try {
+                // If no buckets selected, fall back to global availableTags (or fetch all)
+                if (activeBuckets.length === 0) {
+                    setLocalTags(availableTags);
+                    return;
+                }
+                const tags = await api.getTags(activeBuckets);
+                setLocalTags(Array.isArray(tags) ? tags : []);
+            } catch (e) {
+                console.error("Failed to fetch faceted tags", e);
+            }
+        };
+        fetchFacetedTags();
+    }, [activeBuckets, availableTags]);
+
+    // Cleanup: Filter out Hex Codes
+    const displayTags = localTags.filter(t => !/^#[0-9A-Fa-f]{6}$/.test(t) && !/^[0-9A-Fa-f]{6}$/.test(t));
+
     // Sync context to parent
     useEffect(() => {
         onContextUpdate(id, context);
@@ -258,7 +282,7 @@ export const SearchColumn = memo(({
 
             {/* Semantic Tags (Toggleable) */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '60px', overflowY: 'auto' }}>
-                {availableTags.filter(t => !/^\d{4}$/.test(t) && t !== 'semantic_tag_placeholder').map(t => {
+                {displayTags.filter(t => !/^\d{4}$/.test(t) && t !== 'semantic_tag_placeholder').map(t => {
                     const isActive = activeTags.includes(t);
                     return (
                         <Button

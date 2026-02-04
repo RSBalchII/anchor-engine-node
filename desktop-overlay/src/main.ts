@@ -62,7 +62,7 @@ function startEngine() {
         shell.openExternal(FRONTEND_URL);
         updateTray("Running");
       } else {
-        log("✗ Engine health check failed. Retrying in 2s...");
+        log("✗ Engine health check failed. Retrying in 10s...");
         setTimeout(() => {
           checkHealth().then((alive2) => {
             if (alive2) {
@@ -74,10 +74,10 @@ function startEngine() {
               updateTray("Failed");
             }
           });
-        }, 2000);
+        }, 10000); // Increased retry delay to 10 seconds
       }
     });
-  }, 3000); // Increased wait time to 3s
+  }, 12000); // Increased initial wait time to 12 seconds
 
   engineProcess.on("close", (code) => {
     log(`Engine process exited with code ${code}`);
@@ -173,22 +173,33 @@ function initializeService() {
 
 function checkHealth(): Promise<boolean> {
   return new Promise((resolve) => {
+    log("Initiating health check request...");
     const timeout = setTimeout(() => {
-      log("Health check timeout");
+      log("Health check timeout after 15 seconds");
       resolve(false);
-    }, 3000);
+    }, 15000); // Increased timeout to 15 seconds
 
     const req = http.get(`${FRONTEND_URL}/health`, (res) => {
+      log(`Health check response received: ${res.statusCode}`);
       clearTimeout(timeout);
       log(`Health check response: ${res.statusCode}`);
       resolve(res.statusCode === 200 || res.statusCode === 207);
     });
-    req.on("error", (err) => {
+    req.on("error", (err: any) => {
       clearTimeout(timeout);
       log(`Health check error: ${err.message}`);
+      // Log specific error codes that might help debug
+      if (err.code === 'ECONNREFUSED') {
+        log('Server is not accepting connections');
+      } else if (err.code === 'ECONNRESET') {
+        log('Connection was reset by server');
+      } else if (err.code === 'ETIMEDOUT') {
+        log('Request timed out');
+      }
       resolve(false);
     });
     req.end();
+    log("Health check request sent, awaiting response...");
   });
 }
 

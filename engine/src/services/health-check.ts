@@ -107,6 +107,18 @@ export class HealthCheckService {
    */
   private async checkDatabaseHealth(): Promise<ComponentHealth> {
     try {
+      // Check if database is initialized
+      if (!db.isInitialized) {
+        return {
+          name: 'database',
+          status: 'degraded', // Not unhealthy, just not ready yet
+          message: 'Database not yet initialized',
+          details: {
+            initialized: false
+          }
+        };
+      }
+
       // Try a simple query to test database connectivity
       const result = await db.run('SELECT 1 as a'); // Valid CozoDB query
 

@@ -18,9 +18,14 @@ import { pathManager } from '../utils/path-manager.js';
 
 export class Database {
   private dbInstance: any = null;
+  private _isInitialized: boolean = false;
 
   constructor() {
     // Database connection is now established in init()
+  }
+
+  get isInitialized(): boolean {
+    return this._isInitialized;
   }
 
   /**
@@ -258,6 +263,8 @@ export class Database {
       }
     }
 
+    // Mark as initialized after all setup is complete
+    this._isInitialized = true;
     console.log("Database initialized successfully");
   }
 

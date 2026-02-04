@@ -243,7 +243,8 @@ export async function tagWalkerSearch(
   tags: string[] = [],
   _maxChars: number = 524288,
   provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all',
-  filters?: { type?: string; minVal?: number; maxVal?: number; }
+  filters?: { type?: string; minVal?: number; maxVal?: number; },
+  fuzzy: boolean = false
 ): Promise<SearchResult[]> {
   try {
     const sanitizedQuery = sanitizeFtsQuery(query);
@@ -274,13 +275,23 @@ export async function tagWalkerSearch(
                 ) as score,
                a.sequence, a.simhash as molecular_signature
         FROM atoms a
-        WHERE to_tsvector('simple', substring(a.content from 1 for 1000)) @@ plainto_tsquery('simple', $1)
-        ORDER BY score DESC, a.timestamp DESC
+        WHERE to_tsvector('simple', a.content) @@ to_tsquery('simple', $1)
     `;
+
+    // Construct Query String
+    // If Fuzzy: Convert "A B C" to "A | B | C"
+    // If Strict: "A & B & C" (plainto_tsquery does this implicitly but we want explicit control now)
+    let tsQueryString = sanitizedQuery.trim();
+    if (fuzzy) {
+      tsQueryString = tsQueryString.split(/\s+/).join(' | ');
+      console.log(`[Search] Using Fuzzy Query: ${tsQueryString}`);
+    } else {
+      tsQueryString = tsQueryString.split(/\s+/).join(' & ');
+    }
 
     // Add provenance filter
     let anchorParams: any[] = [
-      sanitizedQuery,
+      tsQueryString,
       `%${sanitizedQuery}%` // $2 for ILIKE matching
     ];
 
@@ -307,7 +318,7 @@ export async function tagWalkerSearch(
     }
 
     const limitParamIdx = anchorParams.length + 1;
-    anchorQuery += ` ORDER BY score DESC LIMIT $${limitParamIdx}`;
+    anchorQuery += ` ORDER BY score DESC, a.timestamp DESC LIMIT $${limitParamIdx}`;
     anchorParams.push(anchorLimit);
 
     const anchorResult = await db.run(anchorQuery, anchorParams);
@@ -465,25 +476,65 @@ import { nativeModuleManager } from '../../utils/native-module-manager.js';
  */
 function getHammingDistance(hashA: string, hashB: string): number {
   try {
+    // Validate inputs before processing
+    if (!hashA || !hashB) {
+      console.warn('[Search] Invalid hash inputs for Hamming distance calculation:', { hashA, hashB });
+      return 64; // Max distance on error (assume different)
+    }
+
+    // Ensure valid hex strings
+    if (!/^[0-9a-fA-F]+$/.test(hashA) || !/^[0-9a-fA-F]+$/.test(hashB)) {
+      console.warn('[Search] Invalid hex string format for Hamming distance:', { hashA, hashB });
+      return 64; // Max distance on error (assume different)
+    }
+
     const a = BigInt(`0x${hashA}`);
     const b = BigInt(`0x${hashB}`);
 
+    // Force JS fallback to prevent native module crashes (ECONNRESET/Segfault debugging)
+    /*
     const native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node'); // Ensure loaded
 
-    if (native && native.distance) {
-      return native.distance(a, b);
-    } else {
-      // Redundant fallback if loadNativeModule guarantees a fallback, but safe to have
-      let xor = a ^ b;
-      let count = 0;
-      while (xor > 0n) {
-        xor &= (xor - 1n);
-        count++;
-      }
-      return count;
+    // Check if we're using fallback implementation
+    const isUsingFallback = nativeModuleManager.isUsingFallback('ece_native');
+    if (isUsingFallback) {
+      console.log('[Search] Using fallback implementation for native module distance calculation');
     }
 
+    if (native && native.distance) {
+      try {
+        // Add timeout protection for native calls to prevent hanging
+        const result = native.distance(a, b);
+        if (typeof result !== 'number') {
+          console.warn('[Search] Unexpected result type from native distance function:', typeof result);
+          return 64;
+        }
+        return result;
+      } catch (nativeError) {
+        console.error('[Search] Native module distance function failed:', nativeError);
+        // Fallback to JavaScript implementation if native call fails
+        let xor = a ^ b;
+        let count = 0;
+        while (xor > 0n) {
+          xor &= (xor - 1n);
+          count++;
+        }
+        return count;
+      }
+    } else {
+    */
+    // JavaScript fallback implementation
+    let xor = a ^ b;
+    let count = 0;
+    while (xor > 0n) {
+      xor &= (xor - 1n);
+      count++;
+    }
+    return count;
+    //}
+
   } catch (e) {
+    console.error('[Search] Hamming distance calculation failed:', e);
     return 64; // Max distance on error (assume different)
   }
 }
@@ -502,6 +553,10 @@ export async function executeSearch(
   filters?: { type?: string; minVal?: number; maxVal?: number; }
 ): Promise<{ context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any }> {
   console.log(`[Search] executeSearch (Semantic Shift Architecture) called with provenance: ${provenance}`);
+
+  // Add additional logging to track the request flow
+  const startTime = Date.now();
+  console.log(`[Search] Starting search for query: "${query.substring(0, 100)}..." with ${maxChars} char limit`);
 
   // PRE-PROCESS: Extract semantic categories from query
   const scopeTags: string[] = [...explicitTags];
@@ -589,8 +644,10 @@ export async function executeSearch(
           const rowTags = row[5] as string[];
           const rowBuckets = row[4] as string[];
 
+          // Tags are intersectional (AND): Must have ALL specified tags
           const matchesTags = scopeTags.every(t => rowTags.includes(t));
-          const matchesBuckets = realBucketsArray.every(b => rowBuckets.includes(b));
+          // Buckets are categorical (OR): Must be in AT LEAST ONE of the specified buckets
+          const matchesBuckets = realBucketsArray.some(b => rowBuckets.includes(b));
 
           // NEW: Check semantic category match
           const matchesSemanticCategory = semanticCategories.length === 0 ||
@@ -661,7 +718,14 @@ export async function executeSearch(
   }
 
   // 2. TAG-WALKER SEARCH (Hybrid FTS + Graph)
-  const walkerResults = await tagWalkerSearch(expandedQuery, Array.from(realBuckets), scopeTags, maxChars, provenance, filters);
+  let walkerResults = await tagWalkerSearch(cleanQuery, Array.from(realBuckets), scopeTags, maxChars, provenance, filters); // Clean query is better for FTS than expanded
+
+  // --- FUZZY FALLBACK (Standard 093) ---
+  // If strict AND-search returns 0 results, retry with OR-logic
+  if ((engramResults.length === 0 && walkerResults.length === 0) || (walkerResults.length === 0 && finalResults.length === 0)) {
+    console.log(`[Search] Strict search returned 0 results. Triggering Fuzzy Fallback for: "${cleanQuery}"`);
+    walkerResults = await tagWalkerSearch(cleanQuery, Array.from(realBuckets), scopeTags, maxChars, provenance, filters, true); // Fuzzy = true
+  }
 
   // Type-Based Scoring Multipliers (POML V4)
   const TYPE_SCORE_MULT: Record<string, number> = {
@@ -759,7 +823,9 @@ export async function executeSearch(
 
   console.log(`[Search] Inflated ${finalResults.length} atoms into ${inflatedResults.length} context windows.`);
 
-  return await formatResults(inflatedResults, maxChars);
+  const result = await formatResults(inflatedResults, maxChars);
+  console.log(`[Search] Search completed in ${Date.now() - startTime}ms`);
+  return result;
 }
 
 /**
@@ -873,52 +939,63 @@ function getItems(input: string[] | undefined): string[] {
  * Uses molecular coordinates (start_byte/end_byte) for precise content slicing
  */
 async function formatResults(results: SearchResult[], maxChars: number): Promise<{ context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any }> {
-  // Extract molecular slices when coordinates are available
-  const candidates = await Promise.all(results.map(async r => {
-    let content = r.content || '';
+  try {
+    // Extract molecular slices when coordinates are available
+    const candidates = await Promise.all(results.map(async r => {
+      let content = r.content || '';
 
-    // Use molecular coordinates for precise slicing if available, but skip if already inflated
-    if (!r.is_inflated && r.compound_id && r.start_byte !== undefined && r.end_byte !== undefined && r.start_byte >= 0 && r.end_byte > r.start_byte) {
-      try {
-        // Fetch the full compound document to extract the precise slice
-        const compoundQuery = `SELECT compound_body FROM compounds WHERE id = $1`;
-        const compoundResult = await db.run(compoundQuery, [r.compound_id]);
+      // Use molecular coordinates for precise slicing if available, but skip if already inflated
+      if (!r.is_inflated && r.compound_id && r.start_byte !== undefined && r.end_byte !== undefined && r.start_byte >= 0 && r.end_byte > r.start_byte) {
+        try {
+          // Fetch the full compound document to extract the precise slice
+          const compoundQuery = `SELECT compound_body FROM compounds WHERE id = $1`;
+          const compoundResult = await db.run(compoundQuery, [r.compound_id]);
 
-        if (compoundResult.rows && compoundResult.rows.length > 0) {
-          const fullBody = compoundResult.rows[0][0] as string;
-          const contentBuffer = Buffer.from(fullBody, 'utf8');
-          const sliceBuffer = contentBuffer.subarray(r.start_byte!, r.end_byte!);
-          content = `...${sliceBuffer.toString('utf8')}...`;
+          if (compoundResult.rows && compoundResult.rows.length > 0) {
+            const fullBody = compoundResult.rows[0][0] as string;
+            const contentBuffer = Buffer.from(fullBody, 'utf8');
+            const sliceBuffer = contentBuffer.subarray(r.start_byte!, r.end_byte!);
+            content = `...${sliceBuffer.toString('utf8')}...`;
+          }
+        } catch (e) {
+          // Fallback to content field if coordinate extraction fails
+          console.warn(`[Search] Coordinate extraction failed for ${r.id}:`, e);
         }
-      } catch (e) {
-        // Fallback to content field if coordinate extraction fails
-        console.warn(`[Search] Coordinate extraction failed for ${r.id}:`, e);
       }
-    }
+
+      return {
+        id: r.id,
+        content,
+        source: r.source,
+        timestamp: r.timestamp,
+        score: r.score,
+        type: r.type  // Pass type for potential downstream use
+      };
+    }));
+
+    const tokenBudget = Math.floor(maxChars / 4);
+    const rollingContext = composeRollingContext("query_placeholder", candidates, tokenBudget);
+
+    const sortedResults = results.sort((a, b) => b.score - a.score);
 
     return {
-      id: r.id,
-      content,
-      source: r.source,
-      timestamp: r.timestamp,
-      score: r.score,
-      type: r.type  // Pass type for potential downstream use
+      context: rollingContext.prompt || 'No results found.',
+      results: sortedResults,
+      toAgentString: () => {
+        return sortedResults.map(r => `[${r.provenance}] ${r.source}: ${(r.content || "").substring(0, 200)}...`).join('\n');
+      },
+      metadata: rollingContext.stats
     };
-  }));
-
-  const tokenBudget = Math.floor(maxChars / 4);
-  const rollingContext = composeRollingContext("query_placeholder", candidates, tokenBudget);
-
-  const sortedResults = results.sort((a, b) => b.score - a.score);
-
-  return {
-    context: rollingContext.prompt || 'No results found.',
-    results: sortedResults,
-    toAgentString: () => {
-      return sortedResults.map(r => `[${r.provenance}] ${r.source}: ${(r.content || "").substring(0, 200)}...`).join('\n');
-    },
-    metadata: rollingContext.stats
-  };
+  } catch (error) {
+    console.error('[Search] formatResults failed:', error);
+    // Return a safe fallback result to prevent crashes
+    return {
+      context: 'Error occurred during result formatting.',
+      results: [],
+      toAgentString: () => 'Error occurred during result formatting.',
+      metadata: { error: true, message: 'Failed to format search results' }
+    };
+  }
 }
 
 

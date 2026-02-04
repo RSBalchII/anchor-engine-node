@@ -64,6 +64,7 @@ export async function ingestContent(
   let processedTags = [...tags];
 
   if (type === 'html' || type === 'web_page') {
+    /*
     try {
       const { nativeModuleManager } = await import('../../utils/native-module-manager.js');
       const native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node');
@@ -87,6 +88,9 @@ export async function ingestContent(
     } catch (e) {
       console.warn('[Ingest] Native HTML parsing failed, using raw content:', e);
     }
+    */
+    // Native parser disabled for stability
+    console.log('[Ingest] Native HTML parser disabled for stability. Using raw content.');
   }
 
   // Auto-assign provenance based on source
@@ -134,12 +138,12 @@ export async function ingestContent(
   const embeddingArray = new Array(config.MODELS.EMBEDDING_DIM).fill(0.1);
 
   await db.run(insertQuery, [
-    id, 
-    processedContent, 
-    source, 
-    timestamp, 
-    BigInt(hash), 
-    embeddingArray, 
+    id,
+    processedContent,
+    source,
+    timestamp,
+    BigInt(hash),
+    embeddingArray,
     provenance
   ]);
 

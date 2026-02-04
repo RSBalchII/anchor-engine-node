@@ -26,7 +26,10 @@ interface SearchResponse {
 
 export const api = {
     getBuckets: () => fetch('/v1/buckets').then(r => r.json()),
-    getTags: () => fetch('/v1/tags').then(r => r.json()),
+    getTags: (buckets?: string[]) => {
+        const query = buckets && buckets.length > 0 ? `?buckets=${buckets.join(',')}` : '';
+        return fetch(`/v1/tags${query}`).then(r => r.json());
+    },
 
     search: (params: SearchParams): Promise<SearchResponse> =>
         fetch('/v1/memory/search', {

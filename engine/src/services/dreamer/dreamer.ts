@@ -352,157 +352,165 @@ async function clusterAndSummarize(): Promise<void> {
   try {
     console.log('🌙 Dreamer: Running Abstraction Pyramid analysis...');
 
-    // 1. Find Unbound Atoms (Level 1 Nodes without a Parent)
-    const { config } = await import('../../config/index.js');
-    const limit = (config.DREAMER_BATCH_SIZE || 5) * 4; // Fetch 4x batch size for clustering context
+    // Burst Mode limit: Prevent infinite loops if DB query is somehow failing to clear queue
+    let loopCount = 0;
+    const MAX_LOOPS = 20;
 
-    // We look for memories that are NOT a child in 'parent_of' (using edges table)
-    const unboundQuery = `
-            SELECT id, timestamp, content, tags
-            FROM atoms
-            WHERE id NOT IN (
-                SELECT target_id FROM edges WHERE relation = 'parent_of'
-            )
-            ORDER BY timestamp
-            LIMIT ${limit}
-    `;
-    const result = await db.run(unboundQuery);
+    // Keep processing until we run out of unbound atoms or hit safety limit
+    while (loopCount < MAX_LOOPS) {
+      loopCount++;
 
-    if (!result.rows || result.rows.length === 0) {
-      console.log('🌙 Dreamer: No unbound atoms found.');
-      return;
-    }
+      // 1. Find Unbound Atoms (Level 1 Nodes without a Parent)
+      const { config } = await import('../../config/index.js');
+      // Increase batch size for rapid catch-up
+      const limit = (config.DREAMER_BATCH_SIZE || 5) * 10;
 
-    const atoms = result.rows.map((r: any[]) => ({
-      id: r[0],
-      timestamp: r[1],
-      content: r[2],
-      tags: r[3] || [] // Fetch tags
-    }));
-    console.log(`🌙 Dreamer: Found ${atoms.length} unbound atoms.Clustering...`);
+      // We look for memories that are NOT a child in 'parent_of' (using edges table)
+      const unboundQuery = `
+              SELECT id, timestamp, content, tags
+              FROM atoms
+              WHERE id NOT IN (
+                  SELECT target_id FROM edges WHERE relation = 'parent_of'
+              )
+              ORDER BY timestamp
+              LIMIT ${limit}
+      `;
+      const result = await db.run(unboundQuery);
 
-    // 2. Temporal Clustering (Gap > 15 minutes = New Cluster)
-    const clusters: any[][] = [];
-    let currentCluster: any[] = [];
-    let lastTime = atoms[0].timestamp;
-
-    for (const atom of atoms) {
-      if (atom.timestamp - lastTime > config.DREAMER_CLUSTERING_GAP_MS) {
-        if (currentCluster.length > 0) clusters.push(currentCluster);
-        currentCluster = [];
+      if (!result.rows || result.rows.length === 0) {
+        if (loopCount === 1) console.log('🌙 Dreamer: No unbound atoms found.');
+        else console.log(`🌙 Dreamer: All unbound atoms processed after ${loopCount} cycles.`);
+        break; // Done!
       }
-      currentCluster.push(atom);
-      lastTime = atom.timestamp;
-    }
-    if (currentCluster.length > 0) clusters.push(currentCluster);
 
-    // 3. Process Clusters -> Episodes (Level 2)
-    console.log(`🌙 Dreamer: Processing ${clusters.length} temporal clusters...`);
-    let clusterIndex = 0;
-    for (const cluster of clusters) {
-      clusterIndex++;
-      if (cluster.length < 3) continue; // Skip tiny clusters for now, wait for more context?
-      // Or just summarize them if they are old enough?
-      // For now, let's process clusters of size >= 3.
+      const atoms = result.rows.map((r: any[]) => ({
+        id: r[0],
+        timestamp: r[1],
+        content: r[2],
+        tags: r[3] || [] // Fetch tags
+      }));
+      console.log(`🌙 Dreamer [Cycle ${loopCount}]: Found ${atoms.length} unbound atoms. Clustering...`);
 
-      console.log(`🌙 Dreamer: Summarizing cluster of ${cluster.length} atoms...`);
+      // 2. Temporal Clustering (Gap > 15 minutes = New Cluster)
+      const clusters: any[][] = [];
+      let currentCluster: any[] = [];
+      let lastTime = atoms[0].timestamp;
 
+      for (const atom of atoms) {
+        if (atom.timestamp - lastTime > config.DREAMER_CLUSTERING_GAP_MS) {
+          if (currentCluster.length > 0) clusters.push(currentCluster);
+          currentCluster = [];
+        }
+        currentCluster.push(atom);
+        lastTime = atom.timestamp;
+      }
+      if (currentCluster.length > 0) clusters.push(currentCluster);
 
       // 3. Process Clusters -> Episodes (Level 2)
-      console.log(`🌙 Dreamer: Summarizing cluster of ${cluster.length} atoms (Deterministic Episode)...`);
+      console.log(`🌙 Dreamer [Cycle ${loopCount}]: Processing ${clusters.length} temporal clusters...`);
+      let clusterIndex = 0;
+      for (const cluster of clusters) {
+        clusterIndex++;
+        if (cluster.length < 3) continue; // Skip tiny clusters for now
 
-      // DETERMINISTIC EPISODE GENERATION (Standard 072)
-      // Instead of LLM, we use pure metadata extraction for the Episode Node.
-      // This is O(1) and instant.
+        console.log(`🌙 Dreamer: Summarizing cluster of ${cluster.length} atoms (Deterministic Episode)...`);
 
-      // A. Extract Date Range
-      const startTime = cluster[0].timestamp;
-      const endTime = cluster[cluster.length - 1].timestamp;
+        // DETERMINISTIC EPISODE GENERATION (Standard 072)
+        // Instead of LLM, we use pure metadata extraction for the Episode Node.
+        // This is O(1) and instant.
 
-      // B. Concatenate content for Wink Analysis
-      const fullText = cluster.map((a: any) => a.content).join('\n');
+        // A. Extract Date Range
+        const startTime = cluster[0].timestamp;
+        const endTime = cluster[cluster.length - 1].timestamp;
 
-      // C. Extract Entities & Keywords using Wink
-      const doc = nlp.readDoc(fullText);
+        // B. Concatenate content for Wink Analysis
+        const fullText = cluster.map((a: any) => a.content).join('\n');
 
-      // Get top entities (if any)
-      // Filter: Must be > 2 chars, exclude numbers
-      const entities = doc.entities().out(nlp.its.value, nlp.as.freqTable)
-        .filter((e: any) => e[0].length > 2 && !/^\d+$/.test(e[0]))
-        .slice(0, 10)
-        .map((e: any) => e[0]);
+        // C. Extract Entities & Keywords using Wink
+        const doc = nlp.readDoc(fullText);
 
-      // D. Aggregate Tags (The "Sovereign" Context)
-      // Instead of weak NLP nouns, we harvest the high-quality tags from the atoms themselves.
-      const tagCounts = new Map<string, number>();
-      cluster.forEach((atom: any) => {
-        atom.tags.forEach((tag: string) => {
-          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        // Get top entities (if any)
+        // Filter: Must be > 2 chars, exclude numbers
+        const entities = doc.entities().out(nlp.its.value, nlp.as.freqTable)
+          .filter((e: any) => e[0].length > 2 && !/^\d+$/.test(e[0]))
+          .slice(0, 10)
+          .map((e: any) => e[0]);
+
+        // D. Aggregate Tags (The "Sovereign" Context)
+        // Instead of weak NLP nouns, we harvest the high-quality tags from the atoms themselves.
+        const tagCounts = new Map<string, number>();
+        cluster.forEach((atom: any) => {
+          atom.tags.forEach((tag: string) => {
+            tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+          });
         });
-      });
 
-      // Sort tags by frequency
-      const topics = Array.from(tagCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(entry => entry[0]);
+        // Sort tags by frequency
+        const topics = Array.from(tagCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(entry => entry[0]);
 
-      // Fallback: If no tags, try basic NLP nouns
-      if (topics.length === 0) {
-        const nouns = doc.tokens()
-          .filter((t: any) => t.out(nlp.its.pos) === 'NOUN' && !t.out((nlp.its as any).stopWord))
-          .out(nlp.its.normal, nlp.as.freqTable)
-          .filter((t: any) => t[0].length > 3 && !/^[0-9]+$/.test(t[0]))
-          .slice(0, 5)
-          .map((t: any) => t[0]);
-        topics.push(...nouns);
-      }
+        // Fallback: If no tags, try basic NLP nouns
+        if (topics.length === 0) {
+          const nouns = doc.tokens()
+            .filter((t: any) => t.out(nlp.its.pos) === 'NOUN' && !t.out((nlp.its as any).stopWord))
+            .out(nlp.its.normal, nlp.as.freqTable)
+            .filter((t: any) => t[0].length > 3 && !/^[0-9]+$/.test(t[0]))
+            .slice(0, 5)
+            .map((t: any) => t[0]);
+          topics.push(...nouns);
+        }
 
-      // D. Construct Metadata-Rich Content
-      const episodeContent = `
+        // D. Construct Metadata-Rich Content
+        const episodeContent = `
 EPISODE HEADER
 Range: ${new Date(startTime).toISOString()} - ${new Date(endTime).toISOString()}
 Topics: ${topics.join(', ')}
 Entities: ${entities.join(', ')}
 Atom Count: ${cluster.length}
-      `.trim();
+        `.trim();
 
-      // Create Episode Node (Level 2)
-      const crypto = await import('crypto');
-      const summaryHash = crypto.createHash('sha256').update(episodeContent).digest('hex');
-      const episodeId = `ep_${summaryHash.substring(0, 16)}`;
+        // Create Episode Node (Level 2)
+        const crypto = await import('crypto');
+        const summaryHash = crypto.createHash('sha256').update(episodeContent).digest('hex');
+        const episodeId = `ep_${summaryHash.substring(0, 16)}`;
 
-      // Insert Summary Node
-      await db.run(
-        `INSERT INTO summary_nodes (id, type, content, span_start, span_end, embedding)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (id) DO UPDATE SET
-           content = EXCLUDED.content,
-           span_start = EXCLUDED.span_start,
-           span_end = EXCLUDED.span_end,
-           embedding = EXCLUDED.embedding`,
-        [
-          episodeId,
-          'episode',
-          episodeContent,
-          startTime,
-          endTime,
-          new Array(384).fill(0.0) // Placeholder
-        ]
-      );
-
-      // Link Atoms to Episode (Parent_Of)
-      for (const atom of cluster) {
+        // Insert Summary Node
         await db.run(
-          `INSERT INTO edges (source_id, target_id, weight, relation)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (source_id, target_id, relation) DO UPDATE SET
-             weight = EXCLUDED.weight`,
-          [episodeId, atom.id, 1.0, 'parent_of']
+          `INSERT INTO summary_nodes (id, type, content, span_start, span_end, embedding)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (id) DO UPDATE SET
+             content = EXCLUDED.content,
+             span_start = EXCLUDED.span_start,
+             span_end = EXCLUDED.span_end,
+             embedding = EXCLUDED.embedding`,
+          [
+            episodeId,
+            'episode',
+            episodeContent,
+            startTime,
+            endTime,
+            new Array(384).fill(0.0) // Placeholder
+          ]
         );
+
+        // Link Atoms to Episode (Parent_Of)
+        for (const atom of cluster) {
+          await db.run(
+            `INSERT INTO edges (source_id, target_id, weight, relation)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (source_id, target_id, relation) DO UPDATE SET
+               weight = EXCLUDED.weight`,
+            [episodeId, atom.id, 1.0, 'parent_of']
+          );
+        }
+
+        console.log(`🌙 Dreamer: Created Episode ${episodeId} (Topics: ${topics.join(', ')})`);
       }
 
-      console.log(`🌙 Dreamer: Created Episode ${episodeId} (Topics: ${topics.join(', ')})`);
+      // Small breathing room for event loop between bursts
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
   } catch (e: any) {
