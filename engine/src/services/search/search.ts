@@ -318,7 +318,18 @@ export async function tagWalkerSearch(
     }
 
     const limitParamIdx = anchorParams.length + 1;
-    anchorQuery += ` ORDER BY score DESC, a.timestamp DESC LIMIT $${limitParamIdx}`;
+
+    // Check for chronological sort intent
+    const isEarliest = sanitizedQuery.toLowerCase().includes('earliest') ||
+      sanitizedQuery.toLowerCase().includes('oldest') ||
+      sanitizedQuery.toLowerCase().includes('first');
+
+    if (isEarliest) {
+      anchorQuery += ` ORDER BY a.timestamp ASC LIMIT $${limitParamIdx}`;
+    } else {
+      anchorQuery += ` ORDER BY score DESC, a.timestamp DESC LIMIT $${limitParamIdx}`;
+    }
+
     anchorParams.push(anchorLimit);
 
     const anchorResult = await db.run(anchorQuery, anchorParams);
@@ -387,6 +398,15 @@ export async function tagWalkerSearch(
         SELECT 1 FROM unnest(a.tags) as tag WHERE tag = ANY($${walkParamCount})
       )`;
       walkParams.push(tags);
+    }
+
+    // [SECURITY PATCH] Add bucket filters to Walk Phase
+    if (buckets.length > 0) {
+      const walkBucketParamIdx = walkParams.length + 1;
+      walkQuery += ` AND EXISTS (
+        SELECT 1 FROM unnest(a.buckets) as bucket WHERE bucket = ANY($${walkBucketParamIdx})
+      )`;
+      walkParams.push(buckets);
     }
 
     const walkLimitParamIdx = walkParams.length + 1;
