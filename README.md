@@ -1,10 +1,12 @@
-# Sovereign Context Engine (ECE) - Core System
+# Anchor
 
 **Version:** 3.0.0 | **Status:** Active | **Domain:** Autonomous Context Management
 
+> **"Anchor Your System's Reality."**
+
 ## Overview
 
-The Sovereign Context Engine (ECE) is a self-hosted, privacy-focused knowledge management system that creates a persistent memory layer for AI-assisted workflows. Built with a "LLM-First" architecture, it enables sovereign control of personal and organizational knowledge graphs.
+**Anchor** is a self-hosted, privacy-focused knowledge management system that creates a persistent memory layer for AI-assisted workflows. Built with a "LLM-First" architecture, it enables sovereign control of personal and organizational knowledge graphs.
 
 ## Key Features
 
