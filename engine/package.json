@@ -1,8 +1,8 @@
 {
-    "name": "sovereign-context-engine",
+    "name": "anchor-engine",
     "version": "3.0.0",
     "type": "module",
-    "description": "Headless Context Engine & Knowledge Graph",
+    "description": "Anchor Headless Context Engine & Knowledge Graph",
     "main": "src/index.js",
     "bin": "src/index.js",
     "scripts": {

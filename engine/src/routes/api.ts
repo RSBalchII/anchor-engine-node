@@ -869,6 +869,30 @@ export function setupRoutes(app: Application) {
     }
   });
 
+  // [DEBUG] Raw SQL Endpoint for Anchor TUI
+  // WARNING: accessing this allows full DB control.
+  app.post('/v1/debug/sql', async (req: Request, res: Response) => {
+    try {
+      const { query, params } = req.body;
+      if (!query) return res.status(400).json({ error: 'Query required' });
+
+      console.log(`[SQL] Executing: ${query}`);
+      const start = Date.now();
+      const result = await db.run(query, params || []);
+      const duration = Date.now() - start;
+
+      res.status(200).json({
+        rows: result.rows,
+        fields: result.fields,
+        duration_ms: duration,
+        row_count: result.rows ? result.rows.length : 0
+      });
+    } catch (error: any) {
+      console.error('[SQL] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Graph Data Endpoint for Context Visualization
   app.post('/v1/graph/data', async (req: Request, res: Response) => {
     try {
