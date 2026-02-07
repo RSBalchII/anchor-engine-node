@@ -27,6 +27,7 @@ build/
 engine/build/
 native/bin/
 .pnpm-store/
+*.tsbuildinfo
 
 # IDE & System
 .vscode/

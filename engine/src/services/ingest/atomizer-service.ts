@@ -398,6 +398,18 @@ export class AtomizerService {
     private splitIntoMolecules(text: string, type: 'prose' | 'code' | 'data' = 'prose', maxSize: number = 1024): { content: string, start: number, end: number, timestamp?: number }[] {
         const results: { content: string, start: number, end: number, timestamp?: number }[] = [];
 
+        // Helper to get UTF-8 byte length of a string
+        const getByteLength = (str: string): number => {
+            return Buffer.byteLength(str, 'utf8');
+        };
+
+        // Helper to convert string index to byte offset
+        const stringIndexToByteOffset = (str: string, stringIndex: number): number => {
+            if (stringIndex <= 0) return 0;
+            if (stringIndex >= str.length) return getByteLength(str);
+            return getByteLength(str.substring(0, stringIndex));
+        };
+
         // Helper to extract timestamp from a chunk
         const extractTimestamp = (chunk: string): number | undefined => {
             // Match ISO timestamps: 2026-01-25T03:43:54.405Z or 2026-01-25 03:43:54
@@ -463,30 +475,31 @@ export class AtomizerService {
             let braceDepth = 0;
 
             for (const line of lines) {
-                const lineLen = line.length + 1; // +1 for \n
+                const lineWithNewline = line + '\n';
+                const lineByteLen = getByteLength(lineWithNewline);
                 const openBraces = (line.match(/\{/g) || []).length;
                 const closeBraces = (line.match(/\}/g) || []).length;
 
                 const prevDepth = braceDepth;
                 braceDepth += (openBraces - closeBraces);
 
-                currentBlock += line + '\n';
+                currentBlock += lineWithNewline;
 
                 // End of a top-level block?
                 if (braceDepth === 0 && prevDepth > 0) {
                     // Just closed a root block (function/class)
-                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen, timestamp: extractTimestamp(currentBlock) });
+                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineByteLen, timestamp: extractTimestamp(currentBlock) });
                     currentBlock = '';
-                    blockStart = currentCursor + lineLen;
+                    blockStart = currentCursor + lineByteLen;
                 }
                 // Double newline in root scope -> likely separate statements?
                 else if (braceDepth === 0 && line.trim() === '' && currentBlock.trim().length > 0) {
-                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineLen, timestamp: extractTimestamp(currentBlock) });
+                    results.push({ content: currentBlock, start: blockStart, end: currentCursor + lineByteLen, timestamp: extractTimestamp(currentBlock) });
                     currentBlock = '';
-                    blockStart = currentCursor + lineLen;
+                    blockStart = currentCursor + lineByteLen;
                 }
 
-                currentCursor += lineLen;
+                currentCursor += lineByteLen;
             }
 
             if (currentBlock.trim().length > 0) {
@@ -499,11 +512,14 @@ export class AtomizerService {
             let cursor = 0;
             const lines = text.split('\n');
             for (const line of lines) {
-                const len = line.length;
+                const lineWithNewline = line + '\n';
+                const byteLen = getByteLength(lineWithNewline);
                 if (line.trim().length > 0) {
-                    results.push({ content: line, start: cursor, end: cursor + len, timestamp: extractTimestamp(line) });
+                    // Store without the newline in content, but account for it in byte offsets
+                    const lineByteLen = getByteLength(line);
+                    results.push({ content: line, start: cursor, end: cursor + lineByteLen, timestamp: extractTimestamp(line) });
                 }
-                cursor += len + 1;
+                cursor += byteLen;
             }
         }
         else {
@@ -511,57 +527,66 @@ export class AtomizerService {
 
             // MARKDOWN FISSION: Split on code fences first to separate code from prose
             const codeFenceRegex = /```[\s\S]*?```/g;
-            const codeFences: { match: string, start: number, end: number }[] = [];
+            const codeFences: { match: string, startByte: number, endByte: number }[] = [];
             let fenceMatch;
 
             while ((fenceMatch = codeFenceRegex.exec(text)) !== null) {
+                const startByte = stringIndexToByteOffset(text, fenceMatch.index);
+                const endByte = stringIndexToByteOffset(text, fenceMatch.index + fenceMatch[0].length);
                 codeFences.push({
                     match: fenceMatch[0],
-                    start: fenceMatch.index,
-                    end: fenceMatch.index + fenceMatch[0].length
+                    startByte: startByte,
+                    endByte: endByte
                 });
             }
 
             // If we have code fences, split around them
             if (codeFences.length > 0) {
-                let cursor = 0;
+                let stringCursor = 0; // Track position in string indices
+                let byteCursor = 0; // Track position in byte offsets
 
                 for (const fence of codeFences) {
                     // Pre-fence prose
-                    if (fence.start > cursor) {
-                        const preProse = text.substring(cursor, fence.start);
+                    const fenceStringStart = text.indexOf(fence.match, stringCursor);
+                    if (fenceStringStart > stringCursor) {
+                        const preProse = text.substring(stringCursor, fenceStringStart);
                         if (preProse.trim().length > 0) {
                             // Recursively split the prose portion into sentences
                             const proseParts = preProse.split(/(?<=[.!?])\s+(?=[A-Z])/);
-                            let proseCursor = cursor;
+                            let proseStringCursor = 0;
                             for (const part of proseParts) {
                                 if (part.trim().length === 0) continue;
-                                const partStart = text.indexOf(part, proseCursor);
-                                if (partStart !== -1) {
-                                    results.push({ content: part, start: partStart, end: partStart + part.length, timestamp: extractTimestamp(part) });
-                                    proseCursor = partStart + part.length;
+                                const partStringStart = preProse.indexOf(part, proseStringCursor);
+                                if (partStringStart !== -1) {
+                                    const partByteStart = byteCursor + stringIndexToByteOffset(preProse, partStringStart);
+                                    const partByteEnd = partByteStart + getByteLength(part);
+                                    results.push({ content: part, start: partByteStart, end: partByteEnd, timestamp: extractTimestamp(part) });
+                                    proseStringCursor = partStringStart + part.length;
                                 }
                             }
                         }
                     }
 
                     // The code fence itself (will be typed as 'code' in molecule enrichment)
-                    results.push({ content: fence.match, start: fence.start, end: fence.end, timestamp: extractTimestamp(fence.match) });
-                    cursor = fence.end;
+                    results.push({ content: fence.match, start: fence.startByte, end: fence.endByte, timestamp: extractTimestamp(fence.match) });
+                    stringCursor = fenceStringStart + fence.match.length;
+                    byteCursor = fence.endByte;
                 }
 
                 // Post-fence prose (after last fence)
-                if (cursor < text.length) {
-                    const postProse = text.substring(cursor);
+                if (stringCursor < text.length) {
+                    const postProse = text.substring(stringCursor);
                     if (postProse.trim().length > 0) {
                         const proseParts = postProse.split(/(?<=[.!?])\s+(?=[A-Z])/);
-                        let proseCursor = cursor;
+                        let proseStringCursor = 0;
                         for (const part of proseParts) {
                             if (part.trim().length === 0) continue;
-                            const partStart = text.indexOf(part, proseCursor);
-                            if (partStart !== -1) {
-                                results.push({ content: part, start: partStart, end: partStart + part.length, timestamp: extractTimestamp(part) });
-                                proseCursor = partStart + part.length;
+                            const partStringStart = postProse.indexOf(part, proseStringCursor);
+                            if (partStringStart !== -1) {
+                                const partByteStart = byteCursor + stringIndexToByteOffset(postProse, partStringStart);
+                                const partByteEnd = partByteStart + getByteLength(part);
+                                results.push({ content: part, start: partByteStart, end: partByteEnd, timestamp: extractTimestamp(part) });
+                                proseStringCursor = partStringStart + part.length;
                             }
                         }
                     }
@@ -569,16 +594,17 @@ export class AtomizerService {
             } else {
                 // No code fences - standard sentence splitting
                 const parts = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
-                let searchCursor = 0;
+                let searchStringCursor = 0;
 
                 for (const part of parts) {
                     if (part.trim().length === 0) continue;
-                    const len = part.length;
-                    const realStart = text.indexOf(part, searchCursor); // Find next occurrence
+                    const realStringStart = text.indexOf(part, searchStringCursor); // Find next occurrence
 
-                    if (realStart !== -1) {
-                        results.push({ content: part, start: realStart, end: realStart + len, timestamp: extractTimestamp(part) });
-                        searchCursor = realStart + len;
+                    if (realStringStart !== -1) {
+                        const realByteStart = stringIndexToByteOffset(text, realStringStart);
+                        const realByteEnd = realByteStart + getByteLength(part);
+                        results.push({ content: part, start: realByteStart, end: realByteEnd, timestamp: extractTimestamp(part) });
+                        searchStringCursor = realStringStart + part.length;
                     }
                 }
             }
@@ -588,25 +614,49 @@ export class AtomizerService {
         const finalResults: { content: string, start: number, end: number, timestamp?: number }[] = [];
 
         for (const item of results) {
-            if (item.content.length <= maxSize) {
+            const itemByteLen = getByteLength(item.content);
+            if (itemByteLen <= maxSize) {
                 finalResults.push(item);
             } else {
-                // Force split large molecules
+                // Force split large molecules by byte size
                 let currentStart = item.start;
                 let remaining = item.content;
 
                 while (remaining.length > 0) {
-                    const chunk = remaining.substring(0, maxSize);
+                    // Find a safe split point that doesn't exceed maxSize bytes
+                    let splitPoint = remaining.length;
+                    let chunkByteLen = getByteLength(remaining);
+                    
+                    // Binary search for the right split point if we're over the limit
+                    if (chunkByteLen > maxSize) {
+                        let low = 0;
+                        let high = remaining.length;
+                        while (low < high) {
+                            const mid = Math.floor((low + high + 1) / 2);
+                            const testChunk = remaining.substring(0, mid);
+                            const testByteLen = getByteLength(testChunk);
+                            if (testByteLen <= maxSize) {
+                                low = mid;
+                            } else {
+                                high = mid - 1;
+                            }
+                        }
+                        splitPoint = low;
+                    }
+                    
+                    const chunk = remaining.substring(0, splitPoint);
+                    const chunkBytes = getByteLength(chunk);
+                    
                     // Inherit timestamp for all chunks if the original item had one
                     finalResults.push({
                         content: chunk,
                         start: currentStart,
-                        end: currentStart + chunk.length,
+                        end: currentStart + chunkBytes,
                         timestamp: item.timestamp
                     });
 
-                    remaining = remaining.substring(maxSize);
-                    currentStart += maxSize;
+                    remaining = remaining.substring(splitPoint);
+                    currentStart += chunkBytes;
                 }
             }
         }

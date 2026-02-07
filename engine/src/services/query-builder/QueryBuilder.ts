@@ -134,12 +134,12 @@ export class QueryBuilder {
     let sql = 'SELECT ';
     
     if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
+      sql += this.options.selectFields.map(field => this.escapeIdentifier(field)).join(', ');
     } else {
       sql += '*';
     }
     
-    sql += ` FROM "${this.options.tableName}"`;
+    sql += ` FROM ${this.escapeIdentifier(this.options.tableName)}`;
     
     const params: any[] = [];
     if (this.options.whereConditions.length > 0) {
@@ -148,30 +148,30 @@ export class QueryBuilder {
         let operator = condition.operator.toUpperCase();
         if (operator === 'LIKE') {
           params.push(`%${condition.value}%`);
-          return `"${condition.field}" LIKE $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} LIKE $${params.length}`;
         } else if (operator === 'CONTAINS') {
           // Convert CONTAINS to LIKE for PGlite
           params.push(`%${condition.value}%`);
-          return `"${condition.field}" LIKE $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} LIKE $${params.length}`;
         } else if (operator === '=') {
           params.push(condition.value);
-          return `"${condition.field}" = $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} = $${params.length}`;
         } else if (operator === '>') {
           params.push(condition.value);
-          return `"${condition.field}" > $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} > $${params.length}`;
         } else if (operator === '<') {
           params.push(condition.value);
-          return `"${condition.field}" < $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} < $${params.length}`;
         } else if (operator === '>=') {
           params.push(condition.value);
-          return `"${condition.field}" >= $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} >= $${params.length}`;
         } else if (operator === '<=') {
           params.push(condition.value);
-          return `"${condition.field}" <= $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} <= $${params.length}`;
         } else {
           // Default to equality
           params.push(condition.value);
-          return `"${condition.field}" = $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} = $${params.length}`;
         }
       });
       
@@ -179,7 +179,7 @@ export class QueryBuilder {
     }
     
     if (this.options.orderByClause) {
-      sql += ` ORDER BY "${this.options.orderByClause.field}" ${this.options.orderByClause.direction}`;
+      sql += ` ORDER BY ${this.escapeIdentifier(this.options.orderByClause.field)} ${this.options.orderByClause.direction}`;
     }
     
     if (this.options.limitValue !== null) {
