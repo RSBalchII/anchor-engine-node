@@ -11,5 +11,11 @@
   "keywords": ["text", "splitter", "chunking", "native", "cpp", "llm", "rag"],
   "author": "Robert Balch II",
   "license": "Elastic-2.0",
-  "gypfile": true
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^8.5.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^12.1.0"
+  }
 }
