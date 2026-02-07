@@ -23,12 +23,13 @@
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
-│  NATIVE MODULE LAYER                                           │
+│  NATIVE MODULE LAYER (Published as npm packages)               │
 ├─────────────────────────────────────────────────────────────────┤
-│  • Atomizer (Content Splitting)                                │
-│  • Key Assassin (Content Sanitization)                         │
-│  • Fingerprint (SimHash Generation)                            │
-│  • Distance (Similarity Calculation)                           │
+│  • @rbalchii/native-atomizer (Sentence Splitting)              │
+│  • @rbalchii/native-keyassassin (Content Sanitization)         │
+│  • @rbalchii/native-fingerprint (SimHash Generation)           │
+│  • @rbalchii/tag-walker (Tag Discovery)                        │
+│  • @rbalchii/dse (Deterministic Semantic Expansion)            │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
