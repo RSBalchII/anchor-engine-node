@@ -149,7 +149,7 @@ export class QueryBuilder {
     if (this.options.selectFields.length === 0) {
       sql += '*';
     } else {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
+      sql += this.options.selectFields.map(field => this.escapeIdentifier(field)).join(', ');
     }
     
     sql += ` FROM ${this.escapeIdentifier(this.options.tableName)}`;
