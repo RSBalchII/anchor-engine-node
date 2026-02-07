@@ -237,7 +237,7 @@ export async function ingestAtoms(
     //           3) Ingestion time (Date.now())
     let finalTimestamp = atom.timestamp;
     if (!finalTimestamp || finalTimestamp <= 0 || isNaN(finalTimestamp)) {
-      finalTimestamp = fileTimestamp || Date.now();
+      finalTimestamp = (fileTimestamp != null) ? fileTimestamp : Date.now();
     }
 
     // Prepare embedding array
