@@ -75,6 +75,14 @@ export class QueryBuilder {
   }
 
   /**
+   * Escapes an identifier for safe use in SQL queries
+   * Wraps the identifier in double quotes after validation
+   */
+  private escapeIdentifier(identifier: string): string {
+    return `"${identifier}"`;
+  }
+
+  /**
    * Select specific fields from the table
    */
   select(fields: string[]): QueryBuilder {
@@ -133,8 +141,6 @@ export class QueryBuilder {
 
     let sql = 'SELECT ';
     
-    if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields
     if (this.options.selectFields.length === 0 ||
       (this.options.selectFields.length === 1 && this.options.selectFields[0] === '*')
     ) {

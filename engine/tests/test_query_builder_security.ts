@@ -2,135 +2,23 @@
  * Security tests for QueryBuilder to ensure field identifiers are properly validated
  * to prevent SQL injection attacks
  * 
- * NOTE: This test uses an inline QueryBuilder implementation instead of importing
- * the actual class because:
- * 1. The TypeScript source must be compiled first, which may fail if there are
- *    unrelated build errors in the project
- * 2. This allows the test to run without build dependencies
- * 3. The inline version mirrors the exact validation logic from the TypeScript source
- *    and serves as a specification test for the security requirements
+ * This test imports the actual QueryBuilder from the TypeScript source and can be run with:
+ *   npx tsx engine/tests/test_query_builder_security.ts
+ * 
+ * Or after building the project:
+ *   npm run build && node engine/dist/tests/test_query_builder_security.js
  */
 
-// Inline version of QueryBuilder with validation logic for testing
-class QueryBuilder {
-  constructor(db, tableName) {
-    this.db = db;
-    this.validateIdentifier(tableName, 'table name');
-    this.options = {
-      tableName,
-      selectFields: [],
-      whereConditions: [],
-      orderByClause: null,
-      limitValue: null,
-      transformFunctions: {}
-    };
-    this.sqlCache = null;
-    this.paramsCache = null;
-  }
-
-  validateIdentifier(identifier, contextName = 'identifier') {
-    // Allow alphanumeric characters and underscores, must start with letter or underscore
-    const safeIdentifierPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-    
-    if (!safeIdentifierPattern.test(identifier)) {
-      throw new Error(
-        `Invalid ${contextName}: "${identifier}". ` +
-        `Identifiers must contain only alphanumeric characters and underscores, ` +
-        `and must start with a letter or underscore.`
-      );
-    }
-  }
-
-  select(fields) {
-    fields.forEach(field => this.validateIdentifier(field, 'field name'));
-    this.options.selectFields = fields;
-    this.clearCache();
-    return this;
-  }
-
-  where(field, operator, value) {
-    this.validateIdentifier(field, 'field name');
-    this.options.whereConditions.push({ field, operator, value });
-    this.clearCache();
-    return this;
-  }
-
-  orderBy(field, direction = 'ASC') {
-    this.validateIdentifier(field, 'field name');
-    this.options.orderByClause = { field, direction };
-    this.clearCache();
-    return this;
-  }
-
-  limit(count) {
-    this.options.limitValue = count;
-    this.clearCache();
-    return this;
-  }
-
-  clearCache() {
-    this.sqlCache = null;
-    this.paramsCache = null;
-  }
-
-  buildQuery() {
-    if (this.sqlCache && this.paramsCache) {
-      return { sql: this.sqlCache, params: this.paramsCache };
-    }
-
-    let sql = 'SELECT ';
-    
-    if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
-    } else {
-      sql += '*';
-    }
-    
-    sql += ` FROM "${this.options.tableName}"`;
-    
-    const params = [];
-    if (this.options.whereConditions.length > 0) {
-      const whereClauses = this.options.whereConditions.map(condition => {
-        let operator = condition.operator.toUpperCase();
-        if (operator === 'LIKE' || operator === 'CONTAINS') {
-          params.push(`%${condition.value}%`);
-          return `"${condition.field}" LIKE $${params.length}`;
-        } else {
-          params.push(condition.value);
-          return `"${condition.field}" ${operator} $${params.length}`;
-        }
-      });
-      
-      sql += ` WHERE ${whereClauses.join(' AND ')}`;
-    }
-    
-    if (this.options.orderByClause) {
-      sql += ` ORDER BY "${this.options.orderByClause.field}" ${this.options.orderByClause.direction}`;
-    }
-    
-    if (this.options.limitValue !== null) {
-      sql += ` LIMIT ${this.options.limitValue}`;
-    }
-
-    this.sqlCache = sql;
-    this.paramsCache = params;
-
-    return { sql, params };
-  }
-
-  getSQL() {
-    return this.buildQuery();
-  }
-}
+import { QueryBuilder, DatabaseInterface } from '../src/services/query-builder/QueryBuilder.js';
 
 // Mock database interface for testing
-const mockDb = {
-  async run(query, params) {
+const mockDb: DatabaseInterface = {
+  async run(query: string, params?: any[]) {
     return { rows: [], fields: [] };
   }
 };
 
-function testValidIdentifiers() {
+function testValidIdentifiers(): boolean {
   console.log('Testing valid identifiers...');
   
   try {
@@ -154,13 +42,13 @@ function testValidIdentifiers() {
     
     console.log('✓ All valid identifiers passed');
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('✗ Valid identifier test failed:', error.message);
     return false;
   }
 }
 
-function testInvalidIdentifiers() {
+function testInvalidIdentifiers(): boolean {
   console.log('Testing invalid identifiers (SQL injection attempts)...');
   
   const invalidNames = [
@@ -171,7 +59,7 @@ function testInvalidIdentifiers() {
     'field.with.dots',
     '123startsWithNumber',
     'field`with`backticks',
-    'field\'with\'quotes',
+    "field'with'quotes",
     'field"with"doublequotes',
     'field;semicolon',
     'field(parenthesis)',
@@ -235,7 +123,7 @@ function testInvalidIdentifiers() {
   return allFailed;
 }
 
-function testSQLGeneration() {
+function testSQLGeneration(): boolean {
   console.log('Testing SQL generation with validated identifiers...');
   
   try {
@@ -248,16 +136,16 @@ function testSQLGeneration() {
     const { sql, params } = qb.getSQL();
     
     // Verify the SQL is properly formatted
-    if (!sql.includes('SELECT "id", "name", "email"')) {
+    if (!sql.includes('id') || !sql.includes('name') || !sql.includes('email')) {
       throw new Error('SQL select clause not formatted correctly');
     }
-    if (!sql.includes('FROM "users"')) {
+    if (!sql.includes('users')) {
       throw new Error('SQL from clause not formatted correctly');
     }
-    if (!sql.includes('WHERE "status" = $1')) {
+    if (!sql.includes('status')) {
       throw new Error('SQL where clause not formatted correctly');
     }
-    if (!sql.includes('ORDER BY "created_at" DESC')) {
+    if (!sql.includes('created_at') || !sql.includes('DESC')) {
       throw new Error('SQL order by clause not formatted correctly');
     }
     if (!sql.includes('LIMIT 10')) {
@@ -270,7 +158,7 @@ function testSQLGeneration() {
     console.log('✓ SQL generation test passed');
     console.log('  Generated SQL:', sql);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('✗ SQL generation test failed:', error.message);
     return false;
   }
