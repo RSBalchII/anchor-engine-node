@@ -25,7 +25,7 @@
     "chat": "ts-node tools/chat.ts",
     "chat-api": "node dist/server-8080.js",
     "lint:fix": "eslint src/ --ext .ts,.js --fix",
-    "test:security": "npx tsx tests/test_query_builder_security.ts"
+    "test:security": "ts-node tests/test_query_builder_security.ts"
   },
   "pkg": {
     "assets": [
