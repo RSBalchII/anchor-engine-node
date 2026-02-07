@@ -10,6 +10,7 @@
 
 // Native fetch is available in Node 18+
 import * as readline from 'readline';
+import yaml from 'js-yaml';
 
 const API_URL = 'http://localhost:3000/v1/debug/sql';
 
@@ -132,6 +133,9 @@ async function executeSql(query: string) {
                     console.log(JSON.stringify(data.rows, null, 2));
                 } else if (outputMode === 'csv') {
                     console.log(convertToCsv(data.rows));
+                    console.log(`${colors.green}${data.row_count} rows exported.${colors.reset}`);
+                } else if (outputMode === 'yaml') {
+                    console.log(yaml.dump(data.rows));
                     console.log(`${colors.green}${data.row_count} rows exported.${colors.reset}`);
                 }
             } else {

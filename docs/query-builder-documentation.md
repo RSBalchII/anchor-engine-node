@@ -33,9 +33,13 @@ Specify which fields to retrieve from the table.
 // Select specific fields
 createQueryBuilder(db, 'atoms').select(['content', 'timestamp']);
 
-// Select all fields (default)
+// Select all fields - use '*' or omit select() entirely
 createQueryBuilder(db, 'atoms').select(['*']);
+// or
+createQueryBuilder(db, 'atoms'); // defaults to SELECT *
 ```
+
+**Note:** The wildcard `*` is automatically handled without quotes. All other field names are quoted for SQL safety.
 
 ### `where(field: string, operator: string, value: any)`
 Add a WHERE condition to filter results.

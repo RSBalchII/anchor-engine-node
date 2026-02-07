@@ -1,8 +1,5 @@
 import { db } from '../../core/db.js';
 import { SearchResult } from './search.js';
-import { promises as fs } from 'fs';
-import * as path from 'path';
-import { pathManager } from '../../utils/path-manager.js';
 
 interface ContextWindow {
     compoundId: string;
@@ -17,38 +14,43 @@ export class ContextInflator {
     /**
      * Inflate search results into expanded Context Windows.
      * Supports "Dynamic Density": Scales window size based on available budget and result count.
-     * READS FROM DISK (File System) instead of DB for content.
+     * Fetches content from compound_body in the database to ensure coordinate space alignment.
      */
     static async inflate(results: SearchResult[], totalBudget?: number): Promise<SearchResult[]> {
         if (results.length === 0) return [];
 
-        // Process each result to potentially expand content from disk
+        // Process each result to potentially expand content from compound_body
         const processedResults: SearchResult[] = [];
         
         for (const res of results) {
-            if (!res.source || res.start_byte === undefined || res.end_byte === undefined) {
-                // If no file coordinates, use the result as-is
+            // Skip inflation if we don't have the necessary compound coordinates
+            // We need compound_id to fetch the compound_body from the database
+            if (!res.compound_id || res.start_byte === undefined || res.end_byte === undefined) {
+                // If no compound coordinates, use the result as-is
                 processedResults.push(res);
                 continue;
             }
 
             try {
-                // Read from Disk
-                let filePath = res.source;
-
                 // Skip inflation for virtual sources
-                if (filePath === 'atom_source' || filePath === 'internal' || filePath === 'memory') {
+                if (res.source === 'atom_source' || res.source === 'internal' || res.source === 'memory') {
                     processedResults.push(res);
                     continue;
                 }
 
-                if (!path.isAbsolute(filePath)) {
-                    // Resolve relative path against Notebook Directory
-                    filePath = path.join(pathManager.getNotebookDir(), filePath);
+                // Fetch the compound_body from the database (same coordinate space as offsets)
+                // The byte offsets were computed on sanitized content, so we must inflate from
+                // the sanitized compound_body, not the raw file content
+                const query = `SELECT compound_body FROM compounds WHERE id = $1`;
+                const result = await db.run(query, [res.compound_id]);
+
+                if (!result.rows || result.rows.length === 0) {
+                    // Fallback to original result if compound not found
+                    processedResults.push(res);
+                    continue;
                 }
 
-                // Read the content from the file
-                const fileContent = await fs.readFile(filePath, 'utf-8');
+                const compoundBody = result.rows[0][0] as string;
                 
                 // Extract the specific content based on byte coordinates
                 // Convert to Buffer to handle byte offsets correctly (not string indices)

@@ -231,6 +231,15 @@ export async function ingestAtoms(
       }
     }
 
+    // Standard 096: Timestamp Assignment Protocol with Fallback Hierarchy
+    // Priority: 1) Content-specific temporal markers (atom.timestamp)
+    //           2) File modification time (fileTimestamp)
+    //           3) Ingestion time (Date.now())
+    let finalTimestamp = atom.timestamp;
+    if (!finalTimestamp || finalTimestamp <= 0 || isNaN(finalTimestamp)) {
+      finalTimestamp = (fileTimestamp != null) ? fileTimestamp : Date.now();
+    }
+
     // Prepare embedding array
     let embeddingArray: number[] = new Array(config.MODELS.EMBEDDING_DIM).fill(0.1);
     if (atom.embedding && atom.embedding.length === config.MODELS.EMBEDDING_DIM) {
@@ -244,7 +253,7 @@ export async function ingestAtoms(
       atom.id,
       atom.content,
       atom.sourcePath,
-      atom.timestamp,
+      finalTimestamp,
       simhashBigInt || 0n,
       embeddingArray,
       atom.provenance,

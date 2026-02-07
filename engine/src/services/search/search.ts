@@ -964,9 +964,6 @@ export async function executeSearch(
       // Add additional results to fill the remaining budget
       inflatedResults.push(...additionalResults);
 
-      // Update total character count
-      totalChars = inflatedResults.reduce((sum, result) => sum + (result.content?.length || 0), 0);
-
       // Sort by score to prioritize the most relevant content
       inflatedResults.sort((a, b) => (b.score || 0) - (a.score || 0));
     }

@@ -56,6 +56,17 @@ export class QueryBuilder {
   }
 
   /**
+   * Escape SQL identifier (table name, column name) to prevent SQL injection
+   * PostgreSQL identifiers are enclosed in double quotes, and any embedded double quotes
+   * must be doubled to escape them.
+   */
+  private escapeIdentifier(identifier: string): string {
+    // Replace any double quotes with two double quotes to escape them
+    const escaped = identifier.replace(/"/g, '""');
+    return `"${escaped}"`;
+  }
+
+  /**
    * Select specific fields from the table
    */
   select(fields: string[]): QueryBuilder {
@@ -111,12 +122,12 @@ export class QueryBuilder {
     let sql = 'SELECT ';
     
     if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
+      sql += this.options.selectFields.map(field => this.escapeIdentifier(field)).join(', ');
     } else {
       sql += '*';
     }
     
-    sql += ` FROM "${this.options.tableName}"`;
+    sql += ` FROM ${this.escapeIdentifier(this.options.tableName)}`;
     
     const params: any[] = [];
     if (this.options.whereConditions.length > 0) {
@@ -125,30 +136,30 @@ export class QueryBuilder {
         let operator = condition.operator.toUpperCase();
         if (operator === 'LIKE') {
           params.push(`%${condition.value}%`);
-          return `"${condition.field}" LIKE $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} LIKE $${params.length}`;
         } else if (operator === 'CONTAINS') {
           // Convert CONTAINS to LIKE for PGlite
           params.push(`%${condition.value}%`);
-          return `"${condition.field}" LIKE $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} LIKE $${params.length}`;
         } else if (operator === '=') {
           params.push(condition.value);
-          return `"${condition.field}" = $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} = $${params.length}`;
         } else if (operator === '>') {
           params.push(condition.value);
-          return `"${condition.field}" > $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} > $${params.length}`;
         } else if (operator === '<') {
           params.push(condition.value);
-          return `"${condition.field}" < $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} < $${params.length}`;
         } else if (operator === '>=') {
           params.push(condition.value);
-          return `"${condition.field}" >= $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} >= $${params.length}`;
         } else if (operator === '<=') {
           params.push(condition.value);
-          return `"${condition.field}" <= $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} <= $${params.length}`;
         } else {
           // Default to equality
           params.push(condition.value);
-          return `"${condition.field}" = $${params.length}`;
+          return `${this.escapeIdentifier(condition.field)} = $${params.length}`;
         }
       });
       
@@ -156,7 +167,7 @@ export class QueryBuilder {
     }
     
     if (this.options.orderByClause) {
-      sql += ` ORDER BY "${this.options.orderByClause.field}" ${this.options.orderByClause.direction}`;
+      sql += ` ORDER BY ${this.escapeIdentifier(this.options.orderByClause.field)} ${this.options.orderByClause.direction}`;
     }
     
     if (this.options.limitValue !== null) {
