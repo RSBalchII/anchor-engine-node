@@ -75,12 +75,27 @@ export class QueryBuilder {
   }
 
   /**
+   * Escapes an identifier (table/field name) for use in SQL by wrapping it in double quotes
+   */
+  private escapeIdentifier(identifier: string): string {
+    return `"${identifier}"`;
+  }
+
+  /**
    * Select specific fields from the table
    */
   select(fields: string[]): QueryBuilder {
-    // Validate all field names before storing them
-    fields.forEach(field => this.validateIdentifier(field, 'field name'));
-    this.options.selectFields = fields;
+    // Validate all field names before storing them, but allow '*' as a wildcard
+    const validatedFields: string[] = [];
+    for (const field of fields) {
+      if (field === '*') {
+        validatedFields.push(field);
+      } else {
+        this.validateIdentifier(field, 'field name');
+        validatedFields.push(field);
+      }
+    }
+    this.options.selectFields = validatedFields;
     this.clearCache();
     return this;
   }
@@ -133,14 +148,14 @@ export class QueryBuilder {
 
     let sql = 'SELECT ';
     
-    if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields
     if (this.options.selectFields.length === 0 ||
       (this.options.selectFields.length === 1 && this.options.selectFields[0] === '*')
     ) {
       sql += '*';
     } else {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
+      sql += this.options.selectFields
+        .map(field => field === '*' ? '*' : this.escapeIdentifier(field))
+        .join(', ');
     }
     
     sql += ` FROM ${this.escapeIdentifier(this.options.tableName)}`;
