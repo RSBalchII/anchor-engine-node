@@ -949,26 +949,6 @@ export async function executeSearch(
 
   console.log(`[Search] Inflated ${finalResults.length} atoms into ${inflatedResults.length} context windows.`);
 
-  // If the inflated results don't fill the token budget, continue expanding with less directly connected data
-  let totalChars = inflatedResults.reduce((sum, result) => sum + (result.content?.length || 0), 0);
-  if (totalChars < maxChars && maxChars > 0) {
-    console.log(`[Search] Current results (${totalChars} chars) don't fill budget (${maxChars} chars). Attempting to expand with less directly connected data...`);
-
-    // Calculate how many more characters we need
-    const remainingChars = maxChars - totalChars;
-
-    // Get additional related content to fill the budget
-    const additionalResults = await getAdditionalRelatedContent(query, remainingChars, finalResults);
-
-    if (additionalResults.length > 0) {
-      // Add additional results to fill the remaining budget
-      inflatedResults.push(...additionalResults);
-
-      // Sort by score to prioritize the most relevant content
-      inflatedResults.sort((a, b) => (b.score || 0) - (a.score || 0));
-    }
-  }
-
   const result = await formatResults(inflatedResults, maxChars);
   console.log(`[Search] Search completed in ${Date.now() - startTime}ms`);
   return result;
