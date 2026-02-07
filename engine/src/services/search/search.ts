@@ -446,7 +446,7 @@ export async function tagWalkerSearch(
         const startYear = Math.min(...yearMatches.map(Number));
         const endYear = Math.max(...yearMatches.map(Number));
         const yearParamIdx = walkParams.length + 1;
-        walkQuery += ` AND EXTRACT(YEAR FROM TO_TIMESTAMP(a.timestamp)) BETWEEN $${yearParamIdx} AND $${yearParamIdx + 1}`;
+        walkQuery += ` AND EXTRACT(YEAR FROM TO_TIMESTAMP(a.timestamp / 1000.0)) BETWEEN $${yearParamIdx} AND $${yearParamIdx + 1}`;
         walkParams.push(startYear, endYear);
       }
     }
