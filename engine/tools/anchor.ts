@@ -188,7 +188,7 @@ function handleCommand(cmd: string) {
 
   ${colors.bright}Query Builder:${colors.reset}
     The query builder is available programmatically in your scripts.
-    Import it using: import { query } from './services/query-builder/QueryBuilder.js'
+    Import it using: import { createQueryBuilder } from './services/query-builder/QueryBuilder.js'
 
   ${colors.bright}Usage:${colors.reset}
     Simply type standard SQL queries to execute them against the live database.
