@@ -132,15 +132,15 @@ export class QueryBuilder {
     }
 
     let sql = 'SELECT ';
-    
-    if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields
-    if (this.options.selectFields.length === 0 ||
-      (this.options.selectFields.length === 1 && this.options.selectFields[0] === '*')
+    const fields = this.options.selectFields;
+
+    if (
+      fields.length === 0 ||
+      (fields.length === 1 && fields[0] === '*')
     ) {
       sql += '*';
     } else {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
+      sql += fields.map(field => this.escapeIdentifier(field)).join(', ');
     }
     
     sql += ` FROM ${this.escapeIdentifier(this.options.tableName)}`;
