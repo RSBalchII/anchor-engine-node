@@ -298,10 +298,11 @@ export class DataFrame {
       case 'table':
         content = this.toTable();
         break;
-      case 'yaml':
-        // Simple YAML conversion
-        content = this.toJSON().replace(/^{/, '- ').replace(/\n{/g, '\n- ');
+      case 'yaml': {
+        const yaml = await import('js-yaml');
+        content = yaml.dump(this.data);
         break;
+      }
       default:
         throw new Error(`Unsupported export format: ${format}`);
     }
