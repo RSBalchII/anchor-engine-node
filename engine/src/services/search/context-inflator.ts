@@ -51,9 +51,12 @@ export class ContextInflator {
                 const fileContent = await fs.readFile(filePath, 'utf-8');
                 
                 // Extract the specific content based on byte coordinates
+                // Convert to Buffer to handle byte offsets correctly (not string indices)
+                const contentBuffer = Buffer.from(fileContent, 'utf-8');
                 const start = Math.max(0, res.start_byte);
-                const end = res.end_byte || fileContent.length;
-                const extractedContent = fileContent.substring(start, end);
+                const end = res.end_byte || contentBuffer.length;
+                const sliceBuffer = contentBuffer.subarray(start, end);
+                const extractedContent = sliceBuffer.toString('utf-8');
 
                 // Create a new result with expanded content
                 const expandedResult: SearchResult = {
