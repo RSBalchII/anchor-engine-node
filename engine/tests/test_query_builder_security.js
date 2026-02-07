@@ -42,7 +42,12 @@ class QueryBuilder {
   }
 
   select(fields) {
-    fields.forEach(field => this.validateIdentifier(field, 'field name'));
+    // Validate all field names before storing them, but allow '*' as a wildcard
+    fields.forEach(field => {
+      if (field !== '*') {
+        this.validateIdentifier(field, 'field name');
+      }
+    });
     this.options.selectFields = fields;
     this.clearCache();
     return this;
@@ -80,10 +85,12 @@ class QueryBuilder {
 
     let sql = 'SELECT ';
     
-    if (this.options.selectFields.length > 0) {
-      sql += this.options.selectFields.map(field => `"${field}"`).join(', ');
-    } else {
+    if (this.options.selectFields.length === 0 ||
+      (this.options.selectFields.length === 1 && this.options.selectFields[0] === '*')
+    ) {
       sql += '*';
+    } else {
+      sql += this.options.selectFields.map(field => field === '*' ? '*' : `"${field}"`).join(', ');
     }
     
     sql += ` FROM "${this.options.tableName}"`;
@@ -276,6 +283,44 @@ function testSQLGeneration() {
   }
 }
 
+function testWildcardSelect() {
+  console.log('Testing wildcard (*) select...');
+  
+  try {
+    // Test select with wildcard
+    const qb1 = new QueryBuilder(mockDb, 'users');
+    qb1.select(['*']);
+    const { sql: sql1 } = qb1.getSQL();
+    
+    if (!sql1.includes('SELECT *')) {
+      throw new Error(`Expected 'SELECT *', got: ${sql1}`);
+    }
+    
+    // Test default (no select) should also give wildcard
+    const qb2 = new QueryBuilder(mockDb, 'users');
+    const { sql: sql2 } = qb2.getSQL();
+    
+    if (!sql2.includes('SELECT *')) {
+      throw new Error(`Expected 'SELECT *' for default, got: ${sql2}`);
+    }
+    
+    // Test regular field selection (non-wildcard) should quote fields
+    const qb3 = new QueryBuilder(mockDb, 'users');
+    qb3.select(['id', 'name']);
+    const { sql: sql3 } = qb3.getSQL();
+    
+    if (!sql3.includes('SELECT "id", "name"')) {
+      throw new Error(`Expected quoted fields, got: ${sql3}`);
+    }
+    
+    console.log('✓ Wildcard select test passed');
+    return true;
+  } catch (error) {
+    console.error('✗ Wildcard select test failed:', error.message);
+    return false;
+  }
+}
+
 // Run all tests
 async function runTests() {
   console.log('\n=== QueryBuilder Security Tests ===\n');
@@ -284,6 +329,7 @@ async function runTests() {
     testValidIdentifiers(),
     testInvalidIdentifiers(),
     testSQLGeneration(),
+    testWildcardSelect(),
   ];
   
   const allPassed = results.every(r => r);
