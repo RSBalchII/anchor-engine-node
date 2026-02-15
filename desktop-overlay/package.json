@@ -1,0 +1,13 @@
+{
+    "name": "@ece/desktop-overlay",
+    "version": "1.0.0",
+    "main": "dist/main.js",
+    "scripts": {
+        "start": "electron .",
+        "build": "tsc"
+    },
+    "devDependencies": {
+        "electron": "^28.1.0",
+        "typescript": "^5.3.3"
+    }
+}

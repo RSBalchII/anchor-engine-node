@@ -1,0 +1,137 @@
+/**
+ * Semantic Category Taxonomy for ECE
+ *
+ * Implements Standard 084: Semantic Shift Architecture
+ * Defines the constrained vocabulary for automatic tagging and semantic search.
+ *
+ * Categories are designed to:
+ * 1. Prevent tag sprawl while enabling relationship narrative discovery
+ * 2. Support the "Relationship Historian" pattern for cross-domain application
+ * 3. Enable both human-understandable and LLM-processable semantic classification
+ */
+
+export enum SemanticCategory {
+  RELATIONSHIP = '#Relationship',    // People interacting, personal connections
+  NARRATIVE = '#Narrative',          // Stories, timelines, memories, sequences
+  CODE = '#Code',                    // Source code, scripts, and programming
+  TECHNICAL = '#Technical',          // Architecture, system documentation
+  INDUSTRY = '#Industry',            // External market data (Oil, CO2, etc.)
+  LOCATION = '#Location',            // Geographic or spatial references
+  EMOTIONAL = '#Emotional',          // High sentiment variance content
+  TEMPORAL = '#Temporal',            // Time-based sequences and chronology
+  CAUSAL = '#Causal',                // Cause-effect relationships
+  PERSONAL = '#Personal',            // Private/personal content
+  PROFESSIONAL = '#Professional',    // Work-related content
+  EDUCATIONAL = '#Educational',      // Learning materials and knowledge
+  CREATIVE = '#Creative',            // Artistic and creative content
+  FINANCIAL = '#Financial',          // Money and economic data
+  HEALTH = '#Health',                // Medical and wellness information
+  SOCIAL = '#Social',                // Community and social interactions
+  ACADEMIC = '#Academic',            // Scholarly and research content
+  BUSINESS = '#Business',            // Commercial and enterprise content
+  LEGAL = '#Legal',                  // Legal and regulatory information
+  SCIENTIFIC = '#Scientific',        // Scientific and technical research
+  HISTORICAL = '#Historical',        // Past events and historical data
+  CULTURAL = '#Cultural',            // Cultural and societal aspects
+  POLITICAL = '#Political',          // Political and governance content
+  ENVIRONMENTAL = '#Environmental',  // Environmental and ecological data
+  TECHNOLOGICAL = '#Technological',  // Technology and innovation content
+  SPIRITUAL = '#Spiritual',          // Religious and spiritual content
+  PHILOSOPHICAL = '#Philosophical',  // Philosophical and ethical considerations
+  ETHICAL = '#Ethical',              // Ethical implications and considerations
+  AESTHETIC = '#Aesthetic',          // Beauty and artistic value
+  PRACTICAL = '#Practical',          // Practical advice and how-to content
+  THEORETICAL = '#Theoretical',      // Theoretical frameworks and models
+  EXPERIMENTAL = '#Experimental',    // Experimental and exploratory content
+  DYNAMIC = '#Dynamic',              // Changing and evolving aspects
+  STATIC = '#Static',                // Unchanging and fixed aspects
+  COMPLEX = '#Complex',              // Complex and multifaceted aspects
+  SIMPLE = '#Simple',                // Simple and straightforward aspects
+  TRADITIONAL = '#Traditional',      // Traditional and conventional aspects
+  MODERN = '#Modern',                // Modern and contemporary aspects
+  LOCAL = '#Local',                  // Local and nearby aspects
+  GLOBAL = '#Global',                // Global and worldwide aspects
+  SYNTHETIC = '#Synthetic',          // Synthetic and artificial aspects
+  NATURAL = '#Natural',              // Natural and organic aspects
+  CONSTRUCTIVE = '#Constructive',    // Constructive and building aspects
+  DESTRUCTIVE = '#Destructive',      // Destructive and breaking aspects
+  TANGIBLE = '#Tangible',            // Tangible and physical aspects
+  INTANGIBLE = '#Intangible',        // Intangible and abstract aspects
+  AUTHENTIC = '#Authentic',          // Authentic and genuine aspects
+  ARTIFICIAL = '#Artificial',        // Artificial and synthetic aspects
+  ORGANIC = '#Organic',              // Organic and living aspects
+  INORGANIC = '#Inorganic',          // Inorganic and non-living aspects
+  BIOLOGICAL = '#Biological',        // Biological and living systems
+  PHYSICAL = '#Physical',            // Physical and material aspects
+  ABSTRACT = '#Abstract',            // Abstract and conceptual aspects
+  PROGRESSIVE = '#Progressive',      // Progressive and advancing aspects
+  REVOLUTIONARY = '#Revolutionary',  // Revolutionary and transformative aspects
+  COHERENT = '#Coherent',            // Coherent and unified aspects
+  INCOHERENT = '#Incoherent',        // Incoherent and fragmented aspects
+  CONSISTENT = '#Consistent',        // Consistent and uniform aspects
+  INCONSISTENT = '#Inconsistent',    // Inconsistent and contradictory aspects
+  COMPETITIVE = '#Competitive',      // Competitive and opposing aspects
+  COLLABORATIVE = '#Collaborative',  // Collaborative and cooperative aspects
+  CONTROLLED = '#Controlled',        // Controlled and regulated aspects
+  CLEAR = '#Clear',                  // Clear and understandable aspects
+  UNCLEAR = '#Unclear',              // Unclear and confusing aspects
+  PRECISE = '#Precise',              // Precise and exact aspects
+  VAGUE = '#Vague',                  // Vague and imprecise aspects
+  UNIVERSAL = '#Universal',          // Universal and all-encompassing aspects
+  COMMON = '#Common',                // Common and widespread aspects
+  RARE = '#Rare',                    // Rare and uncommon aspects
+  REGULAR = '#Regular',              // Regular and predictable aspects
+  IRREGULAR = '#Irregular',          // Irregular and unpredictable aspects
+  NORMAL = '#Normal',                // Normal and typical aspects
+  ABNORMAL = '#Abnormal',            // Abnormal and unusual aspects
+  TYPICAL = '#Typical',              // Typical and representative aspects
+  ATYPICAL = '#Atypical',            // Atypical and unrepresentative aspects
+  STANDARD = '#Standard',            // Standard and conventional aspects
+  NONSTANDARD = '#Nonstandard',      // Nonstandard and unconventional aspects
+  ORDINARY = '#Ordinary',            // Ordinary and common aspects
+  EXTRAORDINARY = '#Extraordinary',  // Extraordinary and remarkable aspects
+  UNCERTAIN = '#Uncertain',          // Uncertain and doubtful aspects
+  CERTAIN = '#Certain',              // Certain and definite aspects
+  DEFINITE = '#Definite',            // Definite and certain aspects
+  INDEFINITE = '#Indefinite',        // Indefinite and uncertain aspects
+  FLEXIBLE = '#Flexible',            // Flexible and adaptable aspects
+  RIGID = '#Rigid',                  // Rigid and inflexible aspects
+  ADAPTABLE = '#Adaptable',          // Adaptable and flexible aspects
+  RESILIENT = '#Resilient',          // Resilient and adaptable aspects
+  FRAGILE = '#Fragile',              // Fragile and vulnerable aspects
+  WEAK = '#Weak',                    // Weak and fragile aspects
+  ROBUST = '#Robust',                // Robust and strong aspects
+  DURABLE = '#Durable',              // Durable and lasting aspects
+  ENDURING = '#Enduring',            // Enduring and long-lasting aspects
+  RESPONSIVE = '#Responsive',        // Responsive and adaptive aspects
+  INNOVATIVE = '#Innovative',        // Innovative and creative aspects
+  CONSERVATIVE = '#Conservative',    // Conservative and traditional aspects
+  LIBERAL = '#Liberal',              // Liberal and progressive aspects
+  RADICAL = '#Radical',              // Radical and revolutionary aspects
+  MODERATE = '#Moderate',            // Moderate and balanced aspects
+  CENTRIST = '#Centrist',            // Centrist and moderate aspects
+  LIBERATING = '#Liberating',        // Liberating and empowering aspects
+  RESTRICTIVE = '#Restrictive',      // Restrictive and oppressive aspects
+  ANNIHILATING = '#Annihilating',    // Annihilating and destroying aspects
+  ELIMINATING = '#Eliminating',      // Eliminating and annihilating aspects
+  ERASING = '#Erasing',              // Erasing and eliminating aspects
+  DELETING = '#Deleting',            // Deleting and erasing aspects
+  REMOVING = '#Removing',            // Removing and deleting aspects
+  EXCLUDING = '#Excluding',          // Excluding and removing aspects
+  OMITTING = '#Omitting',            // Omitting and excluding aspects
+  SKIPPING = '#Skipping',            // Skipping and omitting aspects
+  BYPASSING = '#Bypassing',          // Bypassing and skipping aspects
+  AVOIDING = '#Avoiding',            // Avoiding and bypassing aspects
+  DODGING = '#Dodging',              // Dodging and avoiding aspects
+  EVADEING = '#Evading',             // Evading and dodging aspects
+  ESCAPING = '#Escaping',            // Escaping and evading aspects
+  FLEEING = '#Fleeing',              // Fleeing and escaping aspects
+  RETREATING = '#Retreating',        // Retreating and fleeing aspects
+  WITHDRAWING = '#Withdrawing',      // Withdrawing and retreating aspects
+  DEPARTING = '#Departing',          // Departing and withdrawing aspects
+  EXITING = '#Exiting',              // Exiting and departing aspects
+  LEAVING = '#Leaving',              // Leaving and exiting aspects
+  GOING = '#Going',                  // Going and leaving aspects
+  GOVERNING = '#Governing',          // Governing and controlling aspects
+  GO = '#Go'                         // Go and proceeding aspects
+}

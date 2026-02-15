@@ -1,0 +1,6 @@
+archive/cozo_memory_snapshot_*.yaml filter=lfs diff=lfs merge=lfs -text
+archive/legacy_v2/tools/combined_memory.json filter=lfs diff=lfs merge=lfs -text
+archive/v1_python_backend/backend/archive/db/neo4j-community-*/data/transactions/neo4j/neostore.transaction.db.0 filter=lfs diff=lfs merge=lfs -text
+archive/v1_python_backend/backend/archive/db/neo4j-community-*/products/neo4j-graph-data-science-*.jar filter=lfs diff=lfs merge=lfs -text
+archive/v1_python_backend/backend/tests/test-outputs/combined_text.txt filter=lfs diff=lfs merge=lfs -text
+archive/v1_python_backend/backend/backups/ece_memory-*.db.bak filter=lfs diff=lfs merge=lfs -text

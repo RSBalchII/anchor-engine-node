@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Anchor Context Console</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --text: #e2e8f0;
+            --accent: #38bdf8;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        .sidebar {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+            border-radius: 12px;
+            border: 1px solid #334155;
+            padding: 20px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #000;
+            color: #fff;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        textarea {
+            flex: 1;
+            background: #000;
+            color: #a5f3fc;
+            border: none;
+            padding: 15px;
+            font-family: monospace;
+            resize: none;
+            outline: none;
+            border-radius: 8px;
+        }
+
+        .slider-group {
+            background: var(--panel);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .bucket-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .bucket-chip {
+            padding: 6px 12px;
+            border-radius: 16px;
+            background: #334155;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .bucket-chip.active {
+            background: var(--accent);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .bucket-chip:hover {
+            border-color: var(--accent);
+        }
+
+        .bucket-add {
+            background: #10b981;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div>
+            <label>📦 Context Buckets</label>
+            <div id="bucket-list" class="bucket-container">
+                <!-- Buckets will be loaded here -->
+            </div>
+        </div>
+        <div>
+            <label>🔎 Search Memory</label>
+            <input type="text" id="query" placeholder="Type keyword..." onkeyup="if(event.key==='Enter') search()">
+        </div>
+        <div class="slider-group">
+            <label>Volume: <span id="vol-val">5000</span> chars (≈<span id="tok-val">1250</span> tokens)</label>
+            <input type="range" id="vol" min="1000" max="4000000" step="5000" value="5000"
+                oninput="document.getElementById('vol-val').innerText=this.value; document.getElementById('tok-val').innerText=Math.floor(this.value/4)">
+        </div>
+        <button onclick="search()">Fetch Context</button>
+        <button onclick="research()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; margin-top: 10px; border: 1px solid #b45309; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">🔬 Deep Research</button>
+        <button onclick="copy()" style="background: #334155; color: #fff; border: 1px solid #475569; margin-top: 10px;">📋 Copy to
+            Clipboard</button>
+        <button onclick="downloadBackup()" style="background: #10b981; color: white; margin-top: 10px; border: 1px solid #059669">
+            💾 Eject Memory (Backup)
+        </button>
+
+        <div style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 20px;">
+            <label>📥 Ingest New Memory</label>
+            <textarea id="ingest-text" style="height: 100px; width: 100%; margin-bottom: 10px;" placeholder="Paste chat session here..."></textarea>
+            <input type="text" id="ingest-source" placeholder="Source (e.g. Gemini Chat)" style="margin-bottom: 10px;">
+            <button onclick="ingest()" style="background: #6366f1; color: white;">Ingest Memory</button>
+        </div>
+    </div>
+    <div class="main">
+        <textarea id="output" readonly placeholder="Context results will appear here..."></textarea>
+    </div>
+    <script>
+        let activeBuckets = ['core'];
+        let serverConfig = null; // Cache the server configuration
+
+        // Function to get server URL, fetching config if not cached
+        async function getServerUrl() {
+            if (!serverConfig) {
+                try {
+                    const configRes = await fetch('/v1/config');
+                    serverConfig = await configRes.json();
+                } catch (error) {
+                    console.warn('Failed to fetch server config, using defaults:', error);
+                    // Fallback configuration
+                    serverConfig = {
+                        host: 'localhost',
+                        port: 3160,
+                        server_url: 'http://localhost:3160'
+                    };
+                }
+            }
+            return serverConfig.server_url || `http://${serverConfig.host || 'localhost'}:${serverConfig.port || 3160}`;
+        }
+
+        async function loadBuckets() {
+            try {
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/buckets`);
+                const serverBuckets = await res.json();
+                
+                // Merge server buckets with active buckets to ensure newly added ones show up
+                const allKnownBuckets = [...new Set([...serverBuckets, ...activeBuckets.filter(b => b !== 'all')])].sort();
+                
+                const list = document.getElementById('bucket-list');
+                list.innerHTML = '';
+
+                // Add "All" option
+                const allChip = document.createElement('div');
+                allChip.className = `bucket-chip ${activeBuckets.includes('all') ? 'active' : ''}`;
+                allChip.innerText = 'all';
+                allChip.onclick = () => selectBucket('all');
+                list.appendChild(allChip);
+
+                allKnownBuckets.forEach(b => {
+                    const chip = document.createElement('div');
+                    chip.className = `bucket-chip ${activeBuckets.includes(b) ? 'active' : ''}`;
+                    chip.innerText = b;
+                    chip.onclick = () => selectBucket(b);
+                    list.appendChild(chip);
+                });
+
+                const addBtn = document.createElement('button');
+                addBtn.className = 'bucket-add';
+                addBtn.innerText = '+';
+                addBtn.onclick = () => {
+                    const name = prompt("New Bucket Name:");
+                    if (name) selectBucket(name.toLowerCase().trim());
+                };
+                list.appendChild(addBtn);
+            } catch (e) {
+                console.error("Failed to load buckets", e);
+            }
+        }
+
+        function selectBucket(name) {
+            if (name === 'all') {
+                activeBuckets = ['all'];
+            } else {
+                // Remove 'all' if it was selected
+                activeBuckets = activeBuckets.filter(b => b !== 'all');
+                
+                if (activeBuckets.includes(name)) {
+                    // Toggle off
+                    activeBuckets = activeBuckets.filter(b => b !== name);
+                    if (activeBuckets.length === 0) activeBuckets = ['core'];
+                } else {
+                    // Toggle on
+                    activeBuckets.push(name);
+                }
+            }
+            loadBuckets();
+        }
+
+        async function search() {
+            const query = document.getElementById('query').value;
+            const limit = document.getElementById('vol').value;
+            const out = document.getElementById('output');
+            if (!query) return;
+            out.value = "Searching...";
+            try {
+                const body = { query, max_chars: parseInt(limit) };
+                if (!activeBuckets.includes('all')) {
+                    body.buckets = activeBuckets;
+                }
+
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/memory/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                out.value = data.context || "No results.";
+
+                // Send API response to log viewer for debugging
+                const logChannel = new BroadcastChannel('sovereign-logs');
+                logChannel.postMessage({
+                    source: 'Context Console',
+                    time: new Date().toISOString(),
+                    type: 'info',
+                    msg: `Search query: ${query} [Buckets: ${activeBuckets.join(', ')}], Results: ${data.context ? data.context.length : 0} chars`
+                });
+            } catch (e) {
+                out.value = "Error: " + e;
+
+                // Send error to log viewer for debugging
+                const logChannel = new BroadcastChannel('sovereign-logs');
+                logChannel.postMessage({
+                    source: 'Context Console',
+                    time: new Date().toISOString(),
+                    type: 'error',
+                    msg: `Search error: ${e.message}`
+                });
+            }
+        }
+
+        async function research() {
+            const query = document.getElementById('query').value;
+            const out = document.getElementById('output');
+            const max_chars = parseInt(document.getElementById('max_chars').value);
+            if (!query) return;
+
+            // Use at least 100k for research, or the slider value if higher
+            const researchChars = Math.max(100000, max_chars);
+            out.value = `🔬 Performing Deep Research (${Math.floor(researchChars/4).toLocaleString()} tokens)...`;
+
+            try {
+                const body = { query, max_chars: researchChars, deep: true };
+                if (!activeBuckets.includes('all')) {
+                    body.buckets = activeBuckets;
+                }
+
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/memory/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                out.value = `=== DEEP RESEARCH RESULTS ===\n\n${data.context}` || "No results.";
+
+                const logChannel = new BroadcastChannel('sovereign-logs');
+                logChannel.postMessage({
+                    source: 'Research Engine',
+                    time: new Date().toISOString(),
+                    type: 'success',
+                    msg: `Deep Research complete for: ${query}`
+                });
+            } catch (e) {
+                out.value = "Research Error: " + e;
+            }
+        }
+        function copy() {
+            const el = document.getElementById('output');
+            el.select();
+            document.execCommand('copy');
+        }
+
+        async function downloadBackup() {
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Exporting...";
+
+            try {
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/backup`);
+                if (!res.ok) throw new Error("Backup failed");
+
+                // Convert response to blob and trigger download
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                // The server provides the filename in headers, but we can default
+                a.download = `cozo_memory_snapshot_${new Date().toISOString().slice(0,10)}.yaml`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                btn.innerText = "✅ Exported!";
+                setTimeout(() => btn.innerText = originalText, 2000);
+
+            } catch (e) {
+                alert("Export Error: " + e.message);
+                btn.innerText = "❌ Failed";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            }
+        }
+
+        async function ingest() {
+            const content = document.getElementById('ingest-text').value;
+            const source = document.getElementById('ingest-source').value || 'Manual Ingest';
+            if (!content) return alert("Please paste some content first.");
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ Ingesting...";
+
+            try {
+                // For ingestion, we use the first active bucket (excluding 'all')
+                const targetBucket = activeBuckets.find(b => b !== 'all') || 'core';
+
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/ingest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, source, type: 'chat', bucket: targetBucket })
+                });
+                
+                if (!res.ok) throw new Error("Ingest failed");
+                
+                alert(`✅ Memory ingested successfully into [${targetBucket}]!`);
+                document.getElementById('ingest-text').value = "";
+                btn.innerText = originalText;
+                loadBuckets(); // Refresh bucket list
+            } catch (e) {
+                alert("Ingest Error: " + e.message);
+                btn.innerText = originalText;
+            }
+        }
+
+        // Initial load
+        loadBuckets();
+    </script>
+</body>
+
+</html>

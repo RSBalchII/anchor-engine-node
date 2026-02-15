@@ -1,0 +1,22 @@
+  // Format as a graph structure suitable for reasoning models
+  return {
+    nodes: brightNodes.map(node => ({
+      id: node.id,
+      content: node.content.substring(0, 500), // Truncate for efficiency
+      tags: node.tags,
+      buckets: node.buckets,
+      provenance: node.provenance,
+      score: node.score
+    })),
+    edges: brightNodes.flatMap(node =>
+      node.relationships.map(rel => ({
+        source: node.id,
+        target: rel.targetId,
+        type: rel.relationshipType,
+        strength: rel.strength
+      }))
+    ),
+    query: query,
+    timestamp: Date.now()
+  };
+}

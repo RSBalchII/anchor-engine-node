@@ -1,0 +1,44 @@
+# Sensitive Data & Secrets
+.env
+.env.*
+*.env
+prompts/
+
+# Database & Storage
+context.db/
+context_data/
+backups/
+logs/
+*.log
+*.sqlite
+*.db
+
+# Model Archives & Heavy Binaries
+archive/
+models/
+*.gguf
+*.bin
+*.pth
+
+# Code Dependencies
+node_modules/
+dist/
+build/
+engine/build/
+native/bin/
+.pnpm-store/
+*.tsbuildinfo
+
+# IDE & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.bak
+
+# Temporary/User Specific
+codebase
+codebase/*
+
+# Generated documentation
+QWEN.md

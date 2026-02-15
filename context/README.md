@@ -1,0 +1,2 @@
+
+Directory for passive text ingestion by the Watchdog service.

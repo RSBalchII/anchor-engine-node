@@ -1,0 +1,593 @@
+{
+    "car": [
+        "automobile",
+        "vehicle",
+        "auto",
+        "motorcar"
+    ],
+    "happy": [
+        "joyful",
+        "pleased",
+        "content",
+        "delighted",
+        "cheerful"
+    ],
+    "sad": [
+        "unhappy",
+        "sorrowful",
+        "melancholy",
+        "depressed",
+        "gloomy"
+    ],
+    "fast": [
+        "quick",
+        "rapid",
+        "swift",
+        "speedy"
+    ],
+    "slow": [
+        "sluggish",
+        "gradual",
+        "leisurely"
+    ],
+    "big": [
+        "large",
+        "huge",
+        "enormous",
+        "massive",
+        "giant"
+    ],
+    "small": [
+        "tiny",
+        "little",
+        "miniature",
+        "compact"
+    ],
+    "good": [
+        "excellent",
+        "great",
+        "fine",
+        "superior",
+        "quality"
+    ],
+    "bad": [
+        "poor",
+        "terrible",
+        "awful",
+        "inferior"
+    ],
+    "smart": [
+        "intelligent",
+        "clever",
+        "brilliant",
+        "wise"
+    ],
+    "stupid": [
+        "foolish",
+        "dumb",
+        "idiotic"
+    ],
+    "beautiful": [
+        "pretty",
+        "gorgeous",
+        "stunning",
+        "attractive"
+    ],
+    "ugly": [
+        "hideous",
+        "unattractive",
+        "unsightly"
+    ],
+    "begin": [
+        "start",
+        "commence",
+        "initiate",
+        "launch"
+    ],
+    "end": [
+        "finish",
+        "conclude",
+        "terminate",
+        "complete"
+    ],
+    "make": [
+        "create",
+        "build",
+        "construct",
+        "produce",
+        "manufacture"
+    ],
+    "break": [
+        "destroy",
+        "shatter",
+        "damage",
+        "ruin"
+    ],
+    "help": [
+        "assist",
+        "aid",
+        "support",
+        "facilitate"
+    ],
+    "hard": [
+        "difficult",
+        "challenging",
+        "tough",
+        "complex"
+    ],
+    "easy": [
+        "simple",
+        "straightforward",
+        "effortless"
+    ],
+    "new": [
+        "fresh",
+        "recent",
+        "modern",
+        "novel"
+    ],
+    "old": [
+        "ancient",
+        "aged",
+        "vintage",
+        "antique"
+    ],
+    "think": [
+        "consider",
+        "ponder",
+        "contemplate",
+        "reflect"
+    ],
+    "know": [
+        "understand",
+        "comprehend",
+        "recognize"
+    ],
+    "want": [
+        "desire",
+        "wish",
+        "crave",
+        "need"
+    ],
+    "like": [
+        "enjoy",
+        "appreciate",
+        "prefer",
+        "favor"
+    ],
+    "hate": [
+        "despise",
+        "loathe",
+        "detest",
+        "abhor"
+    ],
+    "love": [
+        "adore",
+        "cherish",
+        "treasure"
+    ],
+    "fear": [
+        "dread",
+        "terror",
+        "fright",
+        "anxiety"
+    ],
+    "anger": [
+        "rage",
+        "fury",
+        "wrath",
+        "irritation"
+    ],
+    "work": [
+        "job",
+        "employment",
+        "labor",
+        "task",
+        "occupation"
+    ],
+    "money": [
+        "cash",
+        "currency",
+        "funds",
+        "capital"
+    ],
+    "time": [
+        "period",
+        "duration",
+        "moment",
+        "era"
+    ],
+    "place": [
+        "location",
+        "spot",
+        "site",
+        "area",
+        "region"
+    ],
+    "person": [
+        "individual",
+        "human",
+        "someone",
+        "somebody"
+    ],
+    "people": [
+        "individuals",
+        "humans",
+        "folks",
+        "persons"
+    ],
+    "child": [
+        "kid",
+        "youngster",
+        "minor",
+        "youth"
+    ],
+    "friend": [
+        "companion",
+        "buddy",
+        "pal",
+        "ally"
+    ],
+    "enemy": [
+        "foe",
+        "adversary",
+        "opponent",
+        "rival"
+    ],
+    "problem": [
+        "issue",
+        "difficulty",
+        "challenge",
+        "trouble"
+    ],
+    "solution": [
+        "answer",
+        "resolution",
+        "fix",
+        "remedy"
+    ],
+    "idea": [
+        "concept",
+        "notion",
+        "thought",
+        "theory"
+    ],
+    "plan": [
+        "strategy",
+        "scheme",
+        "blueprint",
+        "design"
+    ],
+    "goal": [
+        "objective",
+        "target",
+        "aim",
+        "purpose"
+    ],
+    "success": [
+        "achievement",
+        "accomplishment",
+        "triumph",
+        "victory"
+    ],
+    "failure": [
+        "defeat",
+        "loss",
+        "setback",
+        "fiasco"
+    ],
+    "change": [
+        "modify",
+        "alter",
+        "transform",
+        "adjust"
+    ],
+    "move": [
+        "relocate",
+        "shift",
+        "transfer",
+        "migrate"
+    ],
+    "stay": [
+        "remain",
+        "linger",
+        "persist",
+        "continue"
+    ],
+    "come": [
+        "arrive",
+        "approach",
+        "reach"
+    ],
+    "go": [
+        "leave",
+        "depart",
+        "exit",
+        "proceed"
+    ],
+    "see": [
+        "view",
+        "observe",
+        "watch",
+        "notice",
+        "perceive"
+    ],
+    "hear": [
+        "listen",
+        "detect",
+        "perceive"
+    ],
+    "say": [
+        "speak",
+        "tell",
+        "express",
+        "state",
+        "declare"
+    ],
+    "ask": [
+        "inquire",
+        "question",
+        "request",
+        "query"
+    ],
+    "answer": [
+        "reply",
+        "respond",
+        "retort"
+    ],
+    "give": [
+        "provide",
+        "offer",
+        "supply",
+        "grant"
+    ],
+    "take": [
+        "grab",
+        "seize",
+        "acquire",
+        "obtain"
+    ],
+    "find": [
+        "discover",
+        "locate",
+        "uncover",
+        "detect"
+    ],
+    "lose": [
+        "misplace",
+        "forfeit"
+    ],
+    "buy": [
+        "purchase",
+        "acquire",
+        "obtain"
+    ],
+    "sell": [
+        "vend",
+        "market",
+        "trade"
+    ],
+    "pay": [
+        "compensate",
+        "reimburse",
+        "remunerate"
+    ],
+    "code": [
+        "program",
+        "script",
+        "software",
+        "application"
+    ],
+    "computer": [
+        "machine",
+        "device",
+        "system",
+        "pc"
+    ],
+    "data": [
+        "information",
+        "records",
+        "facts",
+        "statistics"
+    ],
+    "file": [
+        "document",
+        "record",
+        "archive"
+    ],
+    "folder": [
+        "directory",
+        "container"
+    ],
+    "search": [
+        "find",
+        "lookup",
+        "query",
+        "retrieve"
+    ],
+    "database": [
+        "datastore",
+        "repository",
+        "storage"
+    ],
+    "server": [
+        "host",
+        "backend",
+        "service"
+    ],
+    "client": [
+        "frontend",
+        "browser",
+        "user"
+    ],
+    "api": [
+        "interface",
+        "endpoint",
+        "service"
+    ],
+    "function": [
+        "method",
+        "procedure",
+        "routine",
+        "operation"
+    ],
+    "variable": [
+        "parameter",
+        "value",
+        "property"
+    ],
+    "error": [
+        "bug",
+        "fault",
+        "defect",
+        "issue",
+        "problem"
+    ],
+    "fix": [
+        "repair",
+        "patch",
+        "resolve",
+        "correct"
+    ],
+    "test": [
+        "verify",
+        "validate",
+        "check",
+        "examine"
+    ],
+    "build": [
+        "compile",
+        "construct",
+        "assemble"
+    ],
+    "deploy": [
+        "release",
+        "publish",
+        "launch",
+        "ship"
+    ],
+    "config": [
+        "configuration",
+        "settings",
+        "options",
+        "preferences"
+    ],
+    "log": [
+        "record",
+        "journal",
+        "trace",
+        "history"
+    ],
+    "debug": [
+        "troubleshoot",
+        "diagnose",
+        "investigate"
+    ],
+    "memory": [
+        "ram",
+        "storage",
+        "recall",
+        "recollection"
+    ],
+    "context": [
+        "background",
+        "situation",
+        "setting",
+        "environment"
+    ],
+    "inference": [
+        "reasoning",
+        "deduction",
+        "conclusion"
+    ],
+    "model": [
+        "representation",
+        "framework",
+        "pattern"
+    ],
+    "training": [
+        "learning",
+        "education",
+        "practice"
+    ],
+    "embedding": [
+        "vector",
+        "representation",
+        "encoding"
+    ],
+    "semantic": [
+        "meaning",
+        "conceptual",
+        "linguistic"
+    ],
+    "query": [
+        "search",
+        "request",
+        "question",
+        "lookup"
+    ],
+    "result": [
+        "outcome",
+        "output",
+        "response",
+        "finding"
+    ],
+    "relevant": [
+        "pertinent",
+        "applicable",
+        "related",
+        "appropriate"
+    ],
+    "important": [
+        "significant",
+        "crucial",
+        "vital",
+        "essential"
+    ],
+    "project": [
+        "initiative",
+        "endeavor",
+        "venture",
+        "undertaking"
+    ],
+    "task": [
+        "assignment",
+        "job",
+        "duty",
+        "chore"
+    ],
+    "meeting": [
+        "conference",
+        "discussion",
+        "session",
+        "gathering"
+    ],
+    "document": [
+        "file",
+        "paper",
+        "record",
+        "report"
+    ],
+    "note": [
+        "memo",
+        "annotation",
+        "reminder",
+        "comment"
+    ],
+    "email": [
+        "message",
+        "correspondence",
+        "mail"
+    ],
+    "call": [
+        "phone",
+        "ring",
+        "contact"
+    ],
+    "chat": [
+        "conversation",
+        "discussion",
+        "dialogue",
+        "talk"
+    ]
+}

@@ -1,0 +1,30 @@
+appId: com.ece.core
+productName: "ECE Core"
+directories:
+  output: "dist"
+  buildResources: "build"
+
+# CRITICAL: Native Module Handling
+asarUnpack:
+  - "**/*.node"
+  - "**/engine/build/Release/*"
+
+# CRITICAL: External Binaries (CozoDB + Custom C++)
+extraResources:
+  - from: "engine/build/Release/ece_native.node"
+    to: "bin/ece_native.node"
+  - from: "engine/cozo_node_win32.node" # Adjust if on Mac/Linux
+    to: "bin/cozo_lib.node"
+
+win:
+  target: "nsis"
+  icon: "assets/icon.ico"
+
+mac:
+  target: "dmg"
+  icon: "assets/icon.icns"
+  hardenedRuntime: true # Required for code signing later
+
+linux:
+  target: "deb"
+  category: "Development"
