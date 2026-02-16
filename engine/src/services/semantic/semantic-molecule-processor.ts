@@ -170,23 +170,22 @@ export class SemanticMoleculeProcessor {
 
   /**
    * Process multiple text chunks into semantic molecules
+   * OPTIMIZED: Process chunks in parallel to improve performance
    */
   public async processTextChunks(
     chunks: Array<{ content: string; source: string; timestamp: number; provenance?: string }>
   ): Promise<SemanticMolecule[]> {
-    const molecules: SemanticMolecule[] = [];
-    
-    for (const chunk of chunks) {
-      const molecule = await this.processTextChunk(
+    // Process all chunks in parallel instead of sequentially
+    const moleculePromises = chunks.map(chunk => 
+      this.processTextChunk(
         chunk.content,
         chunk.source,
         chunk.timestamp,
         chunk.provenance || 'internal'
-      );
-      molecules.push(molecule);
-    }
-    
-    return molecules;
+      )
+    );
+
+    return await Promise.all(moleculePromises);
   }
 
   /**

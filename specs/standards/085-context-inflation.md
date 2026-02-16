@@ -103,5 +103,48 @@ class ContextInflator {
 - [ ] Narrative flow preservation verified
 - [ ] Performance benchmarks met
 
+## 5. Radial Lazy Molecule Inflation (2026-02)
+Instead of storing molecules at ingest time, the system supports **on-the-fly molecule creation** from atom positions:
+
+### 5.1 Atom Position Tracking
+- During ingest, record `{compound_id, atom_label, byte_offset}` for each detected keyword
+- Stored in `atom_positions` table with index on `atom_label`
+
+### 5.2 Dynamic Radius Calculation
+Radius scales with token budget to capture complete semantic units:
+```
+radius = floor(tokenBudget * charsPerToken / expectedResults / 2)
+
+Examples (assuming 4 chars/token, 10 results expected):
+- 2,000 tokens  → 400 bytes radius (~80 words each direction)
+- 10,000 tokens → 2,000 bytes radius (~400 words)
+- 20,000 tokens → 4,000 bytes radius (~800 words)
+```
+
+### 5.3 Code Handling
+When inflating code content:
+- Ignore whitespace in budget calculations (content density matters, not padding)
+- Expand to function/block boundaries where possible
+- Preserve indentation for readability
+
+### 5.4 Overlap Merge
+When multiple atoms in the same compound have overlapping or adjacent radial windows:
+1. Sort windows by start position
+2. If `window.start <= previous.end`, merge into one extended window
+3. Continue radiating outward as unified molecule
+
+```
+Atom A: position 1000, radius 500 → window [500, 1500]
+Atom B: position 1400, radius 500 → window [900, 1900]
+Overlap detected → Merged window [500, 1900]
+```
+
+### 5.5 Distributed Budget (70/30)
+For multi-term queries, budget is distributed:
+- **70%** → Direct query atoms (evenly split)
+- **30%** → Related/nearby atoms (5 per primary term via synonym ring)
+
 ## Change Capture
 This standard was created to implement the Context Inflation Protocol that enables the system to present coherent semantic windows instead of fragmented molecules, improving user comprehension and maintaining narrative continuity in retrieved results. The protocol addresses the gap between granular semantic retrieval and human-readable context presentation.
+
+**2026-02 Update**: Added Radial Lazy Molecule Inflation (Section 5) with dynamic radius based on token budget and 70/30 distributed query budget.

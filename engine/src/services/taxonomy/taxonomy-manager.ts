@@ -160,10 +160,10 @@ export class TaxonomyManager {
         LIMIT 50
       `);
 
-      const suggestions = result.rows.map((row: any[]) => ({
-        entity: row[0] as string,
-        frequency: row[1] as number,
-        suggestedCategory: this.guessCategory(row[0] as string)
+      const suggestions = result.rows.map((row: any) => ({
+        entity: row.entity as string,
+        frequency: row.count as number,
+        suggestedCategory: this.guessCategory(row.entity as string)
       })).filter((item: any) => item.frequency > 1); // Only include entities that appear more than once
 
       return suggestions;

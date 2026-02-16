@@ -1,4 +1,15 @@
 import { config } from '../../config/index.js';
+import type { ContextPackage, UserContext, QueryIntent, MemoryNode } from '../../types/context-protocol.js';
+import { 
+  assembleContextPackage, 
+  serializeForLLM, 
+  detectIntent,
+  assembleAndSerialize
+} from '../../services/search/graph-context-serializer.js';
+import {
+  generateSystemPrompt,
+  buildSovereignPrompt
+} from '../../services/search/sovereign-system-prompt.js';
 
 export interface ContextAtom {
     id: string;
@@ -6,6 +17,10 @@ export interface ContextAtom {
     source: string;
     timestamp: number;
     score: number; // Relevance Score
+    tags?: string[];
+    type?: string;
+    provenance?: string;
+    connections?: string[]; // IDs of connected atoms
 }
 
 export interface ContextResult {
@@ -19,9 +34,9 @@ export interface ContextResult {
 }
 
 /**
- * Rolling Context Slicer (Feature 8)
+ * Rolling Context Slicer (Feature 8) - Neuro-Symbolic Bridge Edition
  * 
- * Implements "Middle-Out" Context Budgeting.
+ * Implements "Middle-Out" Context Budgeting with Structured Graph Output.
  * Prioritizes atoms based on a mix of Relevance (Vector Similarity) and Recency.
  * 
  * Strategy:
@@ -58,14 +73,17 @@ export function composeRollingContext(
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
 
     const candidates = results.map(atom => {
-        const age = Math.max(0, now - atom.timestamp);
+        const atomTimestamp = typeof atom.timestamp === 'number' && !isNaN(atom.timestamp) 
+            ? atom.timestamp 
+            : now;
+        const age = Math.max(0, now - atomTimestamp);
         // Recency Score: 1.0 = Brand new, 0.0 = >1 Month old (clamped)
         const recencyScore = Math.max(0, 1.0 - (age / oneMonth));
 
         // Final Mixed Score
         const mixedScore = (atom.score * RELEVANCE_WEIGHT) + (recencyScore * RECENCY_WEIGHT);
 
-        return { ...atom, mixedScore, recencyScore };
+        return { ...atom, timestamp: atomTimestamp, mixedScore, recencyScore };
     });
 
     // 3. Sort by Mixed Score (Descending)
@@ -121,18 +139,127 @@ export function composeRollingContext(
     // Preservation of narrative flow is key.
     selectedAtoms.sort((a, b) => a.timestamp - b.timestamp);
 
-    // 6. Assemble
-    const contextString = selectedAtoms
-        .map(a => `[Source: ${a.source}] (${new Date(a.timestamp).toISOString()})\n${a.content}`)
-        .join('\n\n');
+    // 6. Assemble JSON Graph (Neuro-Symbolic Output)
+    const graphNodes = selectedAtoms.map(a => ({
+        id: a.id,
+        type: a.type || 'thought',
+        content: a.content,
+        meta: {
+            score: Number(a.mixedScore.toFixed(3)),
+            tags: a.tags || [],
+            source: a.source,
+            timestamp: (() => {
+                try {
+                    return new Date(a.timestamp).toISOString();
+                } catch (e) {
+                    return new Date().toISOString();
+                }
+            })(),
+            provenance: a.provenance || 'internal'
+        }
+    }));
+
+    const graph = {
+        intent: query,
+        nodes: graphNodes
+    };
+
+    const jsonString = JSON.stringify(graph, null, 2);
+
+    // Wrap with the User's Neuro-Symbolic Directive
+    const promptWrapper = `Here is a graph of thoughts from my memory, ranked by mathematical relevance (Time + Logic). Use these nodes to answer my question. Do not use outside knowledge unless necessary.\n\n\`\`\`json\n${jsonString}\n\`\`\``;
 
     return {
-        prompt: contextString,
+        prompt: promptWrapper,
         stats: {
             tokenCount: Math.ceil(currentChars / CHARS_PER_TOKEN),
             charCount: currentChars,
             filledPercent: Math.min(100, (currentChars / charBudget) * 100),
             atomCount: selectedAtoms.length
+        }
+    };
+}
+
+// =============================================================================
+// GRAPH-CONTEXT PROTOCOL (GCP) — Enhanced Context Assembly
+// =============================================================================
+
+/**
+ * Compose context using the Graph-Context Protocol.
+ * 
+ * This produces the sovereign prompt format:
+ *   System: "You are the interface for Anchor OS..."
+ *   User:   [CONTEXT_GRAPH_START]...[CONTEXT_GRAPH_END] + query
+ * 
+ * Use this instead of composeRollingContext when you have physics metadata.
+ */
+export function composeGraphContext(
+    query: string,
+    anchors: ContextAtom[],
+    walkerResults: ContextAtom[],
+    user: UserContext,
+    tokenBudget: number = 4096
+): { system: string; user: string; stats: ContextResult['stats'] } {
+    const CHARS_PER_TOKEN_GCP = 4;
+    const charBudget = Math.floor(tokenBudget * 0.95 * CHARS_PER_TOKEN_GCP);
+
+    // Convert ContextAtoms to SearchResult-compatible format for the serializer
+    const anchorSearchResults = anchors.map(a => ({
+        id: a.id,
+        content: a.content,
+        source: a.source,
+        timestamp: a.timestamp,
+        buckets: [] as string[],
+        tags: a.tags || [],
+        epochs: '',
+        provenance: a.provenance || 'internal',
+        score: a.score,
+        type: a.type || 'thought',
+        frequency: 1,
+    }));
+
+    const walkerSearchResults = walkerResults.map(a => ({
+        id: a.id,
+        content: a.content,
+        source: a.source,
+        timestamp: a.timestamp,
+        buckets: [] as string[],
+        tags: a.tags || [],
+        epochs: '',
+        provenance: a.provenance || 'internal',
+        score: a.score,
+        type: a.type || 'thought',
+        frequency: 1,
+    }));
+
+    const intent = detectIntent(query);
+
+    // Extract key terms from query (simple NLP-free approach)
+    const keyTerms = query.toLowerCase()
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !['what', 'when', 'where', 'that', 'this', 'with', 'from', 'about'].includes(w));
+
+    const serialized = assembleAndSerialize({
+        user,
+        query,
+        keyTerms,
+        anchors: anchorSearchResults,
+        legacyWalkerResults: walkerSearchResults,
+        charBudget,
+    });
+
+    const { system, user: userMsg } = buildSovereignPrompt(user, intent, serialized, query);
+
+    const totalChars = system.length + userMsg.length;
+
+    return {
+        system,
+        user: userMsg,
+        stats: {
+            tokenCount: Math.ceil(totalChars / CHARS_PER_TOKEN_GCP),
+            charCount: totalChars,
+            filledPercent: Math.min(100, (totalChars / charBudget) * 100),
+            atomCount: anchors.length + walkerResults.length,
         }
     };
 }

@@ -4,8 +4,32 @@ import fs from "fs";
 import { spawn, ChildProcess } from "child_process";
 import http from "http";
 
-// Config
-const FRONTEND_URL = "http://localhost:3000";
+// Config - Load from engine config
+let FRONTEND_URL = "http://localhost:3000"; // Default fallback
+let SERVER_CONFIG = { url: "http://localhost:3000" }; // Default server config for UI
+
+// Try to load the actual port from engine config
+try {
+  // Look for user_settings.json in root or engine directory
+  const rootSettingsPath = path.join(__dirname, '../../user_settings.json');
+  const engineSettingsPath = path.join(__dirname, '../../engine/user_settings.json');
+
+  let settings = null;
+  if (fs.existsSync(rootSettingsPath)) {
+    settings = JSON.parse(fs.readFileSync(rootSettingsPath, 'utf8'));
+  } else if (fs.existsSync(engineSettingsPath)) {
+    settings = JSON.parse(fs.readFileSync(engineSettingsPath, 'utf8'));
+  }
+
+  if (settings && settings.server && settings.server.port) {
+    const port = settings.server.port;
+    const host = settings.server.host || 'localhost';
+    FRONTEND_URL = `http://${host}:${port}`;
+    SERVER_CONFIG = { url: FRONTEND_URL };
+  }
+} catch (e) {
+  console.log('[Electron] Could not load server config, using default:', e instanceof Error ? e.message : String(e));
+}
 let tray: Tray | null = null;
 let engineProcess: ChildProcess | null = null;
 

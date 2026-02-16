@@ -13,7 +13,8 @@
 export enum SemanticCategory {
   RELATIONSHIP = '#Relationship',    // People interacting, personal connections
   NARRATIVE = '#Narrative',          // Stories, timelines, memories, sequences
-  TECHNICAL = '#Technical',          // Code, architecture, system documentation
+  CODE = '#Code',                    // Source code, scripts, and programming
+  TECHNICAL = '#Technical',          // Architecture, system documentation
   INDUSTRY = '#Industry',            // External market data (Oil, CO2, etc.)
   LOCATION = '#Location',            // Geographic or spatial references
   EMOTIONAL = '#Emotional',          // High sentiment variance content

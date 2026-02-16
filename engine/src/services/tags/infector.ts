@@ -18,7 +18,7 @@ const nlp = wink(model) as any;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..', '..'); // engine/src/services/tags -> engine/src/services -> engine/src -> engine -> ROOT
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..'); // engine/src/services/tags -> engine/src/services -> engine/src -> engine
 const TAGS_FILE = path.join(PROJECT_ROOT, 'context', 'internal_tags.json');
 
 /**
@@ -26,7 +26,7 @@ const TAGS_FILE = path.join(PROJECT_ROOT, 'context', 'internal_tags.json');
  * Lazily fetches atoms from the database in batches to prevent RAM spikes.
  * This replaces the need for recursion or massive array loading.
  */
-async function* atomStream(batchSize = 500) {
+async function* atomStream(batchSize = 50) {
     let lastId = '';
 
     while (true) {
@@ -78,7 +78,7 @@ async function* atomStream(batchSize = 500) {
  * 2. The Processor (Transform)
  * Applies "Viral Tags" to a single atom.
  */
-function infectAtom(atom: { id: string, content: string, tags: string[] }, patterns: any): string[] | null {
+export function infectAtom(atom: { id: string, content: string, tags: string[] }, patterns: any): string[] | null {
     if (!atom.content) return null;
 
     const currentTags = new Set(atom.tags);
@@ -88,9 +88,21 @@ function infectAtom(atom: { id: string, content: string, tags: string[] }, patte
     const doc = nlp.readDoc(atom.content);
     const text = (doc.out(nlp.its.text) as string).toLowerCase();
 
-    // Fast check: Does text contain the pattern?
+    // Regex check with smart boundaries
     patterns.keywords.forEach((keyword: string) => {
-        if (!currentTags.has(keyword) && text.includes(keyword.toLowerCase())) {
+        if (currentTags.has(keyword)) return;
+
+        // Escape specialregex characters
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Apply boundary only if the keyword starts/ends with a word character
+        // This handles "C++" correctly (no boundary after +) vs "Java" (boundary after a)
+        const startBoundary = /^\w/.test(keyword) ? '\\b' : '';
+        const endBoundary = /\w$/.test(keyword) ? '\\b' : '';
+
+        const regex = new RegExp(`${startBoundary}${escaped}${endBoundary}`, 'i');
+
+        if (regex.test(text)) {
             currentTags.add(keyword); // Infection!
             changed = true;
         }

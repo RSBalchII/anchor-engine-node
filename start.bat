@@ -44,14 +44,14 @@ if not exist "desktop-overlay\node_modules" (
     cd ..
 )
 
-:: 5. Native Module Build (C++ KeyAssassin)
-if not exist "engine\build\Release\anchor_native.node" (
-    echo [INFO] Building Native Module - First Time Setup...
-    cd engine
-    call npx node-gyp rebuild
-    cd ..
-    echo [INFO] Native module build attempted.
-)
+:: 5. Native Module Build (C++ KeyAssassin) - SKIPPED (now using npm packages)
+:: if not exist "engine\build\Release\anchor_native.node" (
+    echo [INFO] Native Module - Using npm packages instead of local build...
+::    cd engine
+::    call npx node-gyp rebuild
+::    cd ..
+::    echo [INFO] Native module build attempted.
+:: )
 
 :: 6. Build System
 echo.
@@ -75,8 +75,8 @@ echo.
 echo [INFO] Launching Anchor Desktop Environment...
 echo [INFO] The Dashboard will open automatically when the Engine is ready.
 
-:: Standard 078: Kill any existing engine on port 3000 to ensure logs are visible in THIS terminal
-echo [INFO] Harmonizing Process Lifecycle (Port 3000)...
+:: Standard 078: Kill any existing engine on port 3160 to ensure logs are visible in THIS terminal
+echo [INFO] Harmonizing Process Lifecycle (Port 3160)...
 echo [INFO] Skipping port check for stability...
 echo.
 

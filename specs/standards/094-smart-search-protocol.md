@@ -1,6 +1,8 @@
 # Standard 094: Smart Search Protocol
+> [!WARNING]
+> **DEPRECATED**: See Standard 104 (Universal Semantic Search) for current implementation.
 
-**Status:** ACTIVE
+**Status:** DEPRECATED (Superseded by 104)
 **Date:** 2026-02-03
 **Component:** Engine / Search Service
 

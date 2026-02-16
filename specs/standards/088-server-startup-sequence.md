@@ -34,11 +34,11 @@ The Electron wrapper was experiencing ECONNREFUSED errors when attempting to con
 ```typescript
 // BEFORE: Database first
 await db.init();
-app.listen(PORT, () => { ... });
+app.listen(config.PORT, () => { ... });
 
-// AFTER: Server first  
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// AFTER: Server first
+app.listen(config.PORT, () => {
+  console.log(`Server running on port ${config.PORT}`);
 });
 await db.init(); // Background initialization
 ```
@@ -82,6 +82,23 @@ const req = http.get(`${FRONTEND_URL}/health`, (res) => {
 });
 // Timeout increased from 3000ms to 10000ms
 setTimeout(() => { ... }, 10000);
+```
+
+### Configuration Management (`engine/src/config/index.ts`)
+```typescript
+// Centralized configuration management
+interface Config {
+  PORT: number; // Configurable port (default: 3160)
+  HOST: string; // Configurable host (default: '127.0.0.1')
+  // ... other configuration options
+}
+
+// Load from user_settings.json with defaults
+const DEFAULT_CONFIG: Config = {
+  PORT: 3160, // Default port (configurable in user_settings.json)
+  HOST: '127.0.0.1', // Default host
+  // ... other defaults
+};
 ```
 
 ## Testing Requirements

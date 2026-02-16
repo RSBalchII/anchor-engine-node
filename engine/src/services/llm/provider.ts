@@ -217,7 +217,7 @@ export async function loadModel(modelPath: string, options: LoadModelOptions = {
   if (target === 'orchestrator' && orchLoadingPromise) return orchLoadingPromise;
 
   const loadTask = new Promise((resolve, reject) => {
-    const fullModelPath = path.isAbsolute(modelPath) ? modelPath : path.join(MODELS_DIR, modelPath);
+    const fullModelPath = path.isAbsolute(modelPath) ? modelPath : path.resolve(MODELS_DIR, modelPath);
 
     const handler = (msg: any) => {
       if (msg.type === 'modelLoaded') {

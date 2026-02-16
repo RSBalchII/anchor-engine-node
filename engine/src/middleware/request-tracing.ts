@@ -1,5 +1,5 @@
 /**
- * Request Tracing Middleware for ECE_Core
+ * Request Tracing Middleware for Anchor Engine
  * 
  * Implements comprehensive request tracing for debugging and monitoring
  */
@@ -74,7 +74,7 @@ export const requestTracingMiddleware = () => {
 
     // Hook into the response to capture completion details
     const originalEnd = res.end;
-    res.end = function(chunk?: any, encoding?: any, callback?: any) {
+    res.end = function (chunk?: any, encoding?: any, callback?: any) {
       // Calculate duration
       const duration = Date.now() - traceInfo.timestamp;
       traceInfo.duration = duration;
@@ -129,7 +129,7 @@ function getTraceableHeaders(req: Request): Record<string, string> {
   const traceableHeaders: Record<string, string> = {};
   const traceableHeaderNames = [
     'content-type',
-    'content-length', 
+    'content-length',
     'user-agent',
     'referer',
     'x-request-id',
@@ -138,7 +138,7 @@ function getTraceableHeaders(req: Request): Record<string, string> {
     'x-forwarded-for',
     'x-real-ip'
   ];
-  
+
   for (const [key, value] of Object.entries(req.headers)) {
     if (traceableHeaderNames.includes(key.toLowerCase())) {
       if (key.toLowerCase() === 'authorization' && typeof value === 'string') {
@@ -150,6 +150,6 @@ function getTraceableHeaders(req: Request): Record<string, string> {
       }
     }
   }
-  
+
   return traceableHeaders;
 }

@@ -1,5 +1,5 @@
 /**
- * Monitoring Endpoints for ECE_Core
+ * Monitoring Endpoints for Anchor Engine
  * 
  * Implements health monitoring endpoints following Standard 078: Process Isolation & Live Diagnostics
  */

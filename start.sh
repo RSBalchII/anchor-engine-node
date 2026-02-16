@@ -36,18 +36,18 @@ if [ ! -d "desktop-overlay/node_modules" ]; then
     cd ..
 fi
 
-# 4. Native Module Build (C++ KeyAssassin)
-if [ ! -f "engine/build/Release/anchor_native.node" ]; then
-    echo "[INFO] Building Native Module (First Time)..."
-    cd engine
-    npx node-gyp rebuild
-    if [ $? -ne 0 ]; then
-        echo "[WARN] Native module build failed. Falling back to pure JS."
-    else
-        echo "[OK] Native module built successfully."
-    fi
-    cd ..
-fi
+# 4. Native Module Build (C++ KeyAssassin) - SKIPPED (now using npm packages)
+# if [ ! -f "engine/build/Release/anchor_native.node" ]; then
+    echo "[INFO] Native Module - Using npm packages instead of local build..."
+#    cd engine
+#    npx node-gyp rebuild
+#    if [ $? -ne 0 ]; then
+#        echo "[WARN] Native module build failed. Falling back to pure JS."
+#    else
+#        echo "[OK] Native module built successfully."
+#    fi
+#    cd ..
+#fi
 
 # 5. Build
 echo ""

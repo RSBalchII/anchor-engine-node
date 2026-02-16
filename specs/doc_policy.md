@@ -14,6 +14,22 @@
 9. **API-First Design:** All interfaces must be clearly defined with examples.
 10. **Self-Documenting Code:** Complex logic must include inline documentation explaining intent.
 
+## LLM RESTRICTIONS & RULES
+> [!IMPORTANT]
+> **Strict Modification Rules for AI Agents:**
+> 1.  **NO NEW FILES**: Do not create new `NNN-title.md` files.
+> 2.  **UPDATE LIVING STANDARDS**: Only update the 4 Living Domain Standards (`Search`, `Data`, `Architecture`, `Database`).
+> 3.  **USE CHANGELOG**: Log every architectural decision in `anchor-engine/CHANGELOG.md`.
+> 4.  **DIAGRAMMATIC SPEC**: Keep `specs/spec.md` as a high-level visual map. Do not clutter it with code.
+
+## LLM RESTRICTIONS & RULES
+> [!IMPORTANT]
+> **Strict Modification Rules for AI Agents:**
+> 1.  **NO NEW FILES**: Do not create new `NNN-title.md` files.
+> 2.  **UPDATE LIVING STANDARDS**: Only update the 4 Living Domain Standards (`Search`, `Data`, `Architecture`, `Database`).
+> 3.  **USE CHANGELOG**: Log every architectural decision in `anchor-engine/CHANGELOG.md`.
+> 4.  **DIAGRAMMATIC SPEC**: Keep `specs/spec.md` as a high-level visual map. Do not clutter it with code.
+
 ## LLM Developer Documentation Directory
 
 ### `QUICKSTART.md` (Root) — **USER WORKFLOW GUIDE**
@@ -105,47 +121,24 @@ metadata:
 *   **Content:** Tag-Walker protocol, semantic intent translation, temporal folding implementation.
 *   **LLM Focus:** Search algorithm internals for enhancement and debugging.
 
-### 3. Atomic Architecture (`specs/standards/081-atomic-taxonomy.md`)
-*   **Role:** Data model specification for LLM developers.
-*   **Format:** Taxonomy definitions and relationship mappings.
-*   **Content:** Compound/Molecule/Atom hierarchy, coordinate systems, relationship protocols.
-*   **LLM Focus:** Data structure manipulation and relationship discovery.
+### 3. Living Domain Standards (`specs/standards/*.md`)
+These 4 files are the **Binding Authority** for implementation:
 
-### 4. Native Module Integration (`specs/standards/074-native-module-acceleration.md`)
-*   **Role:** Performance module integration guide for LLM developers.
-*   **Format:** API contracts and fallback protocols.
-*   **Content:** C++ module interfaces, error handling, graceful degradation patterns.
-*   **LLM Focus:** Performance optimization and system stability patterns.
+#### A. `Search_Protocol.md`
+*   **Scope:** Universal Semantic Search, 70/30 Budgeting, Context Inflation.
+*   **Replaces:** Old Standards 086, 094, 104.
 
-### 5. Ingestion Pipeline (`specs/standards/059-reliable-ingestion.md`)
-*   **Role:** Data processing pipeline specification for LLM developers.
-*   **Format:** Flow diagrams and validation checkpoints.
-*   **Content:** Atomization, sanitization, fingerprinting, deduplication processes.
-*   **LLM Focus:** Data transformation and quality assurance protocols.
+#### B. `Data_Pipeline.md`
+*   **Scope:** Ingestion (Reliable/Ghost Data), Tag Infection, Code Analysis (AST).
+*   **Replaces:** Old Standards 059, 068, 097.
 
-### 6. Database Reset Protocol (`specs/standards/095-database-reset-on-startup.md`)
-*   **Role:** Database initialization and clean state management for LLM developers.
-*   **Format:** Proactive cleanup protocols and initialization procedures.
-*   **Content:** Directory cleanup, fresh initialization, data re-ingestion patterns.
-*   **LLM Focus:** Database resilience and clean state management for dataset swapping.
+#### C. `System_Architecture.md`
+*   **Scope:** Server Startup, Worker Models, Standalone UI, Scaling.
+*   **Replaces:** Old Standards 060, 088, 098, 103.
 
-### 7. Timestamp Assignment Protocol (`specs/standards/096-timestamp-assignment-protocol.md`)
-*   **Role:** Temporal context propagation and timestamp assignment for LLM developers.
-*   **Format:** Content-specific timestamp extraction and file modification inheritance.
-*   **Content:** Temporal pattern recognition, context-aware timestamp propagation, fallback mechanisms.
-*   **LLM Focus:** Chronological accuracy and temporal diversity in search results.
-
-### 8. Enhanced Code Analysis (`specs/standards/097-enhanced-code-analysis.md`)
-*   **Role:** AST-based code analysis and intelligence features for LLM developers.
-*   **Format:** Language-specific parsing with semantic integration.
-*   **Content:** AST integration, symbol resolution, type analysis, privacy-preserving code intelligence.
-*   **LLM Focus:** Deep code understanding while maintaining privacy and context awareness.
-
-### 9. Horizontal Scaling Architecture (`specs/standards/098-scaling-architecture.md`)
-*   **Role:** Distributed processing and horizontal scaling for LLM developers.
-*   **Format:** Microservices architecture with data partitioning.
-*   **Content:** Service decomposition, data sharding, distributed search, privacy-preserving scaling.
-*   **LLM Focus:** Scalable architecture while maintaining sovereignty and performance.
+#### D. `Database_Schema.md`
+*   **Scope:** PGlite Schema, Type Handling, Reset Protocols.
+*   **Replaces:** Old Standards 053, 095, 099, 100.
 
 ## LLM Developer Reference Patterns
 

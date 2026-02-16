@@ -1,5 +1,5 @@
 /**
- * Diagnostic Tests for ECE_Core
+ * Diagnostic Tests for Anchor Engine
  * 
  * Quick diagnostic tests designed for rapid issue reproduction and validation
  */
@@ -40,11 +40,11 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
           query: 'test',
           buckets: []
         });
-        
+
         if (response.status !== 200 && response.status !== 207) {
           throw new Error(`Search endpoint returned unexpected status: ${response.status}`);
         }
-        
+
         console.log('✅ Database connectivity test passed');
       } catch (error) {
         console.error('❌ Database connectivity test failed:', error);
@@ -60,7 +60,7 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
       try {
         // Test native module functionality through the API
         const response = await axios.get('http://localhost:3000/health/native');
-        
+
         if (response.status === 500) {
           // Native modules might not be available, which is OK in some environments
           console.log('⚠️  Native modules not available (using fallback implementations)');
@@ -83,22 +83,22 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
     testFn: async () => {
       try {
         const testContent = `Diagnostic test content created at ${new Date().toISOString()}. This is a simple test to verify the ingestion pipeline is working correctly.`;
-        
+
         const response = await axios.post('http://localhost:3000/v1/ingest', {
           content: testContent,
           source: 'diagnostic-test',
           type: 'test',
           buckets: ['diagnostic']
         });
-        
+
         if (response.status !== 200) {
           throw new Error(`Ingestion endpoint returned status: ${response.status}`);
         }
-        
+
         if (!response.data.id) {
           throw new Error('Ingestion endpoint did not return an ID');
         }
-        
+
         console.log(`✅ Ingestion pipeline test passed. Created ID: ${response.data.id.substring(0, 12)}...`);
       } catch (error) {
         console.error('❌ Ingestion pipeline test failed:', error);
@@ -114,20 +114,20 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
       try {
         // Wait a moment for the ingestion to be processed
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         const response = await axios.post('http://localhost:3000/v1/memory/search', {
           query: 'diagnostic test content',
           buckets: ['diagnostic']
         });
-        
+
         if (response.status !== 200) {
           throw new Error(`Search endpoint returned status: ${response.status}`);
         }
-        
+
         if (!response.data.context && (!response.data.results || response.data.results.length === 0)) {
           throw new Error('Search returned no results for diagnostic content');
         }
-        
+
         console.log('✅ Search functionality test passed');
       } catch (error) {
         console.error('❌ Search functionality test failed:', error);
@@ -146,21 +146,21 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
           query: 'diagnostic',
           buckets: ['diagnostic']
         });
-        
+
         const tagSearch = await axios.post('http://localhost:3000/v1/memory/search', {
           query: '#diagnostic',
           buckets: []
         });
-        
+
         if (basicSearch.status !== 200) {
           throw new Error(`Basic search failed with status: ${basicSearch.status}`);
         }
-        
+
         if (tagSearch.status !== 200 && tagSearch.status !== 404) {
           // 404 is OK if no tagged content exists yet
           throw new Error(`Tag search failed with status: ${tagSearch.status}`);
         }
-        
+
         console.log('✅ Memory retrieval consistency test passed');
       } catch (error) {
         console.error('❌ Memory retrieval consistency test failed:', error);
@@ -175,18 +175,18 @@ const DIAGNOSTIC_TESTS: TestConfig[] = [
     testFn: async () => {
       try {
         // Send multiple requests in parallel to test concurrency
-        const requests = Array.from({ length: 3 }, (_, i) => 
+        const requests = Array.from({ length: 3 }, (_, i) =>
           axios.post('http://localhost:3000/v1/memory/search', {
             query: `diagnostic test ${i}`,
             buckets: ['diagnostic']
           })
         );
-        
+
         const responses = await Promise.all(requests.map(p => p.catch(e => e)));
-        
+
         const successfulRequests = responses.filter(r => !(r instanceof Error));
         const failedRequests = responses.filter(r => r instanceof Error);
-        
+
         if (successfulRequests.length < 2) {
           // Allow for some failures in diagnostic tests
           console.warn(`⚠️  Only ${successfulRequests.length} of 3 concurrent requests succeeded`);
@@ -218,7 +218,7 @@ export class DiagnosticTestRunner {
    */
   async runAllDiagnostics(): Promise<void> {
     console.log('\n🔍 Running Diagnostic Tests...\n');
-    
+
     // Create a test suite for diagnostics
     const diagnosticSuite = {
       name: 'Diagnostic Tests',
@@ -228,7 +228,7 @@ export class DiagnosticTestRunner {
       environment: 'integration',
       tags: ['diagnostic', 'health', 'quick']
     };
-    
+
     // Add the suite to the framework and run it
     this.framework.addTestSuite(diagnosticSuite);
     await this.framework.runTestSuite(diagnosticSuite);
@@ -239,12 +239,12 @@ export class DiagnosticTestRunner {
    */
   async runDiagnosticsByTag(tag: string): Promise<void> {
     const taggedTests = DIAGNOSTIC_TESTS.filter(test => test.tags?.includes(tag));
-    
+
     if (taggedTests.length === 0) {
       console.log(`No diagnostic tests found with tag: ${tag}`);
       return;
     }
-    
+
     const diagnosticSuite = {
       name: `Diagnostic Tests (${tag})`,
       description: `Diagnostic tests tagged with: ${tag}`,
@@ -253,7 +253,7 @@ export class DiagnosticTestRunner {
       environment: 'integration',
       tags: ['diagnostic', 'health', tag]
     };
-    
+
     this.framework.addTestSuite(diagnosticSuite);
     await this.framework.runTestSuite(diagnosticSuite);
   }
@@ -292,7 +292,7 @@ export async function runQuickDiagnostics(): Promise<void> {
   const framework = new TestFramework();
   const datasetRunner = new DatasetTestRunner(framework);
   const diagnosticRunner = new DiagnosticTestRunner(framework, datasetRunner);
-  
+
   await diagnosticRunner.runAllDiagnostics();
 }
 

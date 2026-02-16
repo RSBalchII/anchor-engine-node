@@ -167,10 +167,31 @@
     </div>
     <script>
         let activeBuckets = ['core'];
+        let serverConfig = null; // Cache the server configuration
+
+        // Function to get server URL, fetching config if not cached
+        async function getServerUrl() {
+            if (!serverConfig) {
+                try {
+                    const configRes = await fetch('/v1/config');
+                    serverConfig = await configRes.json();
+                } catch (error) {
+                    console.warn('Failed to fetch server config, using defaults:', error);
+                    // Fallback configuration
+                    serverConfig = {
+                        host: 'localhost',
+                        port: 3160,
+                        server_url: 'http://localhost:3160'
+                    };
+                }
+            }
+            return serverConfig.server_url || `http://${serverConfig.host || 'localhost'}:${serverConfig.port || 3160}`;
+        }
 
         async function loadBuckets() {
             try {
-                const res = await fetch('http://localhost:3000/v1/buckets');
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/buckets`);
                 const serverBuckets = await res.json();
                 
                 // Merge server buckets with active buckets to ensure newly added ones show up
@@ -238,7 +259,8 @@
                     body.buckets = activeBuckets;
                 }
 
-                const res = await fetch('http://localhost:3000/v1/memory/search', {
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/memory/search`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -286,7 +308,8 @@
                     body.buckets = activeBuckets;
                 }
 
-                const res = await fetch('http://localhost:3000/v1/memory/search', {
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/memory/search`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -319,7 +342,8 @@
             btn.innerText = "⏳ Exporting...";
 
             try {
-                const res = await fetch('http://localhost:3000/v1/backup');
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/backup`);
                 if (!res.ok) throw new Error("Backup failed");
 
                 // Convert response to blob and trigger download
@@ -357,7 +381,8 @@
                 // For ingestion, we use the first active bucket (excluding 'all')
                 const targetBucket = activeBuckets.find(b => b !== 'all') || 'core';
 
-                const res = await fetch('http://localhost:3000/v1/ingest', {
+                const serverUrl = await getServerUrl();
+                const res = await fetch(`${serverUrl}/v1/ingest`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content, source, type: 'chat', bucket: targetBucket })

@@ -1,6 +1,7 @@
 
 // import type { LlamaChatSession } from 'node-llama-cpp'; // Unused
 import { getModel, getContext, getCurrentCtxSize, runSideChannel } from './provider.js';
+import { config } from '../../config/index.js';
 
 interface MockLlamaModel {
     tokenize(text: string): { length: number; slice(start: number, end: number): any[] } & any[];
@@ -19,11 +20,11 @@ export async function summarizeLargeContent(text: string, maxOutputTokens = 500)
     if (!text || !model || !context) return "";
 
     // First, check if the text is too large and needs to be preprocessed
-    if (text.length > 5000) {
+    if (text.length > config.LIMITS.MAX_CONTENT_LENGTH_CHARS) {
         console.log(`[Summarizer] Content too large (${text.length} chars). Preprocessing...`);
 
         // For very large texts, we'll use a more aggressive chunking strategy
-        const MAX_CHUNK_SIZE = 3000;
+        const MAX_CHUNK_SIZE = config.LIMITS.MAX_CHUNK_SIZE_CHARS;
         const chunks: string[] = [];
 
         for (let i = 0; i < text.length; i += MAX_CHUNK_SIZE) {
@@ -55,7 +56,7 @@ export async function summarizeLargeContent(text: string, maxOutputTokens = 500)
 
         // Now summarize the combined summaries if needed
         const combinedSummaries = summaries.join("\n\n");
-        if (combinedSummaries.length > 2000) {
+        if (combinedSummaries.length > config.LIMITS.MAX_SUMMARY_LENGTH_CHARS) {
             console.log(`[Summarizer] Combined summaries still large (${combinedSummaries.length} chars), final summarization...`);
             const finalSystem = "You are a precise technical summarizer. Be extremely concise.";
             const finalPrompt = `Summarize these notes:\n\n${combinedSummaries}`;

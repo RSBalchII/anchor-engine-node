@@ -196,6 +196,7 @@ The Anchor system has successfully achieved **orbital velocity** with the deploy
 - **Memory Efficiency**: 30-50% reduction in memory usage
 - **Cross-Platform**: Consistent performance across Windows, macOS, Linux
 - **Native Acceleration**: 2.3x faster code processing with C++ modules
+- **Tag-Walker Protocol**: Graph-based associative retrieval replacing vector search (70/30 keyword/associative split)
 - **Database Stability**: PGlite implementation successfully debugged and stable (Replacing CozoDB)
 
 ### Architecture Validation

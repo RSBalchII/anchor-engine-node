@@ -7,7 +7,7 @@ const Config = require('../../config');
 
 let serverProcess = null;
 let lastVisionError = null;
-const SERVER_PORT = 8081;
+const SERVER_PORT = Config.SERVICES.VISION_SERVER_PORT;
 const BIN_PATH = path.join(paths.BASE_PATH, 'engine/bin/llama-server.exe');
 const MODEL_DIR = path.join(paths.BASE_PATH, 'engine/models/vision');
 const VISION_CONFIG = Config.MODELS.VISION;
@@ -146,7 +146,7 @@ async function analyzeImage(base64Image, prompt) {
         await startVisionServer();
         if (!serverProcess) throw new Error("Vision server failed to start (Mock Mode or Missing Binary).");
         // Wait for boot
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise(r => setTimeout(r, 4000)); // Fixed timeout for now, could be configurable later
 
         if (!serverProcess) {
             // Return the specific error if captured, otherwise generic

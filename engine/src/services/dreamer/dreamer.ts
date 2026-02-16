@@ -113,54 +113,58 @@ export async function dream(): Promise<{ status: string; analyzed?: number; upda
   try {
     console.log('🌙 Dreamer: Starting self-organization cycle...');
 
-    // 1. Get all memories that might benefit from re-categorization
-    const allMemoriesQuery = 'SELECT id, content, buckets, timestamp FROM atoms';
-    const allMemoriesResult = await db.run(allMemoriesQuery);
+    // 1. Get all memories that might benefit from re-categorization (Paginated)
+    let hasMore = true;
+    let offset = 0;
+    const FETCH_LIMIT = 50; // Reduced from 500 to 50 for PGlite stability
+    const MAX_ANALYZE_LIMIT = 5000; // Cap total analysis per cycle to prevent OOM
+    const memoriesToAnalyze: any[] = [];
 
-    if (!allMemoriesResult.rows || allMemoriesResult.rows.length === 0) {
-      return { status: 'success', analyzed: 0, message: 'No memories to analyze' };
-    }
+    console.log('🌙 Dreamer: Fetching memories in pages...');
 
-    // Filter memories that need attention
-    const memoriesToAnalyze = allMemoriesResult.rows.filter((row: any) => {
-      // Handle both array and object formats that PGlite might return
-      let buckets: any, timestamp: any;
+    while (hasMore && memoriesToAnalyze.length < MAX_ANALYZE_LIMIT) {
+      // Order by timestamp desc to process recent ones first if we hit the limit
+      const query = `SELECT id, content, buckets, timestamp FROM atoms ORDER BY timestamp DESC LIMIT ${FETCH_LIMIT} OFFSET ${offset}`;
+      const result = await db.run(query);
 
-      if (row && Array.isArray(row)) {
-        // Row is in array format [id, content, buckets, timestamp]
-        if (row.length >= 4) {
-          [, , buckets, timestamp] = row;
-        } else {
-          // Insufficient elements in array
-          buckets = [];
-          timestamp = 0;
-        }
-      } else if (row && typeof row === 'object') {
-        // Row is in object format {id, content, buckets, timestamp}
-        buckets = row.buckets;
-        timestamp = row.timestamp;
-      } else {
-        // Invalid row format
-        buckets = [];
-        timestamp = 0;
+      if (!result.rows || result.rows.length === 0) {
+        hasMore = false;
+        break;
       }
 
-      // Always include memories with no buckets
-      if (!buckets || (Array.isArray(buckets) && buckets.length === 0)) return true;
+      // Filter memories from this page
+      const pageMemories = result.rows.filter((row: any) => {
+        let buckets: any, timestamp: any;
+        if (row && Array.isArray(row)) {
+          if (row.length >= 4) [, , buckets, timestamp] = row;
+          else { buckets = []; timestamp = 0; }
+        } else if (row && typeof row === 'object') {
+          buckets = row.buckets; timestamp = row.timestamp;
+        } else { buckets = []; timestamp = 0; }
 
-      // Include memories with generic buckets
-      const genericBuckets = ['core', 'misc', 'general', 'other', 'unknown'];
-      const hasOnlyGenericBuckets = Array.isArray(buckets) && buckets.every((bucket: string) => genericBuckets.includes(bucket));
-      if (hasOnlyGenericBuckets) return true;
+        if (!buckets || (Array.isArray(buckets) && buckets.length === 0)) return true;
 
-      // Include memories that lack temporal tags
-      const year = new Date(timestamp).getFullYear().toString();
-      if (Array.isArray(buckets) && !buckets.includes(year)) return true;
+        const genericBuckets = ['core', 'misc', 'general', 'other', 'unknown'];
+        const hasOnlyGenericBuckets = Array.isArray(buckets) && buckets.every((bucket: string) => genericBuckets.includes(bucket));
+        if (hasOnlyGenericBuckets) return true;
 
-      return false;
-    });
+        const year = new Date(timestamp).getFullYear().toString();
+        if (Array.isArray(buckets) && !buckets.includes(year)) return true;
 
-    console.log(`🌙 Dreamer: Found ${memoriesToAnalyze.length} memories to analyze.`);
+        return false;
+      });
+
+      memoriesToAnalyze.push(...pageMemories);
+      offset += FETCH_LIMIT;
+
+      // Safety break for very large DBs if we aren't finding anything
+      if (offset > 50000) break;
+
+      // Small yield
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+
+    console.log(`🌙 Dreamer: Found ${memoriesToAnalyze.length} memories to analyze (searched ${offset} atoms).`);
 
     let updatedCount = 0;
 
@@ -272,29 +276,56 @@ export async function dream(): Promise<{ status: string; analyzed?: number; upda
 
         // 3. Bulk Update
         // Process each item in the batch individually to update atoms table
-        for (const item of finalUpdateData) {
-          await db.run(
-            `INSERT INTO atoms (id, timestamp, content, source_path, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-             ON CONFLICT (id) DO UPDATE SET
-               content = EXCLUDED.content,
-               timestamp = EXCLUDED.timestamp,
-               source_path = EXCLUDED.source_path,
-               source_id = EXCLUDED.source_id,
-               sequence = EXCLUDED.sequence,
-               type = EXCLUDED.type,
-               hash = EXCLUDED.hash,
-               buckets = EXCLUDED.buckets,
-               epochs = EXCLUDED.epochs,
-               tags = EXCLUDED.tags,
-               provenance = EXCLUDED.provenance,
-               simhash = EXCLUDED.simhash,
-               embedding = EXCLUDED.embedding`,
-            item
-          );
-        }
+        // 3. Bulk Update Transaction with Sub-batching
+        // Split the batch into smaller chunks to avoid PostgreSQL parameter limits (approx 65k) or massive query strings
+        // 2500 items * 14 params = 35,000 params, which is safe for Postgres but might overwhelm the driver or logger
+        const SUB_BATCH_SIZE = 100;
 
-        updatedCount += finalUpdateData.length;
+        if (finalUpdateData.length > 0) {
+          await db.run('BEGIN');
+          try {
+            for (let j = 0; j < finalUpdateData.length; j += SUB_BATCH_SIZE) {
+              const chunk = finalUpdateData.slice(j, j + SUB_BATCH_SIZE);
+              const values: any[] = [];
+              const placeholders: string[] = [];
+              let pIndex = 1;
+
+              for (const item of chunk) {
+                // item is [id, timestamp, content, source_path, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding]
+                placeholders.push(`($${pIndex}, $${pIndex + 1}, $${pIndex + 2}, $${pIndex + 3}, $${pIndex + 4}, $${pIndex + 5}, $${pIndex + 6}, $${pIndex + 7}, $${pIndex + 8}, $${pIndex + 9}, $${pIndex + 10}, $${pIndex + 11}, $${pIndex + 12}, $${pIndex + 13})`);
+                values.push(...item);
+                pIndex += 14;
+              }
+
+              const query = `
+                  INSERT INTO atoms (id, timestamp, content, source_path, source_id, sequence, type, hash, buckets, epochs, tags, provenance, simhash, embedding)
+                  VALUES ${placeholders.join(', ')}
+                  ON CONFLICT (id) DO UPDATE SET
+                    content = EXCLUDED.content,
+                    timestamp = EXCLUDED.timestamp,
+                    source_path = EXCLUDED.source_path,
+                    source_id = EXCLUDED.source_id,
+                    sequence = EXCLUDED.sequence,
+                    type = EXCLUDED.type,
+                    hash = EXCLUDED.hash,
+                    buckets = EXCLUDED.buckets,
+                    epochs = EXCLUDED.epochs,
+                    tags = EXCLUDED.tags,
+                    provenance = EXCLUDED.provenance,
+                    simhash = EXCLUDED.simhash,
+                    embedding = EXCLUDED.embedding
+                `;
+
+              await db.run(query, values);
+            }
+            await db.run('COMMIT');
+            updatedCount += finalUpdateData.length;
+          } catch (err) {
+            console.error('[Dreamer] Batch update failed, rolling back:', err);
+            await db.run('ROLLBACK');
+            throw err;
+          }
+        }
       }
 
       const batchDuration = Date.now() - batchStartTime;
@@ -366,13 +397,13 @@ async function clusterAndSummarize(): Promise<void> {
       const limit = (config.DREAMER_BATCH_SIZE || 5) * 10;
 
       // We look for memories that are NOT a child in 'parent_of' (using edges table)
+      // Optimized Query: Use LEFT JOIN instead of NOT IN for O(1) index usage
       const unboundQuery = `
-              SELECT id, timestamp, content, tags
-              FROM atoms
-              WHERE id NOT IN (
-                  SELECT target_id FROM edges WHERE relation = 'parent_of'
-              )
-              ORDER BY timestamp
+              SELECT a.id, a.timestamp, a.content, a.tags
+              FROM atoms a
+              LEFT JOIN edges e ON a.id = e.target_id AND e.relation = 'parent_of'
+              WHERE e.source_id IS NULL
+              ORDER BY a.timestamp
               LIMIT ${limit}
       `;
       const result = await db.run(unboundQuery);
@@ -383,28 +414,33 @@ async function clusterAndSummarize(): Promise<void> {
         break; // Done!
       }
 
-      const atoms = result.rows.map((r: any[]) => ({
-        id: r[0],
-        timestamp: r[1],
-        content: r[2],
-        tags: r[3] || [] // Fetch tags
-      }));
+      const atoms = result.rows.map((r: any) => {
+        const ts = Number(r.timestamp);
+        return {
+          id: r.id,
+          timestamp: isNaN(ts) ? 0 : ts, // Ensure numeric timestamp
+          content: r.content,
+          tags: r.tags || []
+        };
+      });
       console.log(`🌙 Dreamer [Cycle ${loopCount}]: Found ${atoms.length} unbound atoms. Clustering...`);
 
       // 2. Temporal Clustering (Gap > 15 minutes = New Cluster)
       const clusters: any[][] = [];
       let currentCluster: any[] = [];
-      let lastTime = atoms[0].timestamp;
+      if (atoms.length > 0) {
+        let lastTime = atoms[0].timestamp;
 
-      for (const atom of atoms) {
-        if (atom.timestamp - lastTime > config.DREAMER_CLUSTERING_GAP_MS) {
-          if (currentCluster.length > 0) clusters.push(currentCluster);
-          currentCluster = [];
+        for (const atom of atoms) {
+          if (atom.timestamp - lastTime > config.DREAMER_CLUSTERING_GAP_MS) {
+            if (currentCluster.length > 0) clusters.push(currentCluster);
+            currentCluster = [];
+          }
+          currentCluster.push(atom);
+          lastTime = atom.timestamp;
         }
-        currentCluster.push(atom);
-        lastTime = atom.timestamp;
+        if (currentCluster.length > 0) clusters.push(currentCluster);
       }
-      if (currentCluster.length > 0) clusters.push(currentCluster);
 
       // 3. Process Clusters -> Episodes (Level 2)
       console.log(`🌙 Dreamer [Cycle ${loopCount}]: Processing ${clusters.length} temporal clusters...`);
@@ -491,19 +527,40 @@ Atom Count: ${cluster.length}
             episodeContent,
             startTime,
             endTime,
-            new Array(384).fill(0.0) // Placeholder
+            JSON.stringify(new Array(384).fill(0.0)) // Placeholder
           ]
         );
 
         // Link Atoms to Episode (Parent_Of)
-        for (const atom of cluster) {
-          await db.run(
-            `INSERT INTO edges (source_id, target_id, weight, relation)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (source_id, target_id, relation) DO UPDATE SET
-               weight = EXCLUDED.weight`,
-            [episodeId, atom.id, 1.0, 'parent_of']
-          );
+        // Link Atoms to Episode (Parent_Of) - Bulk Insert with Sub-batching
+        if (cluster.length > 0) {
+          const EDGE_BATCH_SIZE = 500;
+          for (let j = 0; j < cluster.length; j += EDGE_BATCH_SIZE) {
+            const chunk = cluster.slice(j, j + EDGE_BATCH_SIZE);
+            const edgeValues: any[] = [];
+            const edgePlaceholders: string[] = [];
+            let k = 1;
+
+            for (const atom of chunk) {
+              if (!atom.id) {
+                console.warn('[Dreamer] Skipping atom with null ID during edge creation');
+                continue;
+              }
+              edgePlaceholders.push(`($${k}, $${k + 1}, $${k + 2}, $${k + 3})`);
+              edgeValues.push(episodeId, atom.id, 1.0, 'parent_of');
+              k += 4;
+            }
+
+            if (edgeValues.length > 0) {
+              await db.run(
+                `INSERT INTO edges (source_id, target_id, weight, relation)
+                    VALUES ${edgePlaceholders.join(', ')}
+                    ON CONFLICT (source_id, target_id, relation) DO UPDATE SET
+                      weight = EXCLUDED.weight`,
+                edgeValues
+              );
+            }
+          }
         }
 
         console.log(`🌙 Dreamer: Created Episode ${episodeId} (Topics: ${topics.join(', ')})`);

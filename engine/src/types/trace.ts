@@ -1,5 +1,5 @@
 /**
- * Types for Request Tracing in ECE_Core
+ * Types for Request Tracing in Anchor Engine
  */
 
 import { Request } from 'express';

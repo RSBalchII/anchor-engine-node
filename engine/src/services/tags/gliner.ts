@@ -7,9 +7,11 @@
  * Implements lazy loading and automatic unloading to manage memory usage.
  */
 
+import { config } from '../../config/index.js';
+
 let nerPipeline: any = null;
 let lastUsed: number = 0;
-const UNLOAD_TIMEOUT = 300000; // 5 minutes of inactivity before unloading
+const UNLOAD_TIMEOUT = config.SERVICES.TAG_INFECTOR_UNLOAD_TIMEOUT; // Configurable timeout for inactivity before unloading
 
 async function initializePipeline() {
     if (nerPipeline) {
@@ -68,7 +70,7 @@ setInterval(() => {
     if (nerPipeline && (Date.now() - lastUsed) > UNLOAD_TIMEOUT) {
         cleanupPipeline();
     }
-}, 60000); // Check every minute
+}, config.SERVICES.TAG_GLINER_CHECK_INTERVAL); // Configurable check interval
 
 export async function extractEntitiesWithGLiNER(text: string, _entities: string[] = []): Promise<string[]> {
     try {

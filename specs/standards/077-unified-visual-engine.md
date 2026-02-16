@@ -42,7 +42,7 @@ graph TD
 The Visual Engine is **decoupled** from the runtime kernel.
 
 - **The Host**: The ECE Engine runs as a headless process (Service/Tray).
-- **The Interface**: The UI is served as a React SPA via the default system browser (`localhost:3000`).
+- **The Interface**: The UI is served as a React SPA via the configured server URL (default: `localhost:3160`, configurable in user_settings.json).
 - **Rationale**: Browser engines (Chrome/Edge) offer superior performance, extension support, and stability compared to embedding a heavyweight webview for a single-page app.
 
 ## 6. Layout & Composition

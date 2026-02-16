@@ -36,7 +36,9 @@ The system needed a standardized approach for search queries to ensure consisten
    - This includes identifying relevant buckets and search strategies
    - Users can override automatic classification if needed
 
-## Updated Search Patterns (Post-Semantic Shift)
+## Updated Search Patterns (Standard 104: Universal Semantic Search)
+
+**Note:** This section reflects the implementation details defined in [Standard 104](../standards/104-universal-semantic-search.md).
 
 ### 1. Semantic Category Queries
 With the introduction of semantic categories, queries can now target specific semantic types:

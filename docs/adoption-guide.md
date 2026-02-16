@@ -29,7 +29,7 @@ ECE represents a shift from centralized AI memory systems to a "Browser Paradigm
 
 3. **First Run**:
    - Start the engine: `pnpm start`
-   - Access the health endpoint: `http://localhost:3000/health`
+   - Access the health endpoint: `http://localhost:3160/health` (or configured port in user_settings.json)
    - Begin ingesting your content through the API
 
 ### For Organizations

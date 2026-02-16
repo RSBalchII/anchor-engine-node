@@ -7,11 +7,11 @@
 ### Component Hierarchy
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ELECTRON WRAPPER LAYER                                        │
+│  UI LAYER                                                      │
 ├─────────────────────────────────────────────────────────────────┤
-│  • UI Presentation Layer                                       │
-│  • Health Check Client                                         │
-│  • Process Management                                          │
+│  • External UI (packages/anchor-ui/dist)                       │
+│  • Internal Lightweight UI (engine/public)                     │
+│  • UI Selection Logic (Automatic based on availability)        │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -20,6 +20,7 @@
 │  • HTTP API Gateway                                            │
 │  • Route Management                                            │
 │  • Request Processing                                          │
+│  • UI Serving Logic                                            │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -60,6 +61,18 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### UI Serving Sequence (Standalone Capability)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  UI DETECTION & SERVING LOGIC                                  │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Check for external UI (packages/anchor-ui/dist)           │
+│  2. If exists → Serve external UI                             │
+│  3. If not exists → Serve internal lightweight UI             │
+│  4. Set up catch-all route for SPA routing                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Architecture Principles
 
 ### 1. The Browser Analogy
@@ -91,13 +104,14 @@ This allows rapid development in JavaScript while maintaining performance-critic
 - **Ingestion Service**: Content processing pipeline with native acceleration
 - **Search Service**: Tag-Walker protocol for graph-based associative retrieval
 - **Watchdog Service**: File system monitoring with debounced processing
-- **Dreamer Service**: Background processing for self-organization
+- **Dreamer Service**: Background processing for self-organization (Bulk UPSERTs, Sub-batched)
 - **Backup Service**: Snapshot management for data persistence
 
 ### Database Schema (PostgreSQL-compatible)
 - **Atoms Table**: Individual knowledge units with content, metadata, and relationships
 - **Tags Table**: Semantic tags and relationships between atoms
 - **Edges Table**: Connections between related atoms
+- **Atom Positions Table**: Byte offsets for radial context inflation (keyword → file position)
 - **Sources Table**: Document origins and ingestion metadata
 - **Molecules/Compounds Tables**: Hierarchical content organization
 
@@ -111,6 +125,7 @@ This allows rapid development in JavaScript while maintaining performance-critic
 - `POST /v1/backup` - Create database backup
 - `GET /v1/backups` - List available backups
 - `POST /v1/backup/restore` - Restore from backup
+- `GET /*` - Catch-all route for UI serving (serves appropriate index.html)
 
 ## Performance Characteristics
 
@@ -118,7 +133,9 @@ This allows rapid development in JavaScript while maintaining performance-critic
 - **2.3x Performance Improvement**: Over pure JavaScript implementations
 - **Sub-millisecond Processing**: For typical operations
 - **Zero-Copy String Processing**: Using `std::string_view` to reduce memory pressure
-- **Batch Processing**: SIMD-optimized operations for distance calculations
+- **Batch Processing**: SIMD-optimized operations and **Chunked DB Writes** for stable ingestion
+- **O(1) Transactional Ingestion**: Atomic batch commits per chunk (vs O(N) per atom)
+- **Parallelized Context Inflation**: Concurrent search term expansion using `Promise.all`
 
 ### Critical Path Operations
 1. **Atomization**: Splitting content into semantic molecules
@@ -133,6 +150,7 @@ The core search mechanism replaces legacy vector search with graph-based associa
 1. **Initial FTS**: Full-text search with GIN index
 2. **Pivot**: Identify key terms and semantic categories
 3. **Walk**: Traverse graph relationships to find related content
+4. **Radial Inflation**: Expand context from disk using `Atom Positions` (partial file reads)
 
 ### Smart Search Protocol (Standard 094)
 - **Intelligent Parsing**: Remove stopwords and detect intent
@@ -167,6 +185,14 @@ Anchor is designed to be **agent harness agnostic**, meaning it can work with mu
 - Other custom agent frameworks
 - Third-party agent systems
 - Direct API integrations
+
+### Standalone UI Capability
+The Anchor Engine includes a **built-in lightweight UI** that:
+- Serves from the engine's own `public` directory when running standalone
+- Uses the external UI from `packages/anchor-ui/dist` when integrated with the full system
+- Provides essential functionality: search, health checks, backup operations
+- Automatically detects which UI to serve based on availability
+- Enables the engine to function as a standalone search tool
 
 ### Data Atomization Service
 Anchor's core function is as a **data atomization service** that:
@@ -239,7 +265,7 @@ The system can be queried through the Anchor CLI to parse data into structured f
 ### Technology Stack
 - **Backend**: Node.js with Express.js
 - **Database**: PGlite (PostgreSQL-compatible)
-- **Frontend**: TypeScript, React (Vite build system)
+- **Frontend**: TypeScript, React (Vite build system) with lightweight fallback UI
 - **Desktop**: Electron wrapper
 - **AI Integration**: Local LLM support with remote fallback
 
@@ -249,15 +275,19 @@ The system can be queried through the Anchor CLI to parse data into structured f
 - Platform-specific binary compilation
 - Universal installation scripts
 
-## Standards Implemented
-- **Standard 053**: PGlite Pain Points & OS Compatibility
-- **Standard 059**: Reliable Ingestion Pipeline & Database Type Safety Protocol
-- **Standard 088**: Server Startup Sequence (ECONNREFUSED fix)
-- **Standard 094**: Smart Search Protocol (Fuzzy Fallback & GIN Optimization)
-- **Standard 095**: Database Reset on Startup Protocol (Tabula Rasa Pattern)
-- **Standard 096**: Timestamp Assignment Protocol (Temporal Context Propagation)
-- **Standard 097**: Enhanced Code Analysis (AST Integration & Code Intelligence)
-- **Standard 098**: Horizontal Scaling Architecture (Distributed Processing Protocol)
+### Service-Oriented Architecture
+The system follows a service-oriented architecture with distinct responsibilities:
+- **anchor-engine**: Pure knowledge database service (Node/C++ DB API on Port 3160)
+- **inference-server**: Standalone inference server (Port 3001)
+- **anchor-ui**: React frontend interface (Port 5173 for development)
+- **nanobot-node**: Stateless agent connecting the services
+- **openclaw**: Primary agent harness for interacting with the Anchor system
+
+## Standards Implemented (See `specs/standards/*.md`)
+*   **Search**: `Search_Protocol.md` (Universal Semantic Search, 70/30 Budgeting).
+*   **Architecture**: `System_Architecture.md` (Startup, Workers, UI).
+*   **Data**: `Data_Pipeline.md` (Ingestion, Tagging, Code Analysis).
+*   **Database**: `Database_Schema.md` (PGlite, Tabula Rasa).
 
 ## Change Management
 

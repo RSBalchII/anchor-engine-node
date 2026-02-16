@@ -27,7 +27,7 @@ This document provides a concise yet comprehensive overview of the ECE_Core syst
 - `GET /monitoring/dashboard`: Real-time system monitoring
 
 ### Search Capabilities
-- **Tag-Walker Protocol**: 3-phase graph traversal (Anchors → Bridges → Walk)
+- **Tag-Walker Protocol**: Graph traversal via Unified Field Equation (Co-occurrence × Time × SimHash)
 - **Semantic Search**: Relationship and narrative discovery
 - **Context Assembly**: Dynamic inflation of molecular coordinates
 - **Provenance Boosting**: Sovereign content receives 3.0x retrieval boost

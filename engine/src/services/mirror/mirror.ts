@@ -1,212 +1,198 @@
 /**
  * Mirror Protocol Service - "Tangible Knowledge Graph"
  *
- * Projects the AI Brain onto the filesystem using a @bucket/#tag structure.
+ * Pure filesystem mirroring: copies files as-is from inbox/external-inbox
+ * to mirrored_brain, preserving directory structure.
+ * 
+ * Supports YAML rehydration: flattened YAML files (from read_all.js) are
+ * expanded back into their original file structure.
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as crypto from 'crypto';
+import yaml from 'js-yaml';
 import { db } from '../../core/db.js';
 import { NOTEBOOK_DIR } from '../../config/paths.js';
+import PATHS from '../../config/paths.js';
 
 export const MIRRORED_BRAIN_PATH = path.join(NOTEBOOK_DIR, 'mirrored_brain');
 
-// Clean filename helper
-function sanitizeFilename(text: string): string {
-    return text.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 64);
-}
-
-const ATOMS_PER_BUNDLE = 100;
-
 /**
- * Mirror Protocol: Exports memories to Markdown files organized by @bucket/#tag/#nested hierarchy
+ * Mirror Protocol: Pure filesystem mirroring with YAML rehydration
+ * 
+ * - Copies files as-is preserving directory structure
+ * - YAML files with files[] array are rehydrated into individual files
  */
 export async function createMirror() {
-    console.log('🪞 Mirror Protocol: Starting semantic brain mirroring (Recursive Tree)...');
+    console.log('🪞 Mirror Protocol: Starting pure filesystem mirror...');
 
-    // Wipe existing mirrored brain to ensure only latest state is present
-    if (fs.existsSync(MIRRORED_BRAIN_PATH)) {
-        console.log(`🪞 Mirror Protocol: Wiping stale mirror at ${MIRRORED_BRAIN_PATH}`);
-        try {
-            fs.rmSync(MIRRORED_BRAIN_PATH, { recursive: true, force: true });
-        } catch (e: any) {
-            console.warn(`🪞 Mirror Protocol: Wipe failed (EPERM/Locked). Attempting to proceed without full wipe. Error: ${e.message}`);
-            // Retry once with small delay? Or just proceed.
-            // Proceeding is safer than crashing. 
-            // We might have stale files, but better than no mirror.
-        }
+    // Create mirror root
+    if (!fs.existsSync(MIRRORED_BRAIN_PATH)) {
+        fs.mkdirSync(MIRRORED_BRAIN_PATH, { recursive: true });
     }
 
-    fs.mkdirSync(MIRRORED_BRAIN_PATH, { recursive: true });
+    // Get all unique source paths from sources table (replacing legacy compounds)
+    const sourcesQuery = `SELECT path FROM sources`;
+    const result = await db.run(sourcesQuery);
 
-    // Batch processing to avoid WASM OOM
-    const BATCH_SIZE = 500;
-    let offset = 0;
-    let hasMore = true;
-
-    // Grouping structure: Map<FullPathString, Map<SourcePath, Atom[]>>
-    const directoryGroups = new Map<string, Map<string, any[]>>();
-
-    while (hasMore) {
-        console.log(`🪞 Mirror: Fetching batch offset ${offset}...`);
-        const query = `SELECT id, timestamp, content, source_path as source, type, hash, buckets, tags, sequence, provenance FROM atoms LIMIT ${BATCH_SIZE} OFFSET ${offset}`;
-        const result = await db.run(query);
-
-        if (!result.rows || result.rows.length === 0) {
-            hasMore = false;
-            break;
-        }
-
-        for (const row of result.rows) {
-            // Handle both array and object formats
-            let id, timestamp, content, source, type, hash, buckets, tags, sequence, provenance;
-
-            if (Array.isArray(row)) {
-                [id, timestamp, content, source, type, hash, buckets, tags, sequence, provenance] = row;
-            } else {
-                id = row.id;
-                timestamp = row.timestamp;
-                content = row.content;
-                source = row.source;
-                type = row.type;
-                hash = row.hash;
-                buckets = row.buckets;
-                tags = row.tags;
-                sequence = row.sequence;
-                provenance = row.provenance;
-            }
-
-            const bucketList = (buckets as string[]) || [];
-            const tagList = (tags as string[]) || [];
-            const primaryBucket = bucketList.length > 0 ? bucketList[0] : 'general';
-
-            // 1. Determine Root Bucket
-            let bucketName = (primaryBucket && primaryBucket !== 'general' && primaryBucket !== 'unknown') ? primaryBucket : 'general';
-
-            // QUARANTINE OVERRIDE
-            const isQuarantined = tagList.includes('#manually_quarantined') || tagList.includes('#auto_quarantined');
-            if (isQuarantined) {
-                bucketName = 'quarantine';
-            }
-
-            // 2. Determine Tag Path
-            const specificTags = tagList.filter((t: string) => t !== bucketName && t !== 'inbox');
-            specificTags.sort();
-
-            const pathSegments = [`@${sanitizeFilename(bucketName)}`];
-            if (specificTags.length > 0) {
-                specificTags.forEach(t => pathSegments.push(`#${sanitizeFilename(t)}`));
-            } else {
-                pathSegments.push('#_untagged');
-            }
-
-            const relativePath = path.join(...pathSegments);
-
-            // 3. Add to Group
-            if (!directoryGroups.has(relativePath)) directoryGroups.set(relativePath, new Map());
-            const sourceMap = directoryGroups.get(relativePath)!;
-
-            const sourcePath = (source as string) || 'unknown';
-            if (!sourceMap.has(sourcePath)) sourceMap.set(sourcePath, []);
-
-            sourceMap.get(sourcePath)!.push({
-                id, timestamp, content, source: sourcePath, type, hash, buckets: bucketList, tags: tagList, sequence: sequence || 0, provenance
-            });
-        }
-
-        offset += BATCH_SIZE;
-        // Safety break if needed, but pagination should work
-    }
-
-    if (directoryGroups.size === 0) {
-        console.log('🪞 Mirror Protocol: No memories to mirror.');
+    if (!result.rows || result.rows.length === 0) {
+        console.log('🪞 Mirror Protocol: No files to mirror.');
         return;
     }
 
-    console.log(`🪞 Mirror Protocol: Grouping complete. Writing files...`);
+    let fileCount = 0;
+    let rehydratedCount = 0;
 
-    let bundleCount = 0;
-    let totalAtoms = 0;
+    for (const row of result.rows) {
+        const dbPath = Array.isArray(row) ? row[0] : row.path; // PGlite rowMode handling
 
-    // Write bundles recursively
-    for (const [relPath, sourceMap] of directoryGroups) {
-        const fullDir = path.join(MIRRORED_BRAIN_PATH, relPath);
+        if (!dbPath) continue;
 
-        if (!fs.existsSync(fullDir)) fs.mkdirSync(fullDir, { recursive: true });
+        // Resolve source path - may be relative (from DB) or absolute
+        let sourcePath = dbPath;
+        if (!path.isAbsolute(sourcePath)) {
+            sourcePath = path.join(NOTEBOOK_DIR, sourcePath);
+        }
 
-        for (const [sourcePath, atomList] of sourceMap) {
-            // Sort by sequence or timestamp
-            atomList.sort((a, b) => (a.sequence - b.sequence) || (a.timestamp - b.timestamp));
+        if (!fs.existsSync(sourcePath)) continue;
 
-            // Chunk into bundles
-            for (let i = 0; i < atomList.length; i += ATOMS_PER_BUNDLE) {
-                const chunk = atomList.slice(i, i + ATOMS_PER_BUNDLE);
-                const partNum = Math.floor(i / ATOMS_PER_BUNDLE) + 1;
-                const isMultiPart = atomList.length > ATOMS_PER_BUNDLE;
+        // Determine mirror subdirectory based on path
+        let provenanceDir = '@inbox';
+        if (dbPath.startsWith('external-inbox') || dbPath.includes('external-inbox')) {
+            provenanceDir = '@external-inbox';
+        } else if (dbPath.startsWith('quarantine')) {
+            provenanceDir = '@quarantine';
+        }
 
-                // We pass the "bucketName" just for the Archive label in case of orphan
-                // We extract it from the path (first segment)
-                const bucketLabel = relPath.split(path.sep)[0].replace('@', '');
-
-                await writeBundleFile(fullDir, sourcePath, chunk, partNum, isMultiPart, bucketLabel);
-                bundleCount++;
-                totalAtoms += chunk.length;
+        // Check if this is a rehydratable YAML file
+        if (sourcePath.endsWith('.yaml') || sourcePath.endsWith('.yml')) {
+            const rehydrated = await tryRehydrateYAML(sourcePath, provenanceDir);
+            if (rehydrated > 0) {
+                rehydratedCount += rehydrated;
+                continue; // Skip normal copy for rehydrated files
             }
         }
+
+        // Normal file: copy as-is preserving relative path
+        const relativePath = getRelativePath(sourcePath);
+        const mirrorPath = path.join(MIRRORED_BRAIN_PATH, provenanceDir, relativePath);
+
+        await copyFile(sourcePath, mirrorPath);
+        fileCount++;
     }
 
-    console.log(`🪞 Mirror Protocol: Synchronization complete. ${totalAtoms} memories mirrored across ${bundleCount} bundles in ${MIRRORED_BRAIN_PATH}`);
+    console.log(`🪞 Mirror Protocol: Complete. ${fileCount} files mirrored, ${rehydratedCount} files rehydrated.`);
 }
 
-async function writeBundleFile(tagDir: string, sourcePath: string, atoms: any[], partNum: number, isMultiPart: boolean, bucketName: string) {
+/**
+ * Try to rehydrate a YAML file (from read_all.js format)
+ * Returns number of files rehydrated, or 0 if not a rehydratable format
+ */
+async function tryRehydrateYAML(yamlPath: string, provenanceDir: string): Promise<number> {
     try {
-        let isOrphan = sourcePath === 'unknown' || !sourcePath;
-        let sourceBase = isOrphan ? `daily_archive_${new Date().toISOString().split('T')[0]}` : path.basename(sourcePath);
+        const content = fs.readFileSync(yamlPath, 'utf-8');
+        const data = yaml.load(content) as any;
 
-        // Add hash of full path to prevent collisions for same basename in different dirs
-        const pathHash = crypto.createHash('md5').update(sourcePath || 'orphan').digest('hex').substring(0, 8);
-        const safeName = sanitizeFilename(sourceBase).toLowerCase();
-
-        let fileName = `${safeName}_${pathHash}`;
-        if (isMultiPart) fileName += `_part${partNum}`;
-        fileName += '.md';
-
-        const filePath = path.join(tagDir, fileName);
-
-        if (!fs.existsSync(tagDir)) {
-            fs.mkdirSync(tagDir, { recursive: true });
+        // Check if this matches read_all.js format
+        if (!data || !Array.isArray(data.files) || data.files.length === 0) {
+            return 0; // Not a rehydratable format
         }
 
-        // Build content (Standard 066)
-        let content = `# Source: ${isOrphan ? 'Archive (' + bucketName + ')' : sourcePath}\n`;
-        if (isMultiPart) content += `> Part: ${partNum}\n`;
-        content += `\n---\n\n`;
+        // Get project name from project_structure or filename
+        const projectName = data.project_structure
+            ? path.basename(data.project_structure)
+            : path.basename(yamlPath, path.extname(yamlPath));
 
-        for (const atom of atoms) {
-            let nameSnippet = "atom";
-            const titleMatch = atom.content.match(/^#\s+(.+)$/m);
-            if (titleMatch) {
-                nameSnippet = titleMatch[1];
-            } else {
-                nameSnippet = atom.content.substring(0, 50).trim().split('\n')[0];
-            }
+        console.log(`🪞 Rehydrating YAML: ${yamlPath} → ${data.files.length} files (project: ${projectName})`);
 
-            const shortId = (atom.id || "").split('_').pop() || "anon";
+        let count = 0;
+        for (const file of data.files) {
+            if (!file.path || file.content === undefined) continue;
 
-            content += `## [${shortId}] ${nameSnippet}\n`;
-            // Metadata header as per POML
-            content += `> **Provenance**: ${atom.provenance || 'unknown'} | **Date**: ${new Date(atom.timestamp).toISOString()}\n`;
-            if (atom.tags.length > 0) content += `> **Tags**: ${atom.tags.join(', ')}\n`;
-            content += `\n${atom.content}\n\n`;
-            content += `---`; // Horizontal rule separation
-            content += `\n\n`;
+            const mirrorPath = path.join(
+                MIRRORED_BRAIN_PATH,
+                provenanceDir,
+                projectName,
+                file.path
+            );
+
+            await writeFile(mirrorPath, file.content);
+            count++;
         }
 
-        await fs.promises.writeFile(filePath, content, 'utf8');
-        return true;
-    } catch (e: any) {
-        console.error(`Failed to write bundle file in ${tagDir}:`, e.message);
-        return false;
+        return count;
+    } catch (e) {
+        // Not a valid YAML or parsing error - treat as normal file
+        return 0;
     }
 }
+
+/**
+ * Get relative path from inbox roots
+ */
+function getRelativePath(absolutePath: string): string {
+    if (!absolutePath) return 'unknown_file';
+
+    const inboxDir = PATHS.INBOX_DIR;
+    const externalDir = path.join(path.dirname(PATHS.INBOX_DIR), 'external-inbox');
+
+    if (absolutePath.startsWith(inboxDir)) {
+        return path.relative(inboxDir, absolutePath);
+    }
+    if (absolutePath.startsWith(externalDir)) {
+        return path.relative(externalDir, absolutePath);
+    }
+
+    // Hande pre-relative paths (e.g. from DB)
+    if (absolutePath.startsWith('inbox/') || absolutePath.startsWith('inbox\\')) {
+        return absolutePath.substring(6); // remove 'inbox/'
+    }
+    if (absolutePath.startsWith('external-inbox/') || absolutePath.startsWith('external-inbox\\')) {
+        return absolutePath.substring(15); // remove 'external-inbox/'
+    }
+
+    // Fallback: use filename only
+    return path.basename(absolutePath);
+}
+
+/**
+ * Copy a file to mirror location
+ */
+async function copyFile(source: string, dest: string): Promise<void> {
+    try {
+        const destDir = path.dirname(dest);
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+        fs.copyFileSync(source, dest);
+    } catch (e: any) {
+        console.warn(`🪞 Mirror: Failed to copy ${source}: ${e.message}`);
+    }
+}
+
+/**
+ * Write content to a file
+ */
+async function writeFile(filePath: string, content: string): Promise<void> {
+    try {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, content, 'utf-8');
+    } catch (e: any) {
+        console.warn(`🪞 Mirror: Failed to write ${filePath}: ${e.message}`);
+    }
+}
+
+/**
+ * Get the mirrored path for a source file
+ * Used by context inflator to read from mirror instead of DB
+ */
+export function getMirrorPath(sourcePath: string, provenance: string = 'internal'): string {
+    const provenanceDir = provenance === 'external' ? '@external-inbox' :
+        provenance === 'quarantine' ? '@quarantine' : '@inbox';
+    const relativePath = getRelativePath(sourcePath);
+    return path.join(MIRRORED_BRAIN_PATH, provenanceDir, relativePath);
+}
+

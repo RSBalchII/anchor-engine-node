@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anchor Engine - Integrated Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #050507;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+        }
+        .glass-panel-dark {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+        }
+        .search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .btn-danger {
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid rgba(220, 38, 38, 0.5);
+            color: #fca5a5;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-danger:hover {
+            background: rgba(220, 38, 38, 0.3);
+        }
+        
+        /* Markdown-ish formatting for Chat */
+        .prose p { margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; margin-left: 1.5em; }
+        .prose pre { background: #1e293b; padding: 0.5em; border-radius: 4px; overflow-x: auto; }
+        .prose code { background: #1e293b; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { Search, MessageSquare, Terminal, Database, Save, Trash2, RefreshCw, Power } = lucide;
+
+        // API Service
+        const api = {
+            search: (params) => fetch('/v1/memory/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            }).then(r => r.json()),
+            
+            getBuckets: () => fetch('/v1/buckets').then(r => r.json()),
+            getTags: (buckets) => {
+                const query = buckets && buckets.length > 0 ? `?buckets=${buckets.join(',')}` : '';
+                return fetch(`/v1/tags${query}`).then(r => r.json());
+            },
+            
+            health: () => fetch('/health').then(r => r.json()),
+            backup: () => fetch('/v1/backup', { method: 'POST' }).then(r => r.json()),
+            
+            // Nanobot / Model Management
+            getModels: () => fetch('/v1/models').then(r => r.json()),
+            getModelStatus: () => fetch('/v1/model/status').then(r => r.json()),
+            loadModel: (model) => fetch('/v1/model/load', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model })
+            }).then(r => r.json()),
+            unloadModel: () => fetch('/v1/model/unload', { method: 'POST' }).then(r => r.json()),
+        };
+
+        // --- COMPONENTS ---
+
+        function SearchColumn({ id, availableBuckets, availableTags, onRemove }) {
+            const [query, setQuery] = useState('');
+            const [results, setResults] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [selectedBucket, setSelectedBucket] = useState('');
+            const [maxChars, setMaxChars] = useState(20000);
+            const [provenance, setProvenance] = useState('all');
+
+            const handleSearch = async () => {
+                if (!query.trim()) return;
+                setLoading(true);
+                try {
+                    const response = await api.search({
+                        query,
+                        bucket: selectedBucket || undefined,
+                        tags: [], // Could implement tag multiselect
+                        max_chars: maxChars,
+                        provenance
+                    });
+                    setResults(response.results || []);
+                } catch (error) {
+                    console.error('Search error:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="glass-panel p-4 h-full flex flex-col min-h-[500px]">
+                    <div className="flex justify-between items-center mb-4 border-b border-gray-700/50 pb-2">
+                        <div className="flex items-center gap-2 text-cyan-400 font-semibold">
+                            <i data-lucide="search" width="18"></i>
+                            <span>Search #{id}</span>
+                        </div>
+                        <button onClick={() => onRemove(id)} className="text-gray-500 hover:text-red-400">
+                           <i data-lucide="trash-2" width="16"></i>
+                        </button>
+                    </div>
+                    
+                    <div className="space-y-3 mb-4">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                placeholder="Search memory..."
+                                className="flex-1 p-2 rounded bg-black/40 border border-gray-700 text-white placeholder-gray-500 focus:border-cyan-500 outline-none"
+                            />
+                            <button onClick={handleSearch} disabled={loading} className="btn-primary">
+                                {loading ? <i data-lucide="refresh-cw" className="animate-spin" width="18"/> : 'Go'}
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <select
+                                value={selectedBucket}
+                                onChange={(e) => setSelectedBucket(e.target.value)}
+                                className="p-2 rounded bg-black/40 border border-gray-700 text-gray-300"
+                            >
+                                <option value="">All Buckets</option>
+                                {availableBuckets.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            
+                            <select
+                                value={provenance}
+                                onChange={(e) => setProvenance(e.target.value)}
+                                className="p-2 rounded bg-black/40 border border-gray-700 text-gray-300"
+                            >
+                                <option value="all">All Sources</option>
+                                <option value="internal">Internal Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                        {results.length === 0 && !loading && (
+                            <div className="text-center text-gray-600 mt-10">No results found</div>
+                        )}
+                        {results.map((result, idx) => (
+                            <div key={idx} className="p-3 bg-black/20 rounded border border-gray-700/30 text-sm hover:bg-black/30 transition">
+                                <div className="flex justify-between items-start mb-1">
+                                    <span className="font-medium text-cyan-300 truncate w-2/3">{result.source}</span>
+                                    <span className="text-xs text-gray-500">{result.score?.toFixed(2)}</span>
+                                </div>
+                                <div className="text-gray-300 line-clamp-4 leading-relaxed font-light">
+                                    {result.content}
+                                </div>
+                                <div className="mt-2 text-xs text-gray-500 flex flex-wrap gap-2">
+                                    <span>{new Date(result.timestamp).toLocaleDateString()}</span>
+                                    {result.buckets && result.buckets.map(b => (
+                                        <span key={`bucket-${b}`} className="px-1.5 py-0.5 bg-gray-900 rounded text-cyan-300">{b}</span>
+                                    ))}
+                                    {result.tags && result.tags.map(t => (
+                                        <span key={`tag-${t}`} className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400">{t}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        function ChatColumn({ availableModels, modelStatus, refreshStatus }) {
+            const [messages, setMessages] = useState([]);
+            const [input, setInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [selectedModel, setSelectedModel] = useState('');
+            const chatEndRef = useRef(null);
+            
+            useEffect(() => {
+                if (modelStatus?.current_model) {
+                    setSelectedModel(modelStatus.current_model);
+                }
+            }, [modelStatus]);
+
+            useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            // Create Icon Elements after mount
+            useEffect(() => {
+                lucide.createIcons();
+            }, []);
+
+            const handleSend = async () => {
+                if (!input.trim()) return;
+                
+                const userMsg = { role: 'user', content: input };
+                setMessages(prev => [...prev, userMsg]);
+                setInput('');
+                setLoading(true);
+
+                try {
+                    const response = await fetch('/v1/chat/completions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            messages: [...messages, userMsg],
+                            model: selectedModel || 'nanobot', // Pass selected model if available
+                            stream: true
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(response.statusText);
+
+                    // Streaming handling
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let botMsg = { role: 'assistant', content: '' };
+                    
+                    setMessages(prev => [...prev, botMsg]);
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') break;
+                                try {
+                                    const json = JSON.parse(data);
+                                    const content = json.choices[0].delta.content;
+                                    if (content) {
+                                        botMsg.content += content;
+                                        setMessages(prev => {
+                                            const newMsgs = [...prev];
+                                            newMsgs[newMsgs.length - 1] = { ...botMsg };
+                                            return newMsgs;
+                                        });
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+                } catch (error) {
+                    setMessages(prev => [...prev, { role: 'system', content: `Error: ${error.message}` }]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleLoadModel = async () => {
+                if (!selectedModel) return;
+                await api.loadModel(selectedModel);
+                setTimeout(refreshStatus, 1000); // Poll shortly after
+            };
+
+            const handleUnloadModel = async () => {
+                await api.unloadModel();
+                setTimeout(refreshStatus, 1000);
+            };
+
+            return (
+                <div className="glass-panel-dark p-4 h-full flex flex-col min-h-[600px] border-l border-cyan-500/20">
+                    {/* Header / Model Controls */}
+                    <div className="mb-4 space-y-3 border-b border-gray-700/50 pb-4">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2 text-purple-400 font-semibold">
+                                <i data-lucide="message-square" width="18"></i>
+                                <span>Nanobot Agent</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs">
+                                <span className={`w-2 h-2 rounded-full ${modelStatus?.ready ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`}></span>
+                                <span className="text-gray-400">{modelStatus?.ready ? 'Active' : 'Idle'}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <select 
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                className="flex-1 bg-black/40 border border-gray-700 rounded text-xs p-1.5 text-gray-300"
+                            >
+                                <option value="">Select Model...</option>
+                                {availableModels.map(m => (
+                                    <option key={m.id} value={m.id}>{m.id}</option>
+                                ))}
+                            </select>
+                            <button onClick={handleLoadModel} className="btn-secondary text-xs px-2 py-1" title="Load Model">
+                                <i data-lucide="power" width="14"></i>
+                            </button>
+                            <button onClick={handleUnloadModel} className="btn-danger text-xs px-2 py-1" title="Unload Model">
+                                <i data-lucide="trash-2" width="14"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Chat Area */}
+                    <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                        {messages.length === 0 && (
+                            <div className="text-center text-gray-600 mt-20 text-sm">
+                                <i data-lucide="terminal" className="mx-auto mb-2 opacity-20" width="32"></i>
+                                <p>Nanobot is ready.</p>
+                                <p className="text-xs mt-1">Select a model and start chatting.</p>
+                            </div>
+                        )}
+                        {messages.map((msg, idx) => (
+                            <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                <div className={`max-w-[85%] rounded-lg p-3 text-sm ${
+                                    msg.role === 'user' 
+                                        ? 'bg-purple-600/20 border border-purple-500/30 text-purple-100' 
+                                        : msg.role === 'system'
+                                            ? 'bg-red-900/20 border border-red-500/30 text-red-200 font-mono text-xs'
+                                            : 'bg-black/30 border border-gray-700/50 text-gray-200'
+                                }`}>
+                                    <div className="prose whitespace-pre-wrap">{msg.content}</div>
+                                </div>
+                            </div>
+                        ))}
+                        <div ref={chatEndRef}></div>
+                    </div>
+
+                    {/* Input */}
+                    <div className="flex gap-2">
+                        <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
+                            placeholder="Message Nanobot..."
+                            className="flex-1 bg-black/40 border border-gray-700 rounded p-3 text-sm text-white resize-none h-[50px] focus:border-purple-500 outline-none"
+                        ></textarea>
+                        <button onClick={handleSend} disabled={loading} className="btn-primary h-[50px] w-[50px] flex items-center justify-center">
+                            {loading ? <i data-lucide="refresh-cw" className="animate-spin" width="18"/> : <i data-lucide="message-square" width="18"/>}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [columns, setColumns] = useState([{ id: 1, type: 'search' }, { id: 2, type: 'chat' }]);
+            const [availableBuckets, setAvailableBuckets] = useState([]);
+            const [availableModels, setAvailableModels] = useState([]);
+            const [modelStatus, setModelStatus] = useState(null);
+            
+            // Initialization
+            useEffect(() => {
+                // Initialize Lucide icons
+                lucide.createIcons();
+
+                const initData = async () => {
+                    const [buckets, models] = await Promise.all([
+                        api.getBuckets(),
+                        api.getModels().then(res => res.data || [])
+                            .catch(() => [{id: 'Connection Error', object: 'error'}]) // Fallback if nanobot down
+                    ]);
+                    setAvailableBuckets(buckets || []);
+                    setAvailableModels(models || []);
+                };
+                initData();
+
+                // Poll model status
+                const interval = setInterval(async () => {
+                    try {
+                        const status = await api.getModelStatus();
+                        setModelStatus(status);
+                    } catch (e) {}
+                }, 2000);
+                return () => clearInterval(interval);
+            }, []);
+
+            // Re-run createIcons when columns change
+            useEffect(() => {
+                setTimeout(() => lucide.createIcons(), 100);
+            }, [columns]);
+
+            const addSearchColumn = () => {
+                setColumns(prev => [...prev, { id: Date.now(), type: 'search' }]);
+            };
+
+            const removeColumn = (id) => {
+                if (columns.length <= 1) return;
+                setColumns(prev => prev.filter(col => col.id !== id));
+            };
+
+            return (
+                <div className="h-screen flex flex-col overflow-hidden bg-[url('https://res.cloudinary.com/djp21wtxm/image/upload/v1611231600/anchor-bg.png')] bg-cover bg-center">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+                    
+                    {/* Header */}
+                    <div className="relative z-10 p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
+                        <div className="flex items-center gap-3">
+                            <i data-lucide="database" className="text-cyan-400"></i>
+                            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                                Anchor OS <span className="text-gray-500 font-normal text-sm ml-2">v3.0.0</span>
+                            </h1>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => api.backup()} className="btn-secondary text-sm flex items-center gap-2">
+                                <i data-lucide="save" width="16"></i> Backup
+                            </button>
+                            <button onClick={addSearchColumn} className="btn-primary text-sm flex items-center gap-2">
+                                <i data-lucide="search" width="16"></i> Add Search
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Grid */}
+                    <div className="relative z-10 flex-1 overflow-x-auto p-4">
+                        <div className="flex gap-4 h-full min-w-max">
+                            {columns.map(col => (
+                                <div key={col.id} className="w-[450px] h-full">
+                                    {col.type === 'search' ? (
+                                        <SearchColumn 
+                                            id={col.id} 
+                                            availableBuckets={availableBuckets} 
+                                            onRemove={removeColumn} 
+                                        />
+                                    ) : (
+                                        <ChatColumn 
+                                            availableModels={availableModels} 
+                                            modelStatus={modelStatus}
+                                            refreshStatus={() => api.getModelStatus().then(setModelStatus)}
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

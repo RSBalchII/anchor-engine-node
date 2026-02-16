@@ -27,7 +27,7 @@ db.init().then(() => {
     res.status(200).json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'ECE Chat Server (Port 8080)'
+      service: 'Anchor Engine Chat Server (Port 8080)'
     });
   });
 
@@ -43,7 +43,7 @@ db.init().then(() => {
   // Start server
   const PORT = 8080;
   app.listen(PORT, () => {
-    console.log(`\x1b[36mECE Chat Server running on port ${PORT}\x1b[0m`);
+    console.log(`\x1b[36mAnchor Engine Chat Server running on port ${PORT}\x1b[0m`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
     console.log('Ready to serve chat completions for Qwen Code CLI...');
   });

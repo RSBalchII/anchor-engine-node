@@ -1,168 +1,177 @@
-# Anchor/ECE_Core Development Roadmap
+# Anchor OS Development Roadmap
+
+> Last revised: February 2026
 
 ## Vision
-Evolve Anchor/ECE_Core into a world-class, privacy-first, scalable knowledge management system that excels at both semantic understanding and code intelligence while maintaining complete user sovereignty over data.
 
-## Strategic Objectives
+Anchor OS is a **sovereign, local-first personal knowledge engine** — an offline-capable AI memory system with physics-based associative search, multi-channel agent integration, and local LLM inference. All data stays on your machine. No cloud. No API keys. Full sovereignty.
 
-### 1. Enhanced Code Intelligence (Q1-Q2 2025)
-- **Objective**: Achieve state-of-the-art code analysis capabilities while preserving privacy
-- **Key Initiatives**:
-  - Implement AST-based parsing for major programming languages
-  - Add symbol resolution and cross-reference tracking
-  - Integrate type system understanding
-  - Develop privacy-preserving code completion
-- **Success Metrics**: Support for 10+ programming languages with semantic understanding
+## What We Built (Completed)
 
-### 2. Horizontal Scaling (Q2-Q3 2025)
-- **Objective**: Enable seamless scaling to handle enterprise-scale deployments
-- **Key Initiatives**:
-  - Implement microservices architecture
-  - Add distributed data storage and processing
-  - Create intelligent load balancing and auto-scaling
-  - Maintain privacy guarantees at scale
-- **Success Metrics**: Support for 100TB+ datasets with sub-second query response
+### Atomic Knowledge Architecture
+- [x] Compound → Molecule → Atom decomposition pipeline
+- [x] Byte-offset pointer system (DB routes, filesystem stores)
+- [x] SimHash deduplication via native C++ (`@rbalchii/native-fingerprint`)
+- [x] NLP entity extraction and semantic tagging
+- [x] Watchdog file watcher with auto-ingestion from inbox directories
+- [x] Multi-bucket knowledge organization (`notebook`, `inbox`, `external`, `quarantine`)
 
-### 3. Advanced Search Intelligence (Q3-Q4 2025)
-- **Objective**: Enhance semantic search with deeper understanding
-- **Key Initiatives**:
-  - Improve Tag-Walker protocol for distributed environments
-  - Add multimodal search capabilities
-  - Implement advanced query understanding
-  - Enhance result ranking and relevance
-- **Success Metrics**: 90%+ precision on complex semantic queries
+### Physics-Based Search (Tag-Walker → Universal Semantic Search)
+- [x] "Planets and Moons" model — direct hits + graph-discovered associations
+- [x] SQL bipartite graph traversal (atoms ↔ tags) via CTE-optimized JOINs
+- [x] Weighted reservoir sampling with temperature for serendipity
+- [x] 70/30 distributed budget (keyword/associative split)
+- [x] Adaptive radius context inflation (200B–5KB windows)
+- [x] Deterministic Semantic Expansion (synonym ring, no LLM needed)
+- [x] Temporal context extraction ("last 3 months", date ranges)
+- [x] Graph-Context Serializer with intent detection
+- [x] Sovereign System Prompt — LLM narrates physics results, stays in the graph
 
-### 4. Developer Experience (Q4 2025-Q1 2026)
-- **Objective**: Create exceptional developer experience for both users and integrators
-- **Key Initiatives**:
-  - Comprehensive IDE integrations
-  - Rich API ecosystem
-  - Enhanced documentation and tutorials
-  - Performance monitoring and insights
-- **Success Metrics**: 90%+ developer satisfaction score
+### Memory Lifecycle
+- [x] Dreamer Service — background Markovian summarization on cron schedule
+- [x] Temporal tagging (season, quarter, time-of-day)
+- [x] Epochal Historian (identifies Epochs, Episodes, Entities)
+- [x] Mirror Protocol — filesystem mirroring with YAML rehydration
+- [x] Tag Infection — generator-based streaming tag propagation
+- [x] BERT NER teacher (GliNER) with lazy loading + auto-unload
 
-## Implementation Phases
+### Split-Brain Architecture
+- [x] Anchor Engine (port 3160) — knowledge DB, search, ingestion
+- [x] Inference Server (port 3001) — dedicated LLM server with engine abstraction
+- [x] Nanobot (port 8080) — sovereign agent with tools, memory, multi-channel chat
+- [x] Anchor UI (port 5173) — React dashboard with search, chat, monitoring
+- [x] OpenAI-compatible API across all services
+- [x] ProcessManager for child service lifecycle
 
-### Phase 1: Foundation (Months 1-3)
-**Focus**: Core architecture for enhanced capabilities
-- [ ] Implement Standard 097: Enhanced Code Analysis
-  - [ ] AST parsers for JavaScript, Python, Java, C++, TypeScript
-  - [ ] Symbol resolution engine
-  - [ ] Type inference system
-  - [ ] Integration with existing atomic architecture
-- [ ] Begin Standard 098: Horizontal Scaling Architecture
-  - [ ] Containerization of services
-  - [ ] Service discovery and communication
-  - [ ] Basic horizontal scaling capabilities
-  - [ ] Distributed monitoring setup
+### Infrastructure
+- [x] Centralized `user_settings.json` configuration
+- [x] PGlite embedded PostgreSQL (zero-install DB)
+- [x] Native C++ modules (`native-atomizer`, `native-fingerprint`, `native-keyassassin`, `native-vector`)
+- [x] Engine test suite (10 sections, 38+ test files)
+- [x] Electron desktop overlay with system tray
+- [x] Web research pipeline (scrape → Markdown → ingest)
+- [x] Cross-platform launch scripts (Windows `.bat`, Unix `.sh`)
+- [x] Log rotation and structured logging (Winston)
 
-### Phase 2: Intelligence (Months 4-6)
-**Focus**: Advanced analysis and distributed processing
-- [ ] Complete Standard 097 implementation
-  - [ ] Code completion engine
-  - [ ] Dependency analysis and visualization
-  - [ ] Quality metrics and security scanning
-  - [ ] Privacy-preserving analysis features
-- [ ] Advance Standard 098 implementation
-  - [ ] Database sharding and replication
-  - [ ] Distributed search with Tag-Walker
-  - [ ] Intelligent query routing
-  - [ ] Auto-scaling capabilities
+### API Surface (32+ endpoints)
+- [x] Ingestion, Search, Atom management, Bucket/Tag listing
+- [x] Backup/Restore, Dreamer trigger, Research scraping
+- [x] Scribe (Markovian state), System config, Health checks
+- [x] LLM proxy (chat completions, model load/unload/status)
+- [x] Debug SQL, graph data, terminal exec
+- [x] API key authentication middleware
+- [x] Request body validation middleware
 
-### Phase 3: Integration (Months 7-9)
-**Focus**: Developer experience and ecosystem
-- [ ] IDE Integrations
-  - [ ] VS Code extension
-  - [ ] JetBrains plugin suite
-  - [ ] GitHub/GitLab integration
-  - [ ] Editor support (Vim, Emacs)
-- [ ] API Enhancement
-  - [ ] RESTful API expansion
-  - [ ] Real-time WebSocket support
-  - [ ] Authentication and access controls
-  - [ ] Rate limiting and quotas
+### Nanobot Agent Framework
+- [x] Node.js server with agent loop (tool execution, state updates)
+- [x] Python agent framework with message bus architecture
+- [x] Multi-channel: Discord, Telegram, WhatsApp, DingTalk, Feishu
+- [x] Tool registry: shell, filesystem, web, GitHub, cron, spawn
+- [x] Progressive skill loading (summaries in prompt, full on demand)
+- [x] Hybrid XML/Markdown persistent memory with Dreaming Protocol
+- [x] Subagent spawning for background tasks
 
-### Phase 4: Optimization (Months 10-12)
-**Focus**: Performance and maturity
-- [ ] Performance Optimization
-  - [ ] Advanced caching strategies
-  - [ ] Query optimization
-  - [ ] Resource management
-  - [ ] Performance monitoring
-- [ ] Quality Assurance
-  - [ ] Comprehensive testing
-  - [ ] Security auditing
-  - [ ] Performance benchmarking
-  - [ ] User feedback integration
+---
 
-## Technical Priorities
+## Phase 1: Hardening (Q1 2026)
 
-### 1. Privacy-First Architecture
-- Maintain local processing capabilities
-- Implement privacy-preserving analytics
-- Ensure data sovereignty at all scales
-- Provide transparent privacy controls
+**Focus**: Production readiness, stability, and security
 
-### 2. Semantic Excellence
-- Enhance Tag-Walker associative search
-- Improve context understanding
-- Maintain temporal awareness
-- Preserve relationship narratives
+### Security & Reliability
+- [x] API key authentication across all services
+- [x] Request validation on all mutation endpoints
+- [ ] Path traversal protection on model load endpoints
+- [ ] Command execution allowlist (replace deny-list in nanobot tools)
+- [ ] Rate limiting on public-facing endpoints
+- [ ] Input sanitization for SQL/injection vectors
 
-### 3. Scalability Without Compromise
-- Horizontal scaling without centralization
-- Distributed processing with consistency
-- Performance at scale
-- Fault tolerance and resilience
+### Bug Fixes
+- [x] Fix nanobot missing memory functions (`getRecentMemories`, `searchMemories`, `clearMemory`)
+- [x] Fix nanobot worker missing `unloadModel` handler
+- [ ] Fix nanobot session recreation on every request (preserve conversation context)
+- [ ] Fix inference-server `EngineManager.switchEngine()` — `from` field bug
+- [ ] Fix MNNEngine concurrent request handling (add request ID tracking)
+- [ ] Fix `set-env-vars.js` to actually propagate environment variables
+- [ ] Fix `start.bat` hardcoded paths → use relative paths
+- [ ] Achieve Windows/Unix launch script parity
 
-### 4. Developer-Centric Design
-- Intuitive APIs and interfaces
-- Comprehensive documentation
-- Rich integration capabilities
-- Performance insights and monitoring
+### Testing
+- [x] Anchor Engine: Integration test suite (10 sections)
+- [x] Nanobot: Fix test imports and memory function tests
+- [ ] Inference Server: Add test suite (model load/unload, chat completions, engine switch)
+- [ ] Anchor UI: Add Vitest + React Testing Library for component tests
+- [ ] Add smoke test script that validates all services start and respond to health checks
+
+---
+
+## Phase 2: Intelligence & UX (Q2 2026)
+
+**Focus**: Deeper search, better UI, conversation quality
+
+### Search Enhancements
+- [ ] Multi-turn conversation context in chat (send history to LLM)
+- [ ] Cross-session memory bridging — recall relevant past conversations
+- [ ] Audio ingestion pipeline (Whisper → atoms)
+- [ ] Image/OCR ingestion (vision model → text → atoms)
+- [ ] Search result explanation — show *why* each result was surfaced
+
+### UI Polish
+- [ ] Replace hash-based routing with proper router (React Router / TanStack Router)
+- [ ] Replace `alert()`/`confirm()` with modal components
+- [ ] Wire up MonitoringDashboard to a route
+- [ ] Add conversation persistence (localStorage or API-backed)
+- [ ] Fix Vite proxy for `/monitoring/*` routes
+- [ ] Complete TaxonomyPage (replace mock data with live API)
+
+### Agent Improvements
+- [ ] Streaming SSE support in nanobot chat completions
+- [ ] Conversation history in agent loop (multi-turn context)
+- [ ] Improved tool safety (sandboxed execution environment)
+- [ ] Agent skill marketplace — share/install skill packs
+
+---
+
+## Phase 3: Ecosystem (Q3-Q4 2026)
+
+**Focus**: Integrations, developer experience, community
+
+### Developer Experience
+- [ ] VS Code extension — sidebar for search, context injection, chat
+- [ ] CLI tool for ingestion, search, backup from terminal
+- [ ] REST API documentation (OpenAPI/Swagger spec)
+- [ ] Developer getting-started guide and tutorials
+- [ ] Plugin system for custom ingestion pipelines
+
+### Operations
+- [ ] GitHub Actions CI pipeline (build, lint, test)
+- [ ] Docker Compose for one-command deployment
+- [ ] Health dashboard with alerting
+- [ ] Automated backup scheduling
+- [ ] Performance regression testing in CI
+
+### Advanced Features
+- [ ] Federated knowledge — sync between Anchor OS instances (P2P, encrypted)
+- [ ] Collaborative memory spaces (shared buckets)
+- [ ] Mobile companion app (read-only search + quick capture)
+- [ ] Plugin API for third-party integrations
+
+---
+
+## Design Principles
+
+1. **Sovereignty First** — Your data stays on your machine. Always.
+2. **Physics Over Magic** — Search is deterministic graph traversal, not black-box embeddings.
+3. **LLM as Narrator** — The model weaves results into language; it doesn't think for you.
+4. **Atoms Are Forever** — Content is decomposed once, queryable forever, across formats.
+5. **Offline by Default** — Everything works without internet. Cloud is opt-in.
 
 ## Success Metrics
 
-### Quantitative Goals
-- Support 100TB+ datasets with <1 second query response
-- 1000+ concurrent users with consistent performance
-- 99.9% uptime for critical services
-- Support 20+ programming languages with semantic understanding
-- 95%+ precision on semantic search queries
-
-### Qualitative Goals
-- Industry-leading privacy and security posture
-- Exceptional developer experience
-- Superior code understanding capabilities
-- Seamless scaling experience
-- Strong community adoption
-
-## Risk Mitigation
-
-### Technical Risks
-- **Complexity Management**: Maintain modularity and clear interfaces
-- **Performance Degradation**: Continuous benchmarking and optimization
-- **Data Consistency**: Robust distributed consensus mechanisms
-- **Privacy Violations**: Defense-in-depth privacy controls
-
-### Execution Risks
-- **Resource Allocation**: Prioritize high-impact features
-- **Team Coordination**: Clear communication and milestone tracking
-- **Technology Changes**: Flexible architecture to adapt to changes
-- **Market Competition**: Focus on unique value propositions
-
-## Governance
-
-### Decision Making
-- Technical decisions guided by standards and architecture principles
-- Regular architecture reviews and retrospectives
-- Community feedback integration
-- Continuous improvement processes
-
-### Quality Assurance
-- Comprehensive testing at all levels
-- Performance and security audits
-- User feedback integration
-- Continuous monitoring and alerting
-
-This roadmap provides a strategic direction for evolving Anchor/ECE_Core into a next-generation knowledge management platform that excels at both semantic understanding and code intelligence while maintaining its core principles of privacy, sovereignty, and contextual awareness.
+| Metric | Target | Current |
+|---|---|---|
+| Search latency (p95) | < 200ms | ~150ms |
+| Ingestion throughput | > 100 atoms/sec | Achieved |
+| Memory window efficiency | > 90% relevant | ~85% |
+| API endpoint coverage | 100% validated | ~60% (WIP) |
+| Test coverage (engine) | > 80% integration | ~70% |
+| Cross-platform parity | Full | Partial (Windows-led)

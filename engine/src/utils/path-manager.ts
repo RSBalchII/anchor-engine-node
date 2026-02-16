@@ -1,5 +1,5 @@
 /**
- * Path Manager - Centralized Path Resolution for ECE
+ * Path Manager - Centralized Path Resolution for Anchor Engine
  * 
  * Implements Standard 051: Service Module Path Resolution
  * Ensures consistent path handling across all platforms
@@ -102,9 +102,9 @@ export class PathManager {
    * Get notebook directory path
    */
   public getNotebookDir(): string {
-    // Current: basePath = .../ECE_Core/engine
-    // Desired: .../ECE_Core/../notebook -> .../Projects/notebook
-    // So we need to go up from ECE_Core (which is engine/..)
+    // Current: basePath = .../anchor-engine/engine
+    // Desired: .../Anchor Engine/../notebook -> .../Projects/notebook
+    // So we need to go up from anchor-engine (which is engine/..)
     return path.resolve(this.basePath, '../..', 'notebook');
   }
 

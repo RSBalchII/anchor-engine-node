@@ -1,5 +1,5 @@
 /**
- * Centralized Test Framework for ECE_Core
+ * Centralized Test Framework for Anchor Engine
  * 
  * Implements a comprehensive testing framework with support for:
  * - Unit tests
@@ -160,7 +160,7 @@ export class TestFramework {
       // Log result
       const statusSymbol = result.status === 'PASS' ? '✅' : result.status === 'SKIP' ? '⏭️' : '❌';
       console.log(`  ${statusSymbol} ${testCase.name} (${result.duration}ms)`);
-      
+
       if (result.error && this.verbose) {
         console.log(`     Error: ${result.error.message}`);
       }
@@ -351,7 +351,7 @@ export class ConsoleReporter implements Reporter {
  * JSON reporter
  */
 export class JSONReporter implements Reporter {
-  constructor(private outputFile: string = 'test-report.json') {}
+  constructor(private outputFile: string = 'test-report.json') { }
 
   async generate(reports: TestReport[]): Promise<void> {
     const reportData = {
@@ -375,17 +375,17 @@ export class JSONReporter implements Reporter {
  * JUnit XML reporter
  */
 export class JUnitReporter implements Reporter {
-  constructor(private outputFile: string = 'test-report.xml') {}
+  constructor(private outputFile: string = 'test-report.xml') { }
 
   async generate(reports: TestReport[]): Promise<void> {
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<testsuites>\n';
 
     for (const report of reports) {
       xml += `  <testsuite name="${report.suiteName}" tests="${report.results.length}" failures="${report.failed}" errors="0" skipped="${report.skipped}" time="${report.duration / 1000}">\n`;
-      
+
       for (const result of report.results) {
         xml += `    <testcase name="${result.name}" time="${result.duration / 1000}"`;
-        
+
         if (result.status === 'FAIL') {
           xml += `>\n      <failure message="${result.error?.message || 'Unknown error'}"><![CDATA[${result.error?.stack || ''}]]></failure>\n    </testcase>\n`;
         } else if (result.status === 'SKIP') {
@@ -394,7 +394,7 @@ export class JUnitReporter implements Reporter {
           xml += '/>\n';
         }
       }
-      
+
       xml += '  </testsuite>\n';
     }
 

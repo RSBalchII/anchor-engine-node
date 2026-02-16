@@ -1,5 +1,5 @@
 /**
- * Request Tracing System for ECE_Core
+ * Request Tracing System for Anchor Engine
  * 
  * Implements comprehensive request tracing for debugging and monitoring
  * following Standard 078: Process Isolation & Live Diagnostics
@@ -56,7 +56,7 @@ export class RequestTracer {
   startTrace(operation: string, tags?: Record<string, any>): TraceContext {
     const traceId = uuidv4();
     const spanId = uuidv4();
-    
+
     const span: TraceSpan = {
       id: spanId,
       traceId,
@@ -65,21 +65,21 @@ export class RequestTracer {
       status: 'started',
       tags
     };
-    
+
     this.activeSpans.set(spanId, span);
-    
+
     const context: TraceContext = {
       traceId,
       spanId
     };
-    
+
     logWithContext.info('TRACE_START', {
       traceId,
       spanId,
       operation,
       tags
     });
-    
+
     return context;
   }
 
@@ -101,15 +101,15 @@ export class RequestTracer {
       status: 'started',
       tags
     };
-    
+
     this.activeSpans.set(spanId, span);
-    
+
     const context: TraceContext = {
       traceId: parentContext.traceId,
       spanId,
       parentId: parentContext.spanId
     };
-    
+
     logWithContext.info('SPAN_START', {
       traceId: parentContext.traceId,
       spanId,
@@ -117,7 +117,7 @@ export class RequestTracer {
       operation,
       tags
     });
-    
+
     return context;
   }
 
@@ -133,18 +133,18 @@ export class RequestTracer {
       });
       return;
     }
-    
+
     span.endTime = Date.now();
     span.duration = span.endTime - span.startTime;
     span.status = status;
-    
+
     if (tags) {
       span.tags = { ...span.tags, ...tags };
     }
-    
+
     // Update the span in the map
     this.activeSpans.set(context.spanId, span);
-    
+
     logWithContext.info('TRACE_END', {
       traceId: context.traceId,
       spanId: context.spanId,
@@ -153,7 +153,7 @@ export class RequestTracer {
       status,
       tags
     });
-    
+
     // Record performance metric
     if (span.duration) {
       performanceMonitor.recordOperation(`${span.operation}_duration`, span.duration);
@@ -168,18 +168,18 @@ export class RequestTracer {
     if (!span) {
       return; // Silently fail if span doesn't exist
     }
-    
+
     if (!span.logs) {
       span.logs = [];
     }
-    
+
     span.logs.push({
       timestamp: Date.now(),
       level,
       message,
       fields
     });
-    
+
     // Update the span in the map
     this.activeSpans.set(context.spanId, span);
   }
@@ -192,13 +192,13 @@ export class RequestTracer {
     if (!span) {
       return; // Silently fail if span doesn't exist
     }
-    
+
     if (!span.tags) {
       span.tags = {};
     }
-    
+
     span.tags = { ...span.tags, ...tags };
-    
+
     // Update the span in the map
     this.activeSpans.set(context.spanId, span);
   }
@@ -242,16 +242,16 @@ export class RequestTracer {
   } | null {
     const allSpans = this.getTrace(traceId);
     if (!allSpans) return null;
-    
+
     const completedSpans = allSpans.filter(s => s.status === 'completed');
     const errorSpans = allSpans.filter(s => s.status === 'error');
-    
+
     const totalDuration = Math.max(
       ...allSpans.map(s => s.duration || 0)
     );
-    
+
     const operations = [...new Set(allSpans.map(s => s.operation))];
-    
+
     return {
       traceId,
       totalSpans: allSpans.length,
@@ -268,7 +268,7 @@ export class RequestTracer {
   exportTrace(traceId: string): any {
     const spans = this.getTrace(traceId);
     if (!spans) return null;
-    
+
     // Format for OpenTelemetry-compatible export
     return {
       traceId,
@@ -292,7 +292,7 @@ export class RequestTracer {
   clearExpiredTraces(maxAgeMinutes: number = 30): number {
     const cutoffTime = Date.now() - (maxAgeMinutes * 60 * 1000);
     let clearedCount = 0;
-    
+
     for (const [spanId, span] of this.activeSpans.entries()) {
       // If span is completed and older than maxAge, remove it
       if (span.status !== 'started' && span.endTime && span.endTime < cutoffTime) {
@@ -300,7 +300,7 @@ export class RequestTracer {
         clearedCount++;
       }
     }
-    
+
     return clearedCount;
   }
 
@@ -323,7 +323,7 @@ export class RequestTracer {
       .sort((a, b) => b.startTime - a.startTime)
       .slice(0, limit)
       .map(span => span.traceId);
-    
+
     return [...new Set(traces)]; // Remove duplicates
   }
 
@@ -394,7 +394,7 @@ export class RequestContextManager {
   static async withContext<T>(context: TraceContext, fn: () => Promise<T>): Promise<T> {
     const previousContext = RequestContextManager.getContext();
     RequestContextManager.setContext(context);
-    
+
     try {
       return await fn();
     } finally {
@@ -410,10 +410,10 @@ export async function traceOperation<T>(
   tags?: Record<string, any>,
   parentContext?: TraceContext
 ): Promise<T> {
-  const context = parentContext 
+  const context = parentContext
     ? requestTracer.startChildSpan(parentContext, operation, tags)
     : requestTracer.startTrace(operation, tags);
-  
+
   try {
     const result = await fn();
     requestTracer.endTrace(context, 'completed');
@@ -435,7 +435,7 @@ export async function traceIngestion<T>(
     contentLength: content.length,
     operation: 'ingest'
   });
-  
+
   try {
     const result = await fn();
     requestTracer.endTrace(context, 'completed', {
@@ -462,7 +462,7 @@ export async function traceSearch<T>(
     buckets,
     operation: 'search'
   });
-  
+
   try {
     const result = await fn();
     requestTracer.endTrace(context, 'completed', {
@@ -489,7 +489,7 @@ export async function traceDatabaseOperation<T>(
     queryLength: query.length,
     operationType: 'database'
   });
-  
+
   try {
     const result = await fn();
     requestTracer.endTrace(context, 'completed', {
@@ -516,7 +516,7 @@ export async function traceNativeOperation<T>(
     operation,
     operationType: 'native'
   });
-  
+
   try {
     const result = await fn();
     requestTracer.endTrace(context, 'completed', {

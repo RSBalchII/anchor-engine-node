@@ -115,58 +115,30 @@ export async function ingestContent(
   const id = `mem_${Date.now()}_${crypto.randomBytes(8).toString('hex').substring(0, 16)}`;
   const timestamp = Date.now();
 
-  // Process content into semantic molecules using the semantic processor
-  const { SemanticMoleculeProcessor } = await import('../semantic/semantic-molecule-processor.js');
-  const semanticProcessor = new SemanticMoleculeProcessor();
-  const semanticMolecule = await semanticProcessor.processTextChunk(processedContent, source, timestamp, provenance);
+  // Process content into atomic structure using AtomizerService (Legacy Pipeline)
+  const { AtomizerService } = await import('./atomizer-service.js');
+  const { AtomicIngestService } = await import('./ingest-atomic.js');
 
-  // Extract semantic categories and contained entities from the semantic molecule
-  const semanticCategories = semanticMolecule.semanticTags || [];
-  const containedEntities = semanticMolecule.containedEntities || [];
+  const atomizer = new AtomizerService();
+  const atomicIngest = new AtomicIngestService();
 
-  // Combine semantic categories with existing tags
-  const allTags = [...new Set([...tags, ...semanticCategories.map((cat: string) => cat.replace('#', ''))])];
+  // Ensure provenance matches expected type for atomizer
+  const atomizerProvenance = (provenance === 'system') ? 'internal' : provenance;
 
-  // Insert the atom with provenance information
-  const insertQuery = `
-    INSERT INTO atoms (id, content, source_path, timestamp, simhash, embedding, provenance)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    ON CONFLICT (id) DO NOTHING
-  `;
-
-  // Create a dummy embedding array with the correct dimensions
-  const embeddingArray = new Array(config.MODELS.EMBEDDING_DIM).fill(0.1);
-
-  await db.run(insertQuery, [
-    id,
+  const { compound, molecules, atoms } = await atomizer.atomize(
     processedContent,
     source,
-    timestamp,
-    BigInt(hash),
-    embeddingArray,
-    provenance
-  ]);
+    atomizerProvenance,
+    timestamp
+  );
 
-  // Insert tags
-  for (const tag of allTags) {
-    const tagInsertQuery = `
-      INSERT INTO tags (atom_id, tag, bucket)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (atom_id, tag) DO NOTHING
-    `;
-    await db.run(tagInsertQuery, [id, tag, buckets[0]]);
-  }
+  // Ingest result using AtomicIngestService
+  await atomicIngest.ingestResult(compound, molecules, atoms, buckets);
 
-  // Strict Read-After-Write Verification (Standard 059)
-  const verifyQuery = `SELECT id FROM atoms WHERE id = $1`;
-  const verify = await db.run(verifyQuery, [id]);
-  if (!verify.rows || verify.rows.length === 0) {
-    throw new Error(`Ingestion Verification Failed: ID ${id} not found after write.`);
-  }
-
+  // Return success (ID is compound ID)
   return {
     status: 'success',
-    id,
+    id: compound.id,
     message: 'Content ingested successfully with provenance tracking'
   };
 }
@@ -189,6 +161,9 @@ export interface IngestAtom {
 /**
  * Ingest pre-processed atoms
  */
+/**
+ * Ingest pre-processed atoms (Batched)
+ */
 export async function ingestAtoms(
   atoms: IngestAtom[],
   source: string,
@@ -198,19 +173,57 @@ export async function ingestAtoms(
 ): Promise<number> {
 
   if (atoms.length === 0) return 0;
-
+  const BATCH_SIZE = 50;
   let inserted = 0;
 
-  // Process each atom individually for better error handling
-  for (const atom of atoms) {
-    // MERGE: Combine Batch Tags + Atom-Specific Tags (Deduplicated)
-    const atomSpecificTags = atom.tags || [];
-    const finalTags = [...new Set([...tags, ...atomSpecificTags])];
+  // Process in chunks
+  for (let i = 0; i < atoms.length; i += BATCH_SIZE) {
+    const chunk = atoms.slice(i, i + BATCH_SIZE);
 
-    // Insert the atom
+    // --- 1. Prepare Atoms Batch ---
+    const atomValuePlaceholders: string[] = [];
+    const atomParams: any[] = [];
+    let paramIndex = 1;
+
+    for (const atom of chunk) {
+      // Standard 096: Timestamp Assignment
+      let finalTimestamp = atom.timestamp;
+      if (!finalTimestamp || finalTimestamp <= 0 || isNaN(finalTimestamp)) {
+        finalTimestamp = (fileTimestamp != null) ? fileTimestamp : Date.now();
+      }
+
+      // Simhash to BigInt
+      let simhashBigInt: bigint | null = null;
+      if (atom.simhash) {
+        try { simhashBigInt = BigInt(atom.simhash); } catch (e) { /* ignore */ }
+      }
+
+      // Embedding
+      let embeddingArray: number[] = new Array(config.MODELS.EMBEDDING_DIM).fill(0.1);
+      if (atom.embedding && atom.embedding.length === config.MODELS.EMBEDDING_DIM) {
+        embeddingArray = atom.embedding;
+      }
+
+      // Payload
+      const payloadJson = atom.payload ? JSON.stringify(atom.payload) : '{}';
+
+      atomValuePlaceholders.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6}, $${paramIndex + 7})`);
+      atomParams.push(
+        atom.id,
+        atom.content,
+        atom.sourcePath,
+        finalTimestamp,
+        simhashBigInt || 0n,
+        embeddingArray,
+        atom.provenance,
+        payloadJson
+      );
+      paramIndex += 8;
+    }
+
     const atomInsertQuery = `
       INSERT INTO atoms (id, content, source_path, timestamp, simhash, embedding, provenance, payload)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ${atomValuePlaceholders.join(', ')}
       ON CONFLICT (id) DO UPDATE SET
         content = EXCLUDED.content,
         source_path = EXCLUDED.source_path,
@@ -221,64 +234,44 @@ export async function ingestAtoms(
         payload = EXCLUDED.payload
     `;
 
-    // Convert simhash to BigInt if it exists
-    let simhashBigInt: bigint | null = null;
-    if (atom.simhash) {
-      try {
-        simhashBigInt = BigInt(atom.simhash);
-      } catch (e) {
-        console.warn(`[Ingest] Invalid simhash for atom ${atom.id}: ${atom.simhash}`);
+    try {
+      await db.run(atomInsertQuery, atomParams);
+    } catch (e: any) {
+      console.error(`[Ingest] Batch insert failed for chunk starting at index ${i}:`, e.message);
+      continue; // Skip tags if atoms fail
+    }
+
+    // --- 2. Prepare Tags Batch ---
+    const tagValuePlaceholders: string[] = [];
+    const tagParams: any[] = [];
+    let tagParamIndex = 1;
+
+    for (const atom of chunk) {
+      const atomSpecificTags = atom.tags || [];
+      const finalTags = [...new Set([...tags, ...atomSpecificTags])];
+
+      for (const tag of finalTags) {
+        tagValuePlaceholders.push(`($${tagParamIndex}, $${tagParamIndex + 1}, $${tagParamIndex + 2})`);
+        tagParams.push(atom.id, tag, buckets[0]);
+        tagParamIndex += 3;
       }
     }
 
-    // Standard 096: Timestamp Assignment Protocol with Fallback Hierarchy
-    // Priority: 1) Content-specific temporal markers (atom.timestamp)
-    //           2) File modification time (fileTimestamp)
-    //           3) Ingestion time (Date.now())
-    let finalTimestamp = atom.timestamp;
-    if (!finalTimestamp || finalTimestamp <= 0 || isNaN(finalTimestamp)) {
-      finalTimestamp = (fileTimestamp != null) ? fileTimestamp : Date.now();
-    }
-
-    // Prepare embedding array
-    let embeddingArray: number[] = new Array(config.MODELS.EMBEDDING_DIM).fill(0.1);
-    if (atom.embedding && atom.embedding.length === config.MODELS.EMBEDDING_DIM) {
-      embeddingArray = atom.embedding;
-    }
-
-    // Prepare Payload (JSONB)
-    const payloadJson = atom.payload ? JSON.stringify(atom.payload) : '{}';
-
-    await db.run(atomInsertQuery, [
-      atom.id,
-      atom.content,
-      atom.sourcePath,
-      finalTimestamp,
-      simhashBigInt || 0n,
-      embeddingArray,
-      atom.provenance,
-      payloadJson
-    ]);
-
-    // Insert associated tags
-    for (const tag of finalTags) {
+    if (tagParams.length > 0) {
       const tagInsertQuery = `
         INSERT INTO tags (atom_id, tag, bucket)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (atom_id, tag) DO UPDATE SET
+        VALUES ${tagValuePlaceholders.join(', ')}
+        ON CONFLICT (atom_id, tag, bucket) DO UPDATE SET
           bucket = EXCLUDED.bucket
       `;
-      await db.run(tagInsertQuery, [atom.id, tag, buckets[0]]);
+      try {
+        await db.run(tagInsertQuery, tagParams);
+      } catch (e: any) {
+        console.warn(`[Ingest] Batch tag insert failed for chunk ${i}:`, e.message);
+      }
     }
 
-    // Standard 059: Verification
-    const verifyQuery = `SELECT id FROM atoms WHERE id = $1`;
-    const verifyResult = await db.run(verifyQuery, [atom.id]);
-    if (verifyResult.rows && verifyResult.rows.length > 0) {
-      inserted++;
-    } else {
-      console.error(`[Ingest] Verification failed for atom: ${atom.id}`);
-    }
+    inserted += chunk.length;
   }
 
   return inserted;

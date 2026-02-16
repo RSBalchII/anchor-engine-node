@@ -44,11 +44,13 @@ graph TD
     G --> I
     G --> J
     G --> K
+    G --> AP
 
     H --> L
     I --> L
     J --> L
     K --> L
+    AP --> L
 
     L --> M
     M --> N
@@ -78,8 +80,9 @@ sequenceDiagram
     TW->>DB: Query related atoms via tags/edges
     DB-->>TW: Graph traversal results
     TW->>SS: Curated results with provenance
-    SS->>SS: Apply context inflation (molecular coordinates)
-    SS->>NS: Native processing for performance
+    SS->>SS: Apply context inflation (Radial Inflation form Disk)
+    SS->>DB: Query atom_positions for byte offsets
+    SS->>NS: Partial file read (fs.readSync)
     NS-->>SS: Processed results
     SS-->>API: Formatted response with context window
     API-->>UI: Search results (limited by token budget)
@@ -196,6 +199,8 @@ graph BT
         MT[Molecules Table<br/>- id (TEXT)<br/>- content (TEXT)<br/>- compound_id (TEXT)<br/>- sequence (INTEGER)<br/>- start_byte (INTEGER)<br/>- end_byte (INTEGER)<br/>- type (TEXT)<br/>- numeric_value (REAL)<br/>- numeric_unit (TEXT)<br/>- molecular_signature (TEXT)<br/>- embedding (TEXT)<br/>- timestamp (REAL)]
         
         CT[Compounds Table<br/>- id (TEXT)<br/>- compound_body (TEXT)<br/>- path (TEXT)<br/>- timestamp (REAL)<br/>- provenance (TEXT)<br/>- molecular_signature (TEXT)<br/>- atoms (TEXT)<br/>- molecules (TEXT)<br/>- embedding (TEXT)<br/>PRIMARY KEY (id)]
+
+        AP[Atom Positions Table<br/>- compound_id (TEXT)<br/>- atom_label (TEXT)<br/>- byte_offset (INTEGER)<br/>PRIMARY KEY (compound_id, atom_label, byte_offset)]
     end
 
     AT -.-> TT
@@ -203,4 +208,5 @@ graph BT
     AT -.-> ST
     AT -.-> MT
     AT -.-> CT
+    AT -.-> AP
 ```

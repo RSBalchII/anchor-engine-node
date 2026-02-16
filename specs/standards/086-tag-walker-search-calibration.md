@@ -1,6 +1,8 @@
 # Standard 086: Tag-Walker Search Calibration (Natural Language Intent Mapping)
+> [!WARNING]
+> **DEPRECATED**: See Standard 104 (Universal Semantic Search) for current implementation.
 
-**Status:** Active | **Domain:** Search & Retrieval | **Category:** Protocol Enhancement
+**Status:** DEPRECATED (Superseded by 104) | **Domain:** Search & Retrieval | **Category:** Protocol Enhancement
 
 ## Core Problem
 The Tag-Walker protocol exhibits brittleness in natural language query processing, where conversational queries fail to return results despite relevant content existing in the system.

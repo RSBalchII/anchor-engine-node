@@ -27,31 +27,41 @@ export class SemanticTagDeriver {
    */
   public deriveSemanticTags(content: string, entities: string[]): SemanticCategory[] {
     const tags = new Set<SemanticCategory>();
-    
+
     // Process each semantic rule to see if it applies
     for (const rule of this.taxonomyManager.getRules()) {
       if (this.ruleApplies(rule, content, entities)) {
         tags.add(rule.category);
       }
     }
-    
+
     // Special relationship logic: if multiple person entities exist, add relationship tag
     const people = entities.filter(entity => this.isPersonEntity(entity));
     if (people.length >= 2) {
       tags.add(SemanticCategory.RELATIONSHIP);
     }
-    
+
     // Special narrative logic: if person and time reference exist, add narrative tag
     if (people.length > 0 && this.hasTimeReference(content)) {
       tags.add(SemanticCategory.NARRATIVE);
     }
-    
+
     // Special technical logic: if technical terms exist, add technical tag
     const techTerms = entities.filter(entity => this.isTechnicalTerm(entity));
-    if (techTerms.length > 0 || this.containsCodeBlock(content)) {
+    if (techTerms.length > 0) {
       tags.add(SemanticCategory.TECHNICAL);
     }
-    
+
+    // Explicit Code Detection
+    if (this.containsCodeBlock(content)) {
+      tags.add(SemanticCategory.CODE);
+    }
+
+    // Conversation/Chat Detection
+    if (this.isConversation(content)) {
+      tags.add(SemanticCategory.NARRATIVE);
+    }
+
     return Array.from(tags);
   }
 
@@ -74,12 +84,12 @@ export class SemanticTagDeriver {
       );
       if (hasExclusion) return false;
     }
-    
+
     // Check if any trigger keywords are present
     const hasTrigger = rule.triggers.some((trigger: string) =>
       content.toLowerCase().includes(trigger.toLowerCase())
     );
-    
+
     return hasTrigger;
   }
 
@@ -146,7 +156,7 @@ export class SemanticTagDeriver {
 
     // Check if it's a month name
     const months = ['january', 'february', 'march', 'april', 'may', 'june',
-                   'july', 'august', 'september', 'october', 'november', 'december'];
+      'july', 'august', 'september', 'october', 'november', 'december'];
     return months.includes(entity.toLowerCase());
   }
 
@@ -184,7 +194,20 @@ export class SemanticTagDeriver {
    */
   private containsCodeBlock(content: string): boolean {
     return /```[\s\S]*?```|`[^`]*`/.test(content) ||
-           /function\s+\w+\s*\(|class\s+\w+|import\s+\w+|const\s+\w+\s*=/.test(content);
+      /function\s+\w+\s*\(|class\s+\w+|import\s+\w+|const\s+\w+\s*=/.test(content);
+  }
+
+  /**
+   * Check if content looks like a conversation/chat log
+   */
+  private isConversation(content: string): boolean {
+    const chatPatterns = [
+      /(^|\n)(User|Human|Assistant|AI|System|Me|You):/i,
+      /(^|\n)\[\d{2}:\d{2}\]/, // [14:30]
+      /^(> )?User:/m,
+      /^(> )?Assistant:/m
+    ];
+    return chatPatterns.some(p => p.test(content));
   }
 
   /**
@@ -192,9 +215,9 @@ export class SemanticTagDeriver {
    */
   private isCommonWord(word: string): boolean {
     const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-                        'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-                        'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-                        'should', 'may', 'might', 'must', 'can', 'shall', 'this', 'that', 'these', 'those'];
+      'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+      'should', 'may', 'might', 'must', 'can', 'shall', 'this', 'that', 'these', 'those'];
     return commonWords.includes(word.toLowerCase());
   }
 }

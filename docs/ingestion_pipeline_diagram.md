@@ -94,7 +94,8 @@ sequenceDiagram
         ATOM->>NM: Native processing (SimHash, etc.)
         NM->>ATOM: Processed results
         ATOM->>IS: Send atomic results
-        IS->>DB: Persist to database
+        IS->>IS: Calculate Atom Positions (Radial Index)
+        IS->>DB: Batch Persist (Streaming chunks of 50)
         IS-->>WD: Processing complete
     end
 ```

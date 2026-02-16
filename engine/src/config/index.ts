@@ -27,6 +27,7 @@ interface Config {
   LLM_PROVIDER: 'local' | 'remote';
   REMOTE_LLM_URL: string;
   REMOTE_MODEL_NAME: string;
+  LLM_MODEL_DIR: string;
 
   // Tuning
   DEFAULT_SEARCH_CHAR_LIMIT: number;
@@ -37,8 +38,17 @@ interface Config {
 
   VECTOR_INGEST_BATCH: number;
 
-  // Extrapolated Settings
+  // Resource Management
+  GC_COOLDOWN_MS: number;
+  MAX_ATOMS_IN_MEMORY: number;
+  MONITORING_INTERVAL_MS: number;
+
+  // Watcher Settings
   WATCHER_DEBOUNCE_MS: number;
+  WATCHER_STABILITY_THRESHOLD_MS: number;
+  WATCHER_EXTRA_PATHS: string[];
+
+  // Context Relevance
   CONTEXT_RELEVANCE_WEIGHT: number;
   CONTEXT_RECENCY_WEIGHT: number;
   DREAMER_CLUSTERING_GAP_MS: number;
@@ -71,6 +81,10 @@ interface Config {
     strategy: string;
     hide_years_in_tags: boolean;
     whitelist: string[];
+    max_chars_default: number;
+    max_chars_limit: number;
+    fts_window_size: number;
+    fts_padding: number;
   };
 
   // Models
@@ -80,19 +94,38 @@ interface Config {
       PATH: string;
       CTX_SIZE: number;
       GPU_LAYERS: number;
+      MAX_TOKENS: number;
     };
-
     ORCHESTRATOR: {
       PATH: string;
       CTX_SIZE: number;
       GPU_LAYERS: number;
+      MAX_TOKENS: number;
     };
     VISION: {
       PATH: string;
       PROJECTOR: string;
       CTX_SIZE: number;
       GPU_LAYERS: number;
+      MAX_TOKENS: number;
     };
+  };
+
+  // Services
+  SERVICES: {
+    VISION_SERVER_PORT: number;
+    CHAT_SERVER_PORT: number;
+    TAG_INFECTOR_UNLOAD_TIMEOUT: number;
+    TAG_GLINER_CHECK_INTERVAL: number;
+  };
+
+  // Limits and Thresholds
+  LIMITS: {
+    MAX_FILE_SIZE_BYTES: number;
+    MAX_CONTENT_LENGTH_CHARS: number;
+    MAX_CHUNK_SIZE_CHARS: number;
+    MAX_SUMMARY_LENGTH_CHARS: number;
+    DATE_EXTRACTOR_SCAN_LIMIT: number;
   };
 }
 
@@ -103,12 +136,13 @@ const DEFAULT_CONFIG: Config = {
   HOST: "0.0.0.0",
   API_KEY: "ece-secret-key",
   LOG_LEVEL: "INFO",
-  OVERLAY_PORT: 3001,
+  OVERLAY_PORT: 3002,
 
   // LLM Provider
   LLM_PROVIDER: 'local',
   REMOTE_LLM_URL: "http://localhost:8000/v1",
   REMOTE_MODEL_NAME: "default",
+  LLM_MODEL_DIR: "models",
 
   // Tuning
   DEFAULT_SEARCH_CHAR_LIMIT: 524288,
@@ -119,8 +153,17 @@ const DEFAULT_CONFIG: Config = {
 
   VECTOR_INGEST_BATCH: 50,
 
-  // Extrapolated Settings
+  // Resource Management
+  GC_COOLDOWN_MS: 30000, // 30 seconds
+  MAX_ATOMS_IN_MEMORY: 2000,
+  MONITORING_INTERVAL_MS: 30000, // 30 seconds
+
+  // Watcher Settings
   WATCHER_DEBOUNCE_MS: 2000,
+  WATCHER_STABILITY_THRESHOLD_MS: 2000,
+  WATCHER_EXTRA_PATHS: [],
+
+  // Context Relevance
   CONTEXT_RELEVANCE_WEIGHT: 0.7,
   CONTEXT_RECENCY_WEIGHT: 0.3,
   DREAMER_CLUSTERING_GAP_MS: 900000, // 15 mins
@@ -152,7 +195,11 @@ const DEFAULT_CONFIG: Config = {
   SEARCH: {
     strategy: "hybrid",
     hide_years_in_tags: true,
-    whitelist: []
+    whitelist: [],
+    max_chars_default: 524288,
+    max_chars_limit: 100000,
+    fts_window_size: 1500,
+    fts_padding: 750
   },
 
   // Models
@@ -161,20 +208,39 @@ const DEFAULT_CONFIG: Config = {
     MAIN: {
       PATH: "glm-edge-1.5b-chat.Q5_K_M.gguf", // Default from user_settings.json
       CTX_SIZE: 8192, // Default from user_settings.json
-      GPU_LAYERS: 11 // Default from user_settings.json
+      GPU_LAYERS: 11, // Default from user_settings.json
+      MAX_TOKENS: 1024
     },
-
     ORCHESTRATOR: {
       PATH: "Qwen3-4B-Function-Calling-Pro.gguf", // Default from user_settings.json
       CTX_SIZE: 8192,
-      GPU_LAYERS: 0
+      GPU_LAYERS: 0,
+      MAX_TOKENS: 2048
     },
     VISION: {
       PATH: "",  // MUST BE SET IN user_settings.json
       PROJECTOR: "", // MUST BE SET IN user_settings.json
       CTX_SIZE: 2048,
-      GPU_LAYERS: 11 // Default from user_settings.json
+      GPU_LAYERS: 11, // Default from user_settings.json
+      MAX_TOKENS: 1024
     }
+  },
+
+  // Services
+  SERVICES: {
+    VISION_SERVER_PORT: 8081,
+    CHAT_SERVER_PORT: 8080,
+    TAG_INFECTOR_UNLOAD_TIMEOUT: 300000, // 5 minutes
+    TAG_GLINER_CHECK_INTERVAL: 60000 // 1 minute
+  },
+
+  // Limits and Thresholds
+  LIMITS: {
+    MAX_FILE_SIZE_BYTES: 10485760, // 10MB
+    MAX_CONTENT_LENGTH_CHARS: 5000,
+    MAX_CHUNK_SIZE_CHARS: 3000,
+    MAX_SUMMARY_LENGTH_CHARS: 2000,
+    DATE_EXTRACTOR_SCAN_LIMIT: 2000
   }
 };
 
@@ -201,34 +267,100 @@ function loadConfig(): Config {
   }
 
   // 2. Try Loading user_settings.json (Highest Priority for User Overrides)
-  const userSettingsPath = path.join(__dirname, '..', '..', 'user_settings.json');
+  // First try the root of the anchor-os project (monorepo setup)
+  const userSettingsPath = path.join(__dirname, '..', '..', '..', 'user_settings.json');
   if (fs.existsSync(userSettingsPath)) {
     try {
       const userSettings = JSON.parse(fs.readFileSync(userSettingsPath, 'utf8'));
       console.log(`[Config] Loaded settings from ${userSettingsPath}`);
 
+      // Load LLM Settings (Provider + Model paths — single consolidated block)
       if (userSettings.llm) {
+        // Provider settings
         if (userSettings.llm.provider) loadedConfig.LLM_PROVIDER = userSettings.llm.provider;
         if (userSettings.llm.remote_url) loadedConfig.REMOTE_LLM_URL = userSettings.llm.remote_url;
         if (userSettings.llm.remote_model) loadedConfig.REMOTE_MODEL_NAME = userSettings.llm.remote_model;
+        if (userSettings.llm.model_dir) loadedConfig.LLM_MODEL_DIR = userSettings.llm.model_dir;
 
+        // Main model
         if (userSettings.llm.chat_model) loadedConfig.MODELS.MAIN.PATH = userSettings.llm.chat_model;
         if (userSettings.llm.gpu_layers !== undefined) loadedConfig.MODELS.MAIN.GPU_LAYERS = userSettings.llm.gpu_layers;
         if (userSettings.llm.ctx_size !== undefined) loadedConfig.MODELS.MAIN.CTX_SIZE = userSettings.llm.ctx_size;
+        if (userSettings.llm.max_tokens !== undefined) loadedConfig.MODELS.MAIN.MAX_TOKENS = userSettings.llm.max_tokens;
 
-        // Also update Orchestrator if task_model is set
+        // Orchestrator model
         if (userSettings.llm.task_model) loadedConfig.MODELS.ORCHESTRATOR.PATH = userSettings.llm.task_model;
+        if (userSettings.llm.orchestrator_ctx_size !== undefined) loadedConfig.MODELS.ORCHESTRATOR.CTX_SIZE = userSettings.llm.orchestrator_ctx_size;
+        if (userSettings.llm.orchestrator_gpu_layers !== undefined) loadedConfig.MODELS.ORCHESTRATOR.GPU_LAYERS = userSettings.llm.orchestrator_gpu_layers;
+        if (userSettings.llm.orchestrator_max_tokens !== undefined) loadedConfig.MODELS.ORCHESTRATOR.MAX_TOKENS = userSettings.llm.orchestrator_max_tokens;
+
+        // Vision model
+        if (userSettings.llm.vision_model) loadedConfig.MODELS.VISION.PATH = userSettings.llm.vision_model;
+        if (userSettings.llm.vision_projector) loadedConfig.MODELS.VISION.PROJECTOR = userSettings.llm.vision_projector;
+        if (userSettings.llm.vision_ctx_size !== undefined) loadedConfig.MODELS.VISION.CTX_SIZE = userSettings.llm.vision_ctx_size;
+        if (userSettings.llm.vision_gpu_layers !== undefined) loadedConfig.MODELS.VISION.GPU_LAYERS = userSettings.llm.vision_gpu_layers;
+        if (userSettings.llm.vision_max_tokens !== undefined) loadedConfig.MODELS.VISION.MAX_TOKENS = userSettings.llm.vision_max_tokens;
       }
 
+      // Load Dreamer Settings
       if (userSettings.dreamer) {
         if (userSettings.dreamer.batch_size) loadedConfig.DREAMER_BATCH_SIZE = userSettings.dreamer.batch_size;
       }
 
-      // Load Search Settings
+      // Load Search Settings (single consolidated block)
       if (userSettings.search) {
         if (userSettings.search.strategy) loadedConfig.SEARCH.strategy = userSettings.search.strategy;
         if (userSettings.search.hide_years_in_tags !== undefined) loadedConfig.SEARCH.hide_years_in_tags = userSettings.search.hide_years_in_tags;
         if (userSettings.search.whitelist) loadedConfig.SEARCH.whitelist = userSettings.search.whitelist;
+        if (userSettings.search.max_chars_default !== undefined) loadedConfig.SEARCH.max_chars_default = userSettings.search.max_chars_default;
+        if (userSettings.search.max_chars_limit !== undefined) loadedConfig.SEARCH.max_chars_limit = userSettings.search.max_chars_limit;
+        if (userSettings.search.fts_window_size !== undefined) loadedConfig.SEARCH.fts_window_size = userSettings.search.fts_window_size;
+        if (userSettings.search.fts_padding !== undefined) loadedConfig.SEARCH.fts_padding = userSettings.search.fts_padding;
+      }
+
+      // Load Server Settings
+      if (userSettings.server) {
+        if (userSettings.server.host) loadedConfig.HOST = userSettings.server.host;
+        if (userSettings.server.port) loadedConfig.PORT = userSettings.server.port;
+        if (userSettings.server.api_key !== undefined) loadedConfig.API_KEY = userSettings.server.api_key;
+      }
+
+      // Load Resource Management Settings
+      if (userSettings.resource_management) {
+        if (userSettings.resource_management.gc_cooldown_ms !== undefined) loadedConfig.GC_COOLDOWN_MS = userSettings.resource_management.gc_cooldown_ms;
+        if (userSettings.resource_management.max_atoms_in_memory !== undefined) loadedConfig.MAX_ATOMS_IN_MEMORY = userSettings.resource_management.max_atoms_in_memory;
+        if (userSettings.resource_management.monitoring_interval_ms !== undefined) loadedConfig.MONITORING_INTERVAL_MS = userSettings.resource_management.monitoring_interval_ms;
+      }
+
+      // Load Watcher Settings
+      if (userSettings.watcher) {
+        if (userSettings.watcher.debounce_ms !== undefined) loadedConfig.WATCHER_DEBOUNCE_MS = userSettings.watcher.debounce_ms;
+        if (userSettings.watcher.stability_threshold_ms !== undefined) loadedConfig.WATCHER_STABILITY_THRESHOLD_MS = userSettings.watcher.stability_threshold_ms;
+        if (userSettings.watcher.extra_paths) loadedConfig.WATCHER_EXTRA_PATHS = userSettings.watcher.extra_paths;
+      }
+
+      // Load Context Relevance Settings
+      if (userSettings.context) {
+        if (userSettings.context.relevance_weight !== undefined) loadedConfig.CONTEXT_RELEVANCE_WEIGHT = userSettings.context.relevance_weight;
+        if (userSettings.context.recency_weight !== undefined) loadedConfig.CONTEXT_RECENCY_WEIGHT = userSettings.context.recency_weight;
+        if (userSettings.context.clustering_gap_ms !== undefined) loadedConfig.DREAMER_CLUSTERING_GAP_MS = userSettings.context.clustering_gap_ms;
+      }
+
+      // Load Service Settings
+      if (userSettings.services) {
+        if (userSettings.services.vision_server_port !== undefined) loadedConfig.SERVICES.VISION_SERVER_PORT = userSettings.services.vision_server_port;
+        if (userSettings.services.chat_server_port !== undefined) loadedConfig.SERVICES.CHAT_SERVER_PORT = userSettings.services.chat_server_port;
+        if (userSettings.services.tag_infector_unload_timeout !== undefined) loadedConfig.SERVICES.TAG_INFECTOR_UNLOAD_TIMEOUT = userSettings.services.tag_infector_unload_timeout;
+        if (userSettings.services.tag_gliner_check_interval !== undefined) loadedConfig.SERVICES.TAG_GLINER_CHECK_INTERVAL = userSettings.services.tag_gliner_check_interval;
+      }
+
+      // Load Limits and Thresholds
+      if (userSettings.limits) {
+        if (userSettings.limits.max_file_size_bytes !== undefined) loadedConfig.LIMITS.MAX_FILE_SIZE_BYTES = userSettings.limits.max_file_size_bytes;
+        if (userSettings.limits.max_content_length_chars !== undefined) loadedConfig.LIMITS.MAX_CONTENT_LENGTH_CHARS = userSettings.limits.max_content_length_chars;
+        if (userSettings.limits.max_chunk_size_chars !== undefined) loadedConfig.LIMITS.MAX_CHUNK_SIZE_CHARS = userSettings.limits.max_chunk_size_chars;
+        if (userSettings.limits.max_summary_length_chars !== undefined) loadedConfig.LIMITS.MAX_SUMMARY_LENGTH_CHARS = userSettings.limits.max_summary_length_chars;
+        if (userSettings.limits.date_extractor_scan_limit !== undefined) loadedConfig.LIMITS.DATE_EXTRACTOR_SCAN_LIMIT = userSettings.limits.date_extractor_scan_limit;
       }
 
     } catch (e) {

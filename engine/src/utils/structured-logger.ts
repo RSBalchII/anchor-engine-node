@@ -1,5 +1,5 @@
 /**
- * Structured Logger for ECE_Core
+ * Structured Logger for Anchor Engine
  *
  * Implements standardized, structured logging with metrics collection
  */
@@ -98,7 +98,7 @@ class MetricsTracker {
 
   startTimer(operation: string): () => number {
     const startTime = Date.now();
-    
+
     return () => {
       const duration = Date.now() - startTime;
       this.recordMetric(operation, duration);
@@ -162,7 +162,7 @@ export const logWithContext = {
       }
     }
 
-    logger.info(message, { 
+    logger.info(message, {
       context,
       pid: process.pid,
       module: 'structured-logger'
@@ -173,7 +173,7 @@ export const logWithContext = {
    * Log a warning with context
    */
   warn: (message: string, context?: Record<string, any>) => {
-    logger.warn(message, { 
+    logger.warn(message, {
       context,
       pid: process.pid,
       module: 'structured-logger'
@@ -184,7 +184,7 @@ export const logWithContext = {
    * Log an error with context
    */
   error: (message: string, error?: Error | string, context?: Record<string, any>) => {
-    logger.error(message, { 
+    logger.error(message, {
       error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
       context,
       pid: process.pid,
@@ -196,7 +196,7 @@ export const logWithContext = {
    * Log a debug message with context
    */
   debug: (message: string, context?: Record<string, any>) => {
-    logger.debug(message, { 
+    logger.debug(message, {
       context,
       pid: process.pid,
       module: 'structured-logger'
@@ -208,7 +208,7 @@ export const logWithContext = {
    */
   performance: (operation: string, duration: number, context?: Record<string, any>) => {
     metricsTracker.recordMetric(operation, duration);
-    
+
     logger.info('PERFORMANCE_METRIC', {
       operation,
       duration_ms: duration,

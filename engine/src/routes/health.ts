@@ -5,7 +5,7 @@
  */
 
 import express, { Request, Response } from 'express';
-import { healthCheckService } from '../services/health-check.js';
+import { healthCheckService } from '../services/health-check-enhanced.js';
 
 export function setupHealthRoutes(app: express.Application) {
   // Enhanced health check endpoint

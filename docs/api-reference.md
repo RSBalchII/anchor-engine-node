@@ -11,7 +11,7 @@ Currently, the API does not require authentication and is intended for local use
 ## Core Endpoints
 
 ### Memory Search
-- **POST** `/v1/memory/search` - Perform semantic search with configurable token budget
+- **POST** `/v1/memory/search` - Perform search using Tag-Walker protocol with 70/30 keyword/associative split
 - **POST** `/v1/memory/molecule-search` - Split query into sentence-like chunks and search each separately
 - **GET** `/v1/buckets` - Get all available data buckets
 - **GET** `/v1/tags` - Get all available tags (optionally filtered by buckets)
@@ -81,7 +81,7 @@ Currently, the API does not require authentication and is intended for local use
   ],
   "metadata": {
     "engram_hits": 0,
-    "vector_latency": 0,
+    "tag_walker_latency": 0,
     "provenance_boost_active": true
   }
 }

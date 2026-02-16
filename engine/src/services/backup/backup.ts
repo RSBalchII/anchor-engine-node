@@ -67,7 +67,7 @@ export async function createBackup(): Promise<{ filename: string; stats: BackupS
                 if (!firstMemory) await write(',\n');
                 await write('    ' + JSON.stringify(row));
                 firstMemory = false;
-                memoryLastId = row[0] as string; // id is first column
+                memoryLastId = row.id as string;
                 memoryCount++;
             }
         }

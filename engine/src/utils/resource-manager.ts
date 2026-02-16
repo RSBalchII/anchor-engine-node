@@ -1,12 +1,13 @@
 /**
  * Memory Management and Resource Optimization for ECE
- * 
+ *
  * Implements efficient memory usage patterns and resource management
  * following Standard 062: Inference Worker Stability
  */
 
 import * as os from 'os';
 import * as v8 from 'v8';
+import { config } from '../config/index.js';
 
 export interface MemoryStats {
   rss: number;        // Resident Set Size - total memory allocated for the process
@@ -37,7 +38,7 @@ export class ResourceManager {
   private static instance: ResourceManager;
   private limits: ResourceLimits;
   private lastGCTime: number = 0;
-  private gcCooldown: number = 30000; // 30 seconds between forced GC
+  private gcCooldown: number = config.GC_COOLDOWN_MS; // Configurable cooldown between forced GC
 
   private constructor() {
     // Set default resource limits based on system capabilities
@@ -45,7 +46,7 @@ export class ResourceManager {
     this.limits = {
       maxHeapSize: totalMemory * 0.6, // Use up to 60% of total memory
       memoryThreshold: 0.7, // Optimize when 70% of heap is used
-      maxAtomsInMemory: 10000, // Maximum atoms to keep in memory at once
+      maxAtomsInMemory: config.MAX_ATOMS_IN_MEMORY, // Configurable max atoms to keep in memory at once
       gcThreshold: 0.75 // Force GC when 75% of heap is used
     };
   }
@@ -62,7 +63,7 @@ export class ResourceManager {
    */
   public getMemoryStats(): MemoryStats {
     const usage = process.memoryUsage();
-    // const heapStats = v8.getHeapStatistics(); // Not used, commented out to avoid TS error
+    const heapStats = v8.getHeapStatistics();
     const heapSpaces = this.getHeapSpaceInfo();
 
     return {
@@ -71,7 +72,7 @@ export class ResourceManager {
       heapUsed: usage.heapUsed,
       external: usage.external,
       arrayBuffers: usage.arrayBuffers,
-      percentageUsed: (usage.heapUsed / usage.heapTotal) * 100,
+      percentageUsed: (usage.heapUsed / heapStats.heap_size_limit) * 100, // Correct metric relative to V8 limit
       heapSpaces
     };
   }
@@ -197,7 +198,7 @@ export class ResourceManager {
   /**
    * Monitor memory usage and trigger optimizations
    */
-  public startMonitoring(intervalMs: number = 30000): void {
+  public startMonitoring(intervalMs: number = config.MONITORING_INTERVAL_MS): void {
     console.log(`[ResourceManager] Starting memory monitoring (interval: ${intervalMs}ms)`);
 
     setInterval(() => {

@@ -1,5 +1,5 @@
 /**
- * Performance Monitor for ECE_Core
+ * Performance Monitor for Anchor Engine
  * 
  * Tracks performance metrics and provides monitoring capabilities
  */
@@ -161,7 +161,7 @@ class PerformanceMonitor {
   getSystemStats() {
     const memoryUsage = process.memoryUsage();
     const uptime = process.uptime();
-    
+
     return {
       memory: {
         rss: memoryUsage.rss,

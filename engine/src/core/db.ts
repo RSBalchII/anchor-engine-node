@@ -38,9 +38,9 @@ export class Database {
       // Use pathManager for consistent absolute path (Standard 051)
       const dbPath = process.env.PGLITE_DB_PATH || pathManager.getDatabasePath();
 
-      // Wipe and recreate the database directory for clean state
+      // Wipe and recreate the database directory NOT performed for persistence (Standard 051)
       try {
-        console.log(`[DB] Preparing database directory: ${dbPath}`);
+        console.log(`[DB] Using database directory: ${dbPath}`);
 
         // Close any existing database connection first
         if (this.dbInstance) {
@@ -48,17 +48,20 @@ export class Database {
           this.dbInstance = null;
         }
 
-        // Remove the entire database directory if it exists
-        if (this.existsSync(dbPath)) {
+        /* 
+        // DO NOT REMOVE the database directory if we want persistence
+        if (fs.existsSync(dbPath)) {
           console.log(`[DB] Removing existing database directory: ${dbPath}`);
-          this.rmdirSync(dbPath, { recursive: true, force: true });
+          fs.rmSync(dbPath, { recursive: true, force: true });
         }
+        */
 
-        console.log(`[DB] Database directory prepared: ${dbPath}`);
+        console.log(`[DB] Database directory ready: ${dbPath}`);
       } catch (cleanupError: any) {
         console.error(`[DB] Error during database directory preparation:`, cleanupError);
-        throw cleanupError;
+        // throw cleanupError; // Don't crash if wipe fails, just try to continue
       }
+      // }
 
       try {
         console.log(`[DB] Initializing PGlite at: ${dbPath}`);
@@ -72,8 +75,19 @@ export class Database {
       }
     }
 
-    // Create the atoms table schema - simplified for PGlite compatibility
+    // Create extensions
     try {
+      await this.run('CREATE EXTENSION IF NOT EXISTS pg_trgm;');
+      console.log("[DB] 'pg_trgm' extension enabled.");
+    } catch (e: any) {
+      console.warn("[DB] Could not enable 'pg_trgm' extension:", e.message);
+    }
+
+    // Create atoms table schema - simplified for PGlite compatibility
+    try {
+      // Create sequence for vector_ids
+      await this.run('CREATE SEQUENCE IF NOT EXISTS vector_id_seq START 1;');
+
       await this.run(`
         CREATE TABLE IF NOT EXISTS atoms (
           id TEXT PRIMARY KEY,
@@ -82,6 +96,7 @@ export class Database {
           timestamp REAL,
           simhash TEXT,
           embedding TEXT,
+          vector_id BIGINT,
           provenance TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -91,6 +106,7 @@ export class Database {
 
       // Add missing columns if they don't exist (for existing databases)
       const columnsToAdd = [
+        { name: 'vector_id', type: 'BIGINT' },
         { name: 'buckets', type: 'TEXT[]' },
         { name: 'tags', type: 'TEXT[]' },
         { name: 'epochs', type: 'TEXT[]' },
@@ -127,7 +143,7 @@ export class Database {
           atom_id TEXT,
           tag TEXT,
           bucket TEXT,
-          PRIMARY KEY (atom_id, tag)
+          PRIMARY KEY (atom_id, tag, bucket)
         );
       `);
 
@@ -246,6 +262,28 @@ export class Database {
       throw e;
     }
 
+    // Create Atom Positions table (Lazy Molecule Inflation)
+    // Tracks where atoms (keywords) appear in compounds for radial inflation
+    try {
+      await this.run(`
+        CREATE TABLE IF NOT EXISTS atom_positions (
+          compound_id TEXT NOT NULL,
+          atom_label TEXT NOT NULL,
+          byte_offset INTEGER NOT NULL,
+          PRIMARY KEY (compound_id, atom_label, byte_offset)
+        );
+      `);
+      await this.run(`
+        CREATE INDEX IF NOT EXISTS idx_atom_positions_label 
+        ON atom_positions(atom_label);
+      `);
+
+      console.log("[DB] 'atom_positions' table initialized.");
+    } catch (e: any) {
+      console.error("[DB] Error creating atom_positions table:", e);
+      throw e;
+    }
+
     // Create Summary Nodes Table (Dreamer Abstractions)
     try {
       await this.run(`
@@ -283,6 +321,28 @@ export class Database {
         console.log("[DB] Text index created as fallback.");
       } catch (fallbackErr: any) {
         console.warn("[DB] Could not create fallback text index:", fallbackErr.message);
+      }
+    }
+
+    // Create FTS index for molecules content search (Tag-Walker anchor stage)
+    try {
+      await this.run(`
+        CREATE INDEX IF NOT EXISTS idx_molecules_content_gin
+        ON molecules
+        USING GIN(to_tsvector('simple', content));
+      `);
+      console.log("[DB] FTS index created for molecules content search.");
+    } catch (e: any) {
+      console.warn("[DB] Could not create molecules FTS index:", e.message);
+      // Try creating a simpler index if GIN fails
+      try {
+        await this.run(`
+          CREATE INDEX IF NOT EXISTS idx_molecules_content_text
+          ON molecules (content);
+        `);
+        console.log("[DB] Molecules text index created as fallback.");
+      } catch (fallbackErr: any) {
+        console.warn("[DB] Could not create molecules fallback text index:", fallbackErr.message);
       }
     }
 
@@ -328,8 +388,8 @@ export class Database {
         throw new Error("Database not initialized");
       }
 
-      // PGlite expects parameters in a different format
-      const result = await this.dbInstance.query(query, params || [], { rowMode: 'array' });
+      // PGlite returns objects by default which works with our named fields
+      const result = await this.dbInstance.query(query, params || []);
       return result;
     } catch (e: any) {
       console.error(`[DB] Query Failed: ${e.message}`);
@@ -349,8 +409,7 @@ export class Database {
     // For now, use a simple LIKE query since full-text search may not be available
     const result = await this.dbInstance.query(
       `SELECT * FROM atoms WHERE content LIKE ?`,
-      [`%${query}%`],
-      { rowMode: 'array' }
+      [`%${query}%`]
     );
     return result;
   }

@@ -3,13 +3,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { Atom, Molecule, Compound } from '../../types/atomic.js';
-import { nativeModuleManager } from '../../utils/native-module-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load Native Modules
-const native = nativeModuleManager.loadNativeModule('ece_native', 'ece_native.node'); // Reuse existing binding
+// Native modules from @rbalchii packages (with fallbacks)
+let nativeFingerprint: ((text: string) => string) | null = null;
+let nativeCleanse: ((text: string) => string) | null = null;
+
+try {
+    const fp = await import('@rbalchii/native-fingerprint');
+    nativeFingerprint = fp.fingerprint;
+} catch { /* use JS fallback */ }
+
+try {
+    const ka = await import('@rbalchii/native-keyassassin');
+    nativeCleanse = ka.cleanse;
+} catch { /* use JS fallback */ }
 
 export class AtomizerService {
 
@@ -23,28 +33,42 @@ export class AtomizerService {
         provenance: 'internal' | 'external',
         fileTimestamp?: number
     ): Promise<{ compound: Compound, molecules: Molecule[], atoms: Atom[] }> {
+        const filename = sourcePath.split(/[/\\]/).pop() || sourcePath;
+        const contentSizeMB = (content.length / (1024 * 1024)).toFixed(2);
+        const startTime = Date.now();
+
+        console.log(`[Atomizer] ⏱️ START: ${filename} (${contentSizeMB}MB)`);
 
         try {
             // 1. Sanitize (Iron Lung) - Chunked Strategy for Large Files
             // Optimized port of Refiner's Key Assassin
             // For very large files, we sanitize in chunks to avoid string length limits/OOM
+            const sanitizeStart = Date.now();
             const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
             let cleanContent = '';
-            
+
             if (content.length > CHUNK_SIZE * 2) {
                 // Generator approach for memory efficiency
+                let chunkCount = 0;
                 for (const chunk of this.chunkedSanitize(content, sourcePath, CHUNK_SIZE)) {
                     cleanContent += chunk;
+                    chunkCount++;
+                    if (chunkCount % 10 === 0) {
+                        console.log(`[Atomizer] ⏱️ Sanitize chunk ${chunkCount}... (${((Date.now() - sanitizeStart) / 1000).toFixed(1)}s)`);
+                    }
                     // Yield to event loop to keep server responsive
                     await new Promise(resolve => setImmediate(resolve));
                 }
             } else {
                 cleanContent = this.sanitize(content, sourcePath);
             }
+            console.log(`[Atomizer] ⏱️ Sanitize complete: ${((Date.now() - sanitizeStart) / 1000).toFixed(2)}s`);
 
             // 2. Identification (Hash)
+            const hashStart = Date.now();
             const compoundId = crypto.createHash('md5').update(cleanContent + sourcePath).digest('hex');
             const timestamp = fileTimestamp || Date.now();
+            console.log(`[Atomizer] ⏱️ Hash complete: ${Date.now() - hashStart}ms`);
 
             // 3. System Atoms (Project/File Level)
             const systemAtoms = this.extractSystemAtoms(sourcePath);
@@ -54,29 +78,41 @@ export class AtomizerService {
 
             // 5. Molecular Fission (Semantic Splitting)
             // Determine Type & Extract Data
+            const splitStart = Date.now();
             const type = this.detectMoleculeType(cleanContent, sourcePath); // Determine main type
 
             // Pass type to optimize splitting strategy
             const moleculeParts = this.splitIntoMolecules(cleanContent, type);
+            console.log(`[Atomizer] ⏱️ Split into ${moleculeParts.length} molecules: ${((Date.now() - splitStart) / 1000).toFixed(2)}s`);
 
             // 5. Molecular Enrichment (Granular Tagging & Typing)
+            const enrichStart = Date.now();
             const molecules: Molecule[] = [];
             const allAtomsMap = new Map<string, Atom>();
 
             // Add System Atoms to global map
             systemAtoms.forEach(a => allAtomsMap.set(a.id, a));
 
+            // Define maximum content length for individual molecules
+            const MAX_MOLECULE_CONTENT_LENGTH = 500 * 1024; // 500KB limit
+
             // Timestamp Context: Start with file timestamp (modification time)
             // As we scan molecules, if we find a date in the content (e.g. log timestamp),
             // we update this context so subsequent atoms inherit it.
             let currentTimestamp = timestamp;
+            const totalMolecules = moleculeParts.length;
+            const progressInterval = Math.max(100, Math.floor(totalMolecules / 10)); // Log every 10% or every 100
 
             // Process molecules in batches to yield to event loop
             for (let i = 0; i < moleculeParts.length; i++) {
                 const part = moleculeParts[i];
                 const { content: text, start, end, timestamp: partTimestamp } = part;
 
-                // Yield every 100 molecules
+                // Progress logging and yield every 100 molecules
+                if (i % progressInterval === 0 && i > 0) {
+                    const pct = ((i / totalMolecules) * 100).toFixed(0);
+                    console.log(`[Atomizer] ⏱️ Enriching: ${pct}% (${i}/${totalMolecules}) - ${((Date.now() - enrichStart) / 1000).toFixed(1)}s`);
+                }
                 if (i % 100 === 0) {
                     await new Promise(resolve => setImmediate(resolve));
                 }
@@ -86,26 +122,33 @@ export class AtomizerService {
                     currentTimestamp = partTimestamp;
                 }
 
-                // Scan for concepts in this specific molecule
-                const conceptAtoms = this.scanAtoms(text);
+                // Check content length and truncate if necessary
+                let processedText = text;
+                if (processedText.length > MAX_MOLECULE_CONTENT_LENGTH) {
+                    console.warn(`[Atomizer] Molecule content exceeds maximum length (${processedText.length} chars), truncating...`);
+                    processedText = processedText.substring(0, MAX_MOLECULE_CONTENT_LENGTH) + '... [TRUNCATED]';
+                }
 
-                // Merge System Atoms (Inherited) + Local Concepts
+                // Scan for concepts in this specific molecule
+                // PERFORMANCE: Skip for pure data rows (CSV lines) that have no prose
+                // But keep scanning for conversational YAML which has semantic content
+                const conceptAtoms = this.scanAtoms(processedText);
                 const moleculeAtoms = [...systemAtoms, ...conceptAtoms];
 
                 // Add concepts to global map
                 conceptAtoms.forEach(a => allAtomsMap.set(a.id, a));
 
-                const molId = `mol_${crypto.createHash('md5').update(compoundId + i + text).digest('hex').substring(0, 12)}`;
+                const molId = `mol_${crypto.createHash('md5').update(compoundId + i + processedText).digest('hex').substring(0, 12)}`;
 
                 // Re-Determine Type locally (e.g. code block in markdown)
                 // Use the passed type as default, but refined per chunk if needed
-                const molType = (type === 'prose' && (text.includes('```') || text.includes('function') || text.includes('const '))) ? 'code' : type;
+                const molType = (type === 'prose' && (processedText.includes('```') || processedText.includes('function') || processedText.includes('const '))) ? 'code' : type;
 
                 let numericVal: number | undefined = undefined;
                 let numericUnit: string | undefined = undefined;
 
                 if (molType === 'data') {
-                    const data = this.extractNumericData(text);
+                    const data = this.extractNumericData(processedText);
                     if (data) {
                         numericVal = data.value;
                         numericUnit = data.unit;
@@ -114,7 +157,7 @@ export class AtomizerService {
 
                 molecules.push({
                     id: molId,
-                    content: text,
+                    content: processedText,
                     atoms: moleculeAtoms.map(a => a.id),
                     sequence: i,
                     compoundId: fullCompoundId,
@@ -127,10 +170,11 @@ export class AtomizerService {
                     type: molType,
                     numeric_value: numericVal,
                     numeric_unit: numericUnit,
-                    molecular_signature: this.generateSimHash(text),
+                    molecular_signature: this.generateSimHash(processedText),
                     timestamp: partTimestamp || currentTimestamp // Use part-specific timestamp if available, otherwise context-aware timestamp
                 });
             }
+            console.log(`[Atomizer] ⏱️ Enrichment complete: ${((Date.now() - enrichStart) / 1000).toFixed(2)}s`);
 
             const allAtoms = Array.from(allAtomsMap.values());
 
@@ -144,6 +188,9 @@ export class AtomizerService {
                 provenance: provenance,
                 molecular_signature: this.generateSimHash(cleanContent)
             };
+
+            const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            console.log(`[Atomizer] ✅ COMPLETE: ${filename} (${contentSizeMB}MB) → ${molecules.length} molecules, ${allAtoms.length} atoms in ${totalTime}s`);
 
             return {
                 compound,
@@ -160,7 +207,7 @@ export class AtomizerService {
         let offset = 0;
         while (offset < text.length) {
             let end = Math.min(offset + chunkSize, text.length);
-            
+
             // Align to newline if not at the end
             if (end < text.length) {
                 const nextNewline = text.indexOf('\n', end);
@@ -168,7 +215,7 @@ export class AtomizerService {
                     end = nextNewline + 1;
                 }
             }
-            
+
             const chunk = text.substring(offset, end);
             yield this.sanitize(chunk, filePath);
             offset = end;
@@ -194,12 +241,15 @@ export class AtomizerService {
         clean = clean.replace(/(?:^|\s|\.{3}\s*)Loading '[^']+'\.{3}/g, '\n');
         clean = clean.replace(/(?:^|\s|\.{3}\s*)Indexing '[^']+'\.{3}/g, '\n');
         clean = clean.replace(/(?:^|\s|\.{3}\s*)Analyzing '[^']+'\.{3}/g, '\n');
-        
+
+        // [NEW] Robust Processing Log Filter (for " - [TIMESTAMP] ... Processing ...")
+        clean = clean.replace(/(?:^|\n)\s*-\s*\[\d{4}-\d{2}-\d{2}.*?\].*?Processing.*?(?:\n|$)/gi, '\n');
+
         // Strip Log Timestamps (at start of lines)
         clean = clean.replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{3})?\s*(?:AM|PM)?\s*[-:>]/gm, '');
-        
+
         // Strip bracketed metadata like [2026-01-25...]
-        clean = clean.replace(/\[\d{4}-\d{2}-\d{2}.*?\]/g, ''); 
+        clean = clean.replace(/\[\d{4}-\d{2}-\d{2}.*?\]/g, '');
         clean = clean.replace(/\[[#=]{0,10}\s{0,10}\]\s*\d{1,3}%/g, ''); // [===] 100%
 
         // 2.5 PII Masking
@@ -208,7 +258,7 @@ export class AtomizerService {
         clean = clean.replace(/sk-[a-zA-Z0-9]{32,}/g, 'sk-[REDACTED]');
 
         // --- DENSITY-AWARE SCRUBBER (Standard 073) ---
-        
+
         // 1. Strip "Dirty Read" Source Headers & Recursive Metadata
         // Matches: [Source: ...] or status: [Source: ...]
         clean = clean.replace(/(?:status:\s*)?\[Source: .*?\](?:\s*\(Timestamp: .*?\))?/g, '');
@@ -250,11 +300,11 @@ export class AtomizerService {
         // if (native && native.cleanse) {
         //    clean = native.cleanse(clean);
         // } else {
-            let pass = 0;
-            while (clean.includes('\\') && pass < 3) {
-                pass++;
-                clean = clean.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-            }
+        let pass = 0;
+        while (clean.includes('\\') && pass < 3) {
+            pass++;
+            clean = clean.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+        }
         // }
 
         // 2. Code Block Protection
@@ -328,20 +378,29 @@ export class AtomizerService {
     private scanAtoms(content: string): Atom[] {
         const atoms: Atom[] = [];
 
-        // 1. Sovereign Keywords (Dynamic Scan)
-        const keywords = this.loadSovereignKeywords();
-        const lowerContent = content.toLowerCase();
-        for (const kw of keywords) {
-            if (lowerContent.includes(kw.toLowerCase())) {
-                atoms.push(this.createAtom(`#${kw}`, 'concept'));
+        // 1. Sovereign Keywords - OPTIMIZED with compiled regex
+        const keywordRegex = this.getKeywordRegex();
+        if (keywordRegex) {
+            const lowerContent = content.toLowerCase();
+            const matches = lowerContent.match(keywordRegex);
+            if (matches) {
+                // Use cached lowercase->original mapping
+                const keywordMap = this.getKeywordMap();
+                const seen = new Set<string>();
+                for (const match of matches) {
+                    const original = keywordMap.get(match);
+                    if (original && !seen.has(original)) {
+                        seen.add(original);
+                        atoms.push(this.createAtom(`#${original}`, 'concept'));
+                    }
+                }
             }
         }
 
         // 2. Explicit Content Tags (#tag)
-        const tagRegex = /#(\w+)/g;
-        const matches = content.match(tagRegex);
-        if (matches) {
-            matches.forEach(m => atoms.push(this.createAtom(m, 'concept')));
+        const tagMatches = content.match(/#(\w+)/g);
+        if (tagMatches) {
+            tagMatches.forEach(m => atoms.push(this.createAtom(m, 'concept')));
         }
 
         // Deduplicate locally
@@ -350,8 +409,32 @@ export class AtomizerService {
         return Array.from(unique.values());
     }
 
-    // Cache for keywords
+    // Cache for keywords and compiled regex
     private cachedKeywords: string[] | null = null;
+    private cachedKeywordRegex: RegExp | null = null;
+    private cachedKeywordMap: Map<string, string> | null = null;
+
+    private getKeywordRegex(): RegExp | null {
+        if (this.cachedKeywordRegex !== null) return this.cachedKeywordRegex;
+        const keywords = this.loadSovereignKeywords();
+        if (keywords.length === 0) {
+            return null;
+        }
+        // Escape regex special chars and join with | for single-pass matching
+        const escaped = keywords.map(kw => kw.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        this.cachedKeywordRegex = new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi');
+        return this.cachedKeywordRegex;
+    }
+
+    private getKeywordMap(): Map<string, string> {
+        if (this.cachedKeywordMap) return this.cachedKeywordMap;
+        const keywords = this.loadSovereignKeywords();
+        this.cachedKeywordMap = new Map();
+        for (const kw of keywords) {
+            this.cachedKeywordMap.set(kw.toLowerCase(), kw);
+        }
+        return this.cachedKeywordMap;
+    }
 
     private loadSovereignKeywords(): string[] {
         if (this.cachedKeywords) return this.cachedKeywords;
@@ -442,8 +525,8 @@ export class AtomizerService {
             if (match) {
                 const [, month, day, year] = match;
                 const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June',
-                                   'July', 'August', 'September', 'October', 'November', 'December']
-                                   .indexOf(month);
+                    'July', 'August', 'September', 'October', 'November', 'December']
+                    .indexOf(month);
                 const date = new Date(parseInt(year), monthIndex, parseInt(day));
                 if (!isNaN(date.getTime())) return date.getTime();
             }
@@ -454,8 +537,8 @@ export class AtomizerService {
             if (match) {
                 const [, day, month, year] = match;
                 const monthIndex = ['January', 'February', 'March', 'April', 'May', 'June',
-                                   'July', 'August', 'September', 'October', 'November', 'December']
-                                   .indexOf(month);
+                    'July', 'August', 'September', 'October', 'November', 'December']
+                    .indexOf(month);
                 const date = new Date(parseInt(year), monthIndex, parseInt(day));
                 if (!isNaN(date.getTime())) return date.getTime();
             }
@@ -627,7 +710,7 @@ export class AtomizerService {
                     // Find a safe split point that doesn't exceed maxSize bytes
                     let splitPoint = remaining.length;
                     let chunkByteLen = getByteLength(remaining);
-                    
+
                     // Binary search for the right split point if we're over the limit
                     if (chunkByteLen > maxSize) {
                         let low = 0;
@@ -644,10 +727,10 @@ export class AtomizerService {
                         }
                         splitPoint = low;
                     }
-                    
+
                     const chunk = remaining.substring(0, splitPoint);
                     const chunkBytes = getByteLength(chunk);
-                    
+
                     // Inherit timestamp for all chunks if the original item had one
                     finalResults.push({
                         content: chunk,
@@ -667,10 +750,16 @@ export class AtomizerService {
 
     private detectMoleculeType(text: string, filePath: string): 'prose' | 'code' | 'data' {
         // 1. File Extension hints
-        if (filePath.endsWith('.csv') || filePath.endsWith('.json')) return 'data';
+        if (filePath.endsWith('.csv') || filePath.endsWith('.json') || filePath.endsWith('.yaml') || filePath.endsWith('.yml')) return 'data';
         if (filePath.match(/\.(ts|js|py|rs|go|cpp|h|c)$/)) return 'code';
 
-        // 2. Content Heuristics
+        // 2. Large file safety: treat files > 5MB as data to avoid regex timeout
+        if (text.length > 5 * 1024 * 1024) {
+            console.log(`[Atomizer] Large file (${(text.length / (1024 * 1024)).toFixed(1)}MB) - using data strategy for performance`);
+            return 'data';
+        }
+
+        // 3. Content Heuristics
         if (text.trim().startsWith('|') && text.includes('|')) return 'data'; // Markdown Table row
         if (text.includes('```') || text.includes('function ') || text.includes('const ') || text.includes('import ')) return 'code';
 
@@ -703,14 +792,14 @@ export class AtomizerService {
     }
 
     private generateSimHash(text: string): string {
-        // NATIVE DISABLED FOR STABILITY
-        // if (native && native.fingerprint) {
-        //     try {
-        //         return native.fingerprint(text).toString(16);
-        //     } catch (e) { return "0"; }
-        // }
-        
-        // JS Fallback: Simple Jenkins Hash or similar
+        // Use @rbalchii/native-fingerprint if available
+        if (nativeFingerprint) {
+            try {
+                return nativeFingerprint(text);
+            } catch { /* fall through to JS fallback */ }
+        }
+
+        // JS Fallback: Simple Jenkins Hash
         let hash = 0;
         if (text.length === 0) return "0";
         for (let i = 0; i < text.length; i++) {

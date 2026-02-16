@@ -6,7 +6,7 @@
  */
 
 import { Application, Request, Response } from 'express';
-import { executeSearch, getGlobalTags, tagWalkerSearch } from '../services/search/search.js';
+import { executeSearch, getGlobalTags } from '../services/search/search.js';
 import { dream } from '../services/dreamer/dreamer.js';
 import { db } from '../core/db.js';
 
@@ -26,14 +26,14 @@ export function setupEnhancedRoutes(app: Application) {
   app.post('/v1/memory/search-enhanced', async (req: Request, res: Response) => {
     try {
       const { query, buckets, maxChars, provenance, includeGraph } = req.body;
-      
+
       // Default values
       const searchQuery = query || '';
       const searchBuckets = buckets || [];
       const maxCharacters = maxChars || 524288;
       const searchProvenance = provenance || 'all';
       const includeGraphData = includeGraph || false;
-      
+
       // Perform standard search
       const searchResults = await executeSearch(
         searchQuery,
@@ -43,13 +43,13 @@ export function setupEnhancedRoutes(app: Application) {
         false,
         searchProvenance
       );
-      
+
       // Optionally include Bright Node graph data
       let graphData = null;
       if (includeGraphData) {
         graphData = await getStructuredGraph(searchQuery, searchBuckets);
       }
-      
+
       res.status(200).json({
         query: searchQuery,
         results: searchResults.results,
@@ -70,13 +70,13 @@ export function setupEnhancedRoutes(app: Application) {
   app.post('/v1/memory/bright-nodes', async (req: Request, res: Response) => {
     try {
       const { query, buckets, maxNodes } = req.body;
-      
+
       const searchQuery = query || '';
       const searchBuckets = buckets || [];
       const maxNodeCount = maxNodes || 50;
-      
+
       const brightNodes = await getBrightNodes(searchQuery, searchBuckets, maxNodeCount);
-      
+
       res.status(200).json({
         query: searchQuery,
         nodes: brightNodes,
@@ -96,12 +96,12 @@ export function setupEnhancedRoutes(app: Application) {
   app.post('/v1/memory/graph-structure', async (req: Request, res: Response) => {
     try {
       const { query, buckets } = req.body;
-      
+
       const searchQuery = query || '';
       const searchBuckets = buckets || [];
-      
+
       const graphStructure = await getStructuredGraph(searchQuery, searchBuckets);
-      
+
       res.status(200).json(graphStructure);
     } catch (error: any) {
       console.error('Graph structure request failed:', error);
@@ -116,7 +116,7 @@ export function setupEnhancedRoutes(app: Application) {
   app.get('/v1/memory/tags/global', async (_req: Request, res: Response) => {
     try {
       const tags = await getGlobalTags();
-      
+
       res.status(200).json({
         tags,
         count: tags.length,
@@ -134,13 +134,13 @@ export function setupEnhancedRoutes(app: Application) {
   app.post('/v1/db/query', async (req: Request, res: Response) => {
     try {
       const { query, params } = req.body;
-      
+
       if (!query) {
         return res.status(400).json({ error: 'Query is required' });
       }
-      
+
       const result = await db.run(query, params || {});
-      
+
       res.status(200).json({
         result,
         query: query.substring(0, 100) + (query.length > 100 ? '...' : '') // Truncate for safety
@@ -172,7 +172,7 @@ export function setupEnhancedRoutes(app: Application) {
           ECE_ENV: process.env.ECE_ENV
         }
       };
-      
+
       res.status(200).json(systemInfo);
     } catch (error: any) {
       console.error('System info request failed:', error);

@@ -61,3 +61,10 @@
 *   **Fallback Values**: Operations MUST provide appropriate fallback/default values for missing or invalid data to prevent type errors.
 *   **Embedding Serialization**: Embedding vectors MUST be serialized as JSON strings when stored in text/JSON columns to ensure PGlite compatibility.
 *   **Array Handling**: Array-type columns (buckets, tags) MUST be properly serialized as JSON strings when required by the database schema.
+
+## 10. Scalable Performance Protocol (O(1) Ingestion)
+**Context**: Inserting atoms one-by-one (O(N)) causes exponential slowdowns with large files (e.g., books), locking the database.
+*   **Atomic Transactions**: Ingestion of a file chunk (e.g., 50 atoms) MUST occur within a *single* database transaction (`BEGIN` -> `INSERT`s -> `COMMIT`).
+*   **Bulk Operations**: Use `INSERT INTO ... VALUES (...), (...), (...)` syntax rather than looping prepared statements.
+*   **Conflict Handling**: Use `ON CONFLICT DO NOTHING` or `DO UPDATE` within the bulk statement to gracefully handle duplicates without aborting the transaction.
+*   **Performance Target**: Ingestion must remain O(1) relative to the startup overhead for `db.run`, regardless of chunk size (up to safe parameter limits).

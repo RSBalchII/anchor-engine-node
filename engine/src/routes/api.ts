@@ -7,21 +7,23 @@
 import { Application, Request, Response } from 'express';
 import * as crypto from 'crypto';
 import { db } from '../core/db.js';
+import { config } from '../config/index.js';
+import { validate, schemas } from '../middleware/validate.js';
 
 // Import services and types
 import { executeSearch } from '../services/search/search.js';
-import { SemanticIngestionService } from '../services/semantic/semantic-ingestion-service.js';
+import { AtomizerService } from '../services/ingest/atomizer-service.js';
+import { AtomicIngestService } from '../services/ingest/ingest-atomic.js';
 import { dream } from '../services/dreamer/dreamer.js';
 import { getState, clearState } from '../services/scribe/scribe.js';
-import { listModels, loadModel } from '../services/llm/provider.js';
 import { createBackup, listBackups, restoreBackup } from '../services/backup/backup.js';
 import { fetchAndProcess, searchWeb } from '../services/research/researcher.js';
 import { SearchRequest } from '../types/api.js';
 import { setupEnhancedRoutes } from './enhanced-api.js';
 
 export function setupRoutes(app: Application) {
-  // Ingestion endpoint (Semantic Shift Architecture)
-  app.post('/v1/ingest', async (req: Request, res: Response) => {
+  // Ingestion endpoint (Atomic Architecture)
+  app.post('/v1/ingest', validate(schemas.ingest), async (req: Request, res: Response) => {
     try {
       const { content, source, type, bucket, buckets = [], tags = [] } = req.body;
 
@@ -30,16 +32,27 @@ export function setupRoutes(app: Application) {
         return;
       }
 
-      // Use the new semantic ingestion service
-      const ingestionService = new SemanticIngestionService();
-      const result = await ingestionService.ingestContent(
+      // Use legacy Atomizer pipeline for performance
+      const atomizer = new AtomizerService();
+      const atomicIngest = new AtomicIngestService();
+
+      const provenance = (source && (source.includes('external') || source.includes('web'))) ? 'external' : 'internal';
+
+      const { compound, molecules, atoms } = await atomizer.atomize(
         content,
-        source || 'unknown',
-        type || 'text',
-        bucket,
-        buckets,
-        tags
+        source || 'api_upload',
+        provenance
       );
+
+      // Ingest result
+      const targetBuckets = buckets.length > 0 ? buckets : [bucket || 'notebook'];
+      await atomicIngest.ingestResult(compound, molecules, atoms, targetBuckets);
+
+      const result = {
+        status: 'success',
+        message: `Ingested ${atoms.length} atoms and ${molecules.length} molecules`,
+        id: compound.id
+      };
 
       res.status(200).json(result);
     } catch (e: any) {
@@ -99,15 +112,15 @@ export function setupRoutes(app: Application) {
       `;
       const result = await db.run(query);
 
-      const atoms = (result.rows || []).map((row: any[]) => ({
-        id: row[0],
-        content: row[1],
-        source: row[2],
-        timestamp: row[3],
-        buckets: row[4],
-        tags: row[5],
-        provenance: row[6],
-        simhash: row[7]
+      const atoms = (result.rows || []).map((row: any) => ({
+        id: row.id,
+        content: row.content,
+        source: row.source_path,
+        timestamp: row.timestamp,
+        buckets: row.buckets,
+        tags: row.tags,
+        provenance: row.provenance,
+        simhash: row.simhash
       }));
 
       res.status(200).json(atoms);
@@ -142,19 +155,12 @@ export function setupRoutes(app: Application) {
       }
 
       const row = fullRecord.rows[0];
-      // row indices: 0:id, 1:timestamp, 2:content, 3:source_path, 4:source_id, 5:sequence, 6:type, 7:hash, 8:buckets, 9:epochs, 10:tags, 11:provenance, 12:simhash, 13:embedding
-      const updatedRow = [...row];
-      updatedRow[2] = content; // Update Content
-
-      // Update Hash
-      updatedRow[7] = crypto.createHash('sha256').update(content).digest('hex');
-
-      // Zero Embedding (Force re-embed)
-      updatedRow[13] = new Array(384).fill(0.1); // Index 13 is embedding now
+      const newHash = crypto.createHash('sha256').update(content).digest('hex');
+      const newEmbedding = new Array(384).fill(0.1);
 
       await db.run(
         `UPDATE atoms SET content = $1, hash = $2, embedding = $3 WHERE id = $4`,
-        [content, updatedRow[7], updatedRow[13], id]
+        [content, newHash, newEmbedding, id]
       );
 
       res.status(200).json({ status: 'success', message: `Atom ${id} updated.` });
@@ -182,7 +188,7 @@ export function setupRoutes(app: Application) {
       }
 
       const row = fullRecord.rows[0];
-      const currentTags = row[10] as string[] || [];
+      const currentTags = row.tags as string[] || [];
 
       // Filter out quarantine tags
       const newTags = currentTags.filter(t => t !== '#manually_quarantined' && t !== '#auto_quarantined');
@@ -199,7 +205,7 @@ export function setupRoutes(app: Application) {
   });
 
   // POST Search endpoint (Standard UniversalRAG + Iterative Logic)
-  app.post('/v1/memory/search', async (req: Request, res: Response) => {
+  app.post('/v1/memory/search', validate(schemas.memorySearch), async (req: Request, res: Response) => {
     console.log('[API] Received search request at /v1/memory/search');
 
     try {
@@ -216,59 +222,31 @@ export function setupRoutes(app: Application) {
       const bucketParam = (req.body as any).bucket;
       const buckets = body.buckets || [];
       const allBuckets = bucketParam ? [...buckets, bucketParam] : buckets;
-      const budget = (req.body as any).token_budget ? (req.body as any).token_budget * 4 : (body.max_chars || 20000);
+      // Use config limit (default 100k) if no budget provided
+      const defaultLimit = 100000;
+      const budget = (req.body as any).token_budget ? (req.body as any).token_budget * 4 : (body.max_chars || defaultLimit);
       const tags = (req.body as any).tags || [];
 
-      // Check if this is a semantic/relationship query
-      const isSemanticQuery = req.body.semantic ||
-        req.body.relationship ||
-        req.body.narrative ||
-        (body.query.toLowerCase().includes('relationship') ||
-          body.query.toLowerCase().includes('with') ||
-          body.query.toLowerCase().includes('and') && body.query.toLowerCase().includes('jade') ||
-          body.query.toLowerCase().includes('rob'));
+      // Enhanced Search Strategy (Standard 086)
+      // We now use our enhanced executeSearch for ALL queries to benefit from:
+      // 1. Multi-term splitting (e.g. "Rob and Coda" -> "Rob", "Coda")
+      // 2. Tag-Walker Protocol (graph-based associative retrieval)
+      // 3. Physics-based spreading activation with temporal decay
+      // 4. Context Inflation (Radial Search)
+      console.log('[API] Using Enhanced Search Strategy for query');
 
-      let result;
-      if (isSemanticQuery) {
-        // Use semantic search for relationship/narrative queries
-        console.log('[API] Using semantic search for relationship query');
-        const { executeSemanticSearch } = await import('../services/semantic/semantic-search.js');
-        result = await executeSemanticSearch(
-          body.query,
-          allBuckets,
-          budget,
-          (req.body as any).provenance || 'all',
-          tags
-        );
-      } else {
-        // Use traditional search for other queries
-        console.log('[API] Using traditional search');
-        const { executeSearch } = await import('../services/search/search.js');
-
-        // Wrap the executeSearch call in additional error handling to catch any crashes
-        try {
-          result = await executeSearch(
-            body.query,
-            undefined, // bucket
-            allBuckets,
-            budget,
-            false, // deep
-            (req.body as any).provenance || 'all',
-            tags
-          );
-        } catch (searchError: any) {
-          console.error('[API] executeSearch failed:', searchError);
-          // Ensure we return a proper response even if search fails
-          res.status(500).json({
-            error: 'Search service temporarily unavailable',
-            details: searchError.message
-          });
-          return;
-        }
-      }
+      const result = await executeSearch(
+        body.query,
+        undefined, // bucket
+        allBuckets,
+        budget,
+        false, // deep
+        (req.body as any).provenance || 'all',
+        tags
+      );
 
       // Construct standard response
-      console.log(`[API] ${isSemanticQuery ? 'Semantic' : 'Traditional'} Search "${body.query}" -> Found ${result.results.length} results (Strategy: ${(result as any).strategy || 'unknown'})`);
+      console.log(`[API] Enhanced Search "${body.query}" -> Found ${result.results.length} results (Strategy: enhanced_tag_walker)`);
 
       // Ensure response is sent even if there are issues with result formatting
       if (!res.headersSent) {
@@ -276,14 +254,14 @@ export function setupRoutes(app: Application) {
           status: 'success',
           context: result.context,
           results: result.results,
-          strategy: (result as any).strategy || 'traditional',
-          attempt: (result as any).attempt || 1,
-          split_queries: (result as any).splitQueries || [],
+          strategy: 'enhanced_tag_walker',
+          attempt: 1,
+          split_queries: [],
           metadata: {
             engram_hits: 0,
             vector_latency: 0,
             provenance_boost_active: true,
-            search_type: isSemanticQuery ? 'semantic' : 'traditional',
+            search_type: 'enhanced',
             ...((result as any).metadata || {})
           }
         });
@@ -358,18 +336,14 @@ export function setupRoutes(app: Application) {
   // Get all buckets
   app.get('/v1/buckets', async (_req: Request, res: Response) => {
     try {
-      // Improved Bucket Retrieval: Get distinct arrays first to avoid scanning all rows
-      const result = await db.run('SELECT DISTINCT buckets FROM atoms WHERE buckets IS NOT NULL');
-      const allBuckets = new Set<string>();
+      // Improved Bucket Retrieval: Use the tags table which is much lighter (Atomic Architecture)
+      const result = await db.run('SELECT DISTINCT bucket FROM tags WHERE bucket IS NOT NULL ORDER BY bucket');
 
+      const allBuckets = new Set<string>();
       if (result.rows) {
         for (const row of result.rows) {
-          const bucketArr = row[0];
-          if (Array.isArray(bucketArr)) {
-            bucketArr.forEach((b: string) => allBuckets.add(b));
-          } else if (typeof bucketArr === 'string') {
-            allBuckets.add(bucketArr);
-          }
+          const b = row.bucket;
+          if (b && typeof b === 'string') allBuckets.add(b);
         }
       }
 
@@ -386,28 +360,23 @@ export function setupRoutes(app: Application) {
       const bucketsParam = req.query['buckets'] as string;
       const buckets = bucketsParam ? bucketsParam.split(',') : [];
 
-      let query = 'SELECT tags FROM atoms WHERE tags IS NOT NULL';
+      // Optimized for PGlite: Use tags table directly
+      let query = 'SELECT DISTINCT tag FROM tags WHERE tag IS NOT NULL';
       const params: any[] = [];
 
       if (buckets.length > 0) {
-        query += ` AND EXISTS (SELECT 1 FROM unnest(buckets) as b WHERE b = ANY($1))`;
+        query += ` AND bucket = ANY($1)`;
         params.push(buckets);
       }
 
-      query += ' LIMIT 5000';
+      query += ' ORDER BY tag LIMIT 5000';
 
-      // Unnesting ALL atoms crashes WASM memory. We fetch raw arrays and dedupe in JS.
       const result = await db.run(query, params);
       const allTags = new Set<string>();
 
       if (result.rows) {
         for (const row of result.rows) {
-          const tagArr = row[0];
-          if (Array.isArray(tagArr)) {
-            tagArr.forEach((t: string) => allTags.add(t));
-          } else if (typeof tagArr === 'string') {
-            allTags.add(tagArr);
-          }
+          if (row.tag) allTags.add(row.tag as string);
         }
       }
 
@@ -479,7 +448,7 @@ export function setupRoutes(app: Application) {
   });
 
   // Research Plugin Endpoint
-  app.post('/v1/research/scrape', async (req: Request, res: Response) => {
+  app.post('/v1/research/scrape', validate(schemas.researchScrape), async (req: Request, res: Response) => {
     try {
       const { url, category } = req.body;
       if (!url) {
@@ -494,6 +463,68 @@ export function setupRoutes(app: Application) {
         res.status(500).json(result);
       }
     } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Maintenance: Re-index Tags (Fix for missing buckets/tags in UI)
+  app.post('/v1/maintenance/reindex-tags', async (_req: Request, res: Response) => {
+    try {
+      console.log("[Maintenance] Starting Tag Re-indexing...");
+
+      // 1. Drop old table
+      await db.run('DROP TABLE IF EXISTS tags');
+
+      // 2. Re-create table with correct schema (atom_id, tag, bucket)
+      // Note: This relies on db.ts schema, but we want to be explicit here since we just dropped it
+      await db.run(`
+        CREATE TABLE IF NOT EXISTS tags (
+          atom_id TEXT,
+          tag TEXT,
+          bucket TEXT,
+          PRIMARY KEY (atom_id, tag, bucket)
+        );
+      `);
+
+      // 3. Re-create indexes
+      try {
+        await db.run('CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);');
+        await db.run('CREATE INDEX IF NOT EXISTS idx_tags_bucket ON tags(bucket);');
+      } catch (e) { console.warn("Index creation warning", e); }
+
+      // 4. Migrate Data
+      const atoms = await db.run('SELECT id, tags, buckets FROM atoms');
+      console.log(`[Maintenance] Found ${atoms.rows.length} atoms to re-index.`);
+
+      let count = 0;
+      for (const row of atoms.rows) {
+        const atomId = row.id;
+        const tags = row.tags as string[];
+        const buckets = row.buckets as string[];
+
+        if (!tags || !buckets) continue;
+
+        for (const bucket of buckets) {
+          for (const tag of tags) {
+            if (tag && bucket) {
+              try {
+                await db.run(
+                  `INSERT INTO tags (atom_id, tag, bucket) VALUES ($1, $2, $3)
+                       ON CONFLICT (atom_id, tag, bucket) DO NOTHING`,
+                  [atomId, tag, bucket]
+                );
+                count++;
+              } catch (e) { }
+            }
+          }
+        }
+      }
+
+      console.log(`[Maintenance] Re-indexing complete. Inserted ${count} tags.`);
+      res.status(200).json({ status: 'success', message: `Re-indexed ${count} tags from ${atoms.rows.length} atoms.` });
+
+    } catch (e: any) {
+      console.error('[Maintenance] Re-index failed:', e);
       res.status(500).json({ error: e.message });
     }
   });
@@ -513,242 +544,6 @@ export function setupRoutes(app: Application) {
       res.status(500).json({ error: e.message });
     }
   });
-
-
-
-  // LLM: List Models
-  app.get('/v1/models', async (req: Request, res: Response) => {
-    try {
-      const dir = req.query['dir'] as string | undefined;
-      const models = await listModels(dir);
-      res.status(200).json(models);
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // LLM: Load Model
-  app.post('/v1/inference/load', async (req: Request, res: Response) => {
-    try {
-      const { model, options, dir } = req.body; // dir optional, used to construct absolute path if model is just filename?
-      if (!model) {
-        res.status(400).json({ error: "Model name required" });
-        return;
-      }
-
-      // If dir provided and model is not absolute, join them
-      const path = await import('path');
-      let modelPath = model;
-      if (dir && !path.isAbsolute(model)) {
-        modelPath = path.join(dir, model);
-      }
-
-      const result = await loadModel(modelPath, options);
-      res.status(200).json(result);
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // LLM: Chat Completions (Intelligent Context Provision)
-  app.post('/v1/chat/completions', async (req: Request, res: Response) => {
-    try {
-      const { messages, model, save_to_graph = false } = req.body;
-
-      // Get the last user message to use as the objective
-      const lastMessage = messages[messages.length - 1];
-      const objective = lastMessage.content;
-
-      console.log(`[API] Agent Request Objective: "${objective}" (Length: ${objective?.length})`);
-      console.log(`[API] Objective Type: ${typeof objective}`);
-
-      // 1. Retrieve context from ECE search API
-      const { executeSearch } = await import('../services/search/search.js');
-      const searchResults = await executeSearch(objective, undefined, [], 20000, false, 'all', []); // query, bucket, buckets, maxChars, deep, provenance, tags
-      const contextBlock = searchResults.context || '';
-
-      // Prepare messages with context as system prompt and user query
-      const contextualMessages = [
-        { role: 'system', content: `Context:\n${contextBlock}\n\nPrevious conversation and user context has been omitted for performance. Use only the provided context above to inform your response.` },
-        { role: 'user', content: objective }
-      ];
-
-      // 2. Setup SSE
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.flushHeaders();
-
-      // Variable to store the full response for potential saving
-      let fullResponse = '';
-
-      // 3. Initialize Agent Runtime with contextual messages
-      const { AgentRuntime } = await import('../agent/runtime.js');
-      const runtime = new AgentRuntime({
-        model,
-        verbose: true,
-        maxIterations: 5,
-        messages: contextualMessages, // Pass the contextual messages to the agent
-        onEvent: (event) => {
-          // Map Agent Events to SSE
-          if (event.type === 'thought') {
-            // Use specific event type for UI to show "Thinking"
-            res.write(`data: ${JSON.stringify({ type: 'thought', content: event.content, id: event.id })}\n\n`);
-          } else if (event.type === 'token') {
-            // Send streaming tokens as assistant chunks
-            const chunk = {
-              id: `chatcmpl-${Date.now()}`,
-              object: "chat.completion.chunk",
-              created: Math.floor(Date.now() / 1000),
-              model: model || "ece-agent",
-              choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
-            };
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-
-            // Accumulate the response if we need to save it
-            if (save_to_graph) {
-              fullResponse += event.content;
-            }
-          } else if (event.type === 'answer') {
-            // Ensure any remaining content is sent before stop
-            if (event.content) {
-              const contentChunk = {
-                id: `chatcmpl-${Date.now()}`,
-                object: "chat.completion.chunk",
-                created: Math.floor(Date.now() / 1000),
-                model: model || "ece-agent",
-                choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }]
-              };
-              // We only send this if we think we missed tokens, otherwise it might double print.
-              // Actually, Basic Chat streams tokens. sending full answer again is bad.
-              // let's just log it for debug
-              console.log(`[API] Agent finished. Final Answer length: ${event.content.length}`);
-
-              // Accumulate the response if we need to save it
-              if (save_to_graph) {
-                fullResponse += event.content;
-              }
-            }
-
-            // Final stop chunk
-            const chunk = {
-              id: `chatcmpl-${Date.now()}`,
-              object: "chat.completion.chunk",
-              created: Math.floor(Date.now() / 1000),
-              model: model || "ece-agent",
-              choices: [{ index: 0, delta: { content: "" }, finish_reason: "stop" }]
-            };
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-          } else if (event.type === 'error') {
-            res.write(`data: ${JSON.stringify({ error: event.content })}\n\n`);
-          }
-        }
-      });
-
-      // 4. Run the Agent Loop with contextual messages (Context -> Prompt -> Model Responds)
-      await runtime.runLoop(objective);
-
-      // 5. If save_to_graph is true, save the conversation to the graph
-      if (save_to_graph) {
-        try {
-          // Save user message
-          const userTimestamp = Date.now();
-          const userHash = crypto.createHash('sha256').update(objective).digest('hex');
-
-          await db.run(
-            `INSERT INTO atoms (id, timestamp, content, source_path, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-             ON CONFLICT (id) DO UPDATE SET
-               content = EXCLUDED.content,
-               timestamp = EXCLUDED.timestamp,
-               source_path = EXCLUDED.source_path,
-               source_id = EXCLUDED.source_id,
-               sequence = EXCLUDED.sequence,
-               type = EXCLUDED.type,
-               hash = EXCLUDED.hash,
-               buckets = EXCLUDED.buckets,
-               tags = EXCLUDED.tags,
-               epochs = EXCLUDED.epochs,
-               provenance = EXCLUDED.provenance,
-               simhash = EXCLUDED.simhash,
-               embedding = EXCLUDED.embedding`,
-            [
-              `chat_${userTimestamp}_user`,
-              userTimestamp,
-              objective,
-              'chat_session',
-              `chat_${userTimestamp}`,
-              0,
-              'chat_user',
-              userHash,
-              ['inbox', 'personal'],
-              ['#chat', '#conversation'],
-              [],
-              'internal',
-              "0",
-              new Array(768).fill(0.1)
-            ]
-          );
-
-          // Save AI response
-          const aiTimestamp = Date.now();
-          const aiHash = crypto.createHash('sha256').update(fullResponse).digest('hex');
-
-          await db.run(
-            `INSERT INTO atoms (id, timestamp, content, source_path, source_id, sequence, type, hash, buckets, tags, epochs, provenance, simhash, embedding)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-             ON CONFLICT (id) DO UPDATE SET
-               content = EXCLUDED.content,
-               timestamp = EXCLUDED.timestamp,
-               source_path = EXCLUDED.source_path,
-               source_id = EXCLUDED.source_id,
-               sequence = EXCLUDED.sequence,
-               type = EXCLUDED.type,
-               hash = EXCLUDED.hash,
-               buckets = EXCLUDED.buckets,
-               tags = EXCLUDED.tags,
-               epochs = EXCLUDED.epochs,
-               provenance = EXCLUDED.provenance,
-               simhash = EXCLUDED.simhash,
-               embedding = EXCLUDED.embedding`,
-            [
-              `chat_${aiTimestamp}_ai`,
-              aiTimestamp,
-              fullResponse,
-              'chat_session',
-              `chat_${aiTimestamp}`,
-              1,
-              'chat_ai',
-              aiHash,
-              ['inbox', 'personal'],
-              ['#chat', '#conversation'],
-              [],
-              'internal',
-              "0",
-              new Array(768).fill(0.1)
-            ]
-          );
-
-          console.log(`[API] Chat saved to graph: User message and AI response`);
-        } catch (saveErr) {
-          console.error('[API] Error saving chat to graph:', saveErr);
-        }
-      }
-
-      // 6. Finish
-      res.write('data: [DONE]\n\n');
-      res.end();
-
-    } catch (e: any) {
-      console.error("Chat API Error", e);
-      if (!res.headersSent) res.status(500).json({ error: e.message });
-      else {
-        res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
-        res.end();
-      }
-    }
-  });
-
 
   // Scribe State Endpoints
   // Get State
@@ -785,6 +580,64 @@ export function setupRoutes(app: Application) {
         timestamp: new Date().toISOString()
       }
     });
+  });
+
+  // Watcher Path Endpoints
+  // GET /v1/system/paths - List currently watched paths
+  app.get('/v1/system/paths', async (_req: Request, res: Response) => {
+    try {
+      const { getWatchedPaths } = await import('../services/ingest/watchdog.js');
+      const paths = getWatchedPaths();
+      res.status(200).json({ paths });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /v1/system/paths - Add a new path to watch
+  app.post('/v1/system/paths', async (req: Request, res: Response) => {
+    try {
+      const { path } = req.body;
+      if (!path) {
+        res.status(400).json({ error: 'Path is required' });
+        return;
+      }
+
+      const { addWatchPath } = await import('../services/ingest/watchdog.js');
+      const success = await addWatchPath(path);
+
+      res.status(200).json({
+        status: success ? 'success' : 'failed',
+        message: success ? `Now watching: ${path}` : 'Failed to add path',
+        path
+      });
+    } catch (e: any) {
+      console.error('[API] Failed to add watch path:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // DELETE /v1/system/paths - Remove a watched path
+  app.delete('/v1/system/paths', async (req: Request, res: Response) => {
+    try {
+      const { path } = req.body;
+      if (!path) {
+        res.status(400).json({ error: 'Path is required' });
+        return;
+      }
+
+      const { removeWatchPath } = await import('../services/ingest/watchdog.js');
+      const success = await removeWatchPath(path);
+
+      res.status(200).json({
+        status: success ? 'success' : 'failed',
+        message: success ? `Stopped watching: ${path}` : 'Failed to remove path',
+        path
+      });
+    } catch (e: any) {
+      console.error('[API] Failed to remove watch path:', e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Terminal Command Execution Endpoint
@@ -949,6 +802,136 @@ export function setupRoutes(app: Application) {
     }
   });
 
+  // Configuration endpoint to provide runtime configuration to clients
+  app.get('/v1/config', async (_req: Request, res: Response) => {
+    try {
+      // Import config here to avoid circular dependencies
+      const { config } = await import('../config/index.js');
+
+      const serverConfig = {
+        port: config.PORT,
+        host: config.HOST,
+        server_url: `http://${config.HOST}:${config.PORT}`,
+        llm_provider: config.LLM_PROVIDER,
+        search_strategy: config.SEARCH.strategy,
+        features: config.FEATURES
+      };
+
+      res.status(200).json(serverConfig);
+    } catch (error: any) {
+      console.error('Config endpoint error:', error);
+      res.status(500).json({
+        error: error.message,
+        fallback_config: {
+          port: 3160,
+          host: '127.0.0.1',
+          server_url: 'http://127.0.0.1:3160'
+        }
+      });
+    }
+  });
+
   // Include enhanced routes
   setupEnhancedRoutes(app);
+
+  // Chat Completions Proxy (Standard 088 Gateway Pattern)
+  // Proxies requests to the Inference Server (3001) if available, or returns error.
+  app.post('/v1/chat/completions', async (req: Request, res: Response) => {
+    try {
+      // Determine destination (Inference Server default)
+      // In a full implementation, this could load balance or check config
+      const NANOBOT_URL = 'http://localhost:8080';
+      const INFERENCE_URL = `${NANOBOT_URL}/v1/chat/completions`;
+
+      console.log(`[API] Proxying chat request to ${INFERENCE_URL}`);
+
+      // We need to fetch from the inference server
+      // Note: We use dynamic import for fetch if not available globally (Node 18+ has it)
+
+      // Use Axios for better timeout control and streaming support
+      // Node's native fetch (Undici) has a hard 300s headers timeout which causes failures for long-running models
+      const { default: axios } = await import('axios'); // Dynamic import to ensure ESM compatibility if needed
+
+      const response = await axios({
+        method: 'post',
+        url: INFERENCE_URL,
+        data: req.body,
+        responseType: 'stream',
+        // Set an explicit large timeout (infinite/0 or specific high value)
+        // Axios timeout covers the whole request, but for streaming we depend on the stream flow
+        timeout: 0, // No timeout
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Stream the response back
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      if (response.data) {
+        let bytesSent = 0;
+        // Pipe the stream directly
+        response.data.on('data', (chunk: Buffer) => {
+          bytesSent += chunk.length;
+          res.write(chunk);
+        });
+
+        response.data.on('end', () => {
+          console.log(`[API] Proxy Stream Completed. Sent ${bytesSent} bytes.`);
+          res.end();
+        });
+
+        response.data.on('error', (err: any) => {
+          console.error('[API] Stream Error:', err);
+          res.end();
+        });
+      } else {
+        res.end();
+      }
+
+    } catch (e: any) {
+      console.error('[API] Chat Proxy Error:', e);
+      // If we haven't started streaming, send JSON error
+      if (!res.headersSent) {
+        res.status(503).json({
+          error: 'Nanobot Server Unavailable',
+          details: 'Ensure packages/nanobot-node is running on port 8080',
+          internal_message: e.message
+        });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  // Proxy Model Management Endpoints to Nanobot
+  const proxyToNanobot = async (req: Request, res: Response, path: string, method: string = 'GET') => {
+    try {
+      const NANOBOT_URL = 'http://localhost:8080';
+      const url = `${NANOBOT_URL}${path}`;
+      const options: any = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+      };
+
+      if (method !== 'GET' && method !== 'HEAD') {
+        options.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(url, options);
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch (e: any) {
+      console.error(`[API] Proxy Error (${path}):`, e);
+      res.status(503).json({ error: 'Nanobot Unavailable', details: e.message });
+    }
+  };
+
+  app.post('/v1/model/load', (req, res) => proxyToNanobot(req, res, '/v1/model/load', 'POST'));
+  app.post('/v1/model/unload', (req, res) => proxyToNanobot(req, res, '/v1/model/unload', 'POST'));
+  app.get('/v1/model/status', (req, res) => proxyToNanobot(req, res, '/v1/model/status', 'GET'));
+  app.get('/v1/models', (req, res) => proxyToNanobot(req, res, '/v1/models', 'GET'));
 }

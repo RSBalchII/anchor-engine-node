@@ -1,5 +1,5 @@
 /**
- * Native Module Profiler for ECE_Core
+ * Native Module Profiler for Anchor Engine
  * 
  * Provides performance profiling for native modules
  */
@@ -58,10 +58,10 @@ export class NativeModuleProfiler {
       // Run the operation multiple times
       for (let i = 0; i < config.iterations; i++) {
         const start = process.hrtime.bigint();
-        
+
         // Execute the operation with test data
         await this.executeOperation(config.operation, config.testData[i % config.testData.length], config.parameters);
-        
+
         const end = process.hrtime.bigint();
         const duration = Number(end - start) / 1000000; // Convert nanoseconds to milliseconds
         durations.push(duration);
@@ -114,7 +114,7 @@ export class NativeModuleProfiler {
     // This would call the actual native module operation
     // For now, we'll simulate with a timeout to represent processing time
     // In a real implementation, this would call the native module directly
-    
+
     // Simulate different operations with different processing times
     switch (operation) {
       case 'atomize':

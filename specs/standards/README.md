@@ -97,6 +97,7 @@ Extensions, Ports, APIs, and all interface-related concerns.
 - [026-ghost-engine-connection-management.md](026-ghost-engine-connection-management.md) - Ghost Engine connection management
 - [058-universal-rag-api.md](058-universal-rag-api.md) - Standard Unified RAG Endpoint
 - [074-atomic-frontend-architecture.md](074-atomic-frontend-architecture.md) - Atomic Frontend Architecture & Glassmorphism System
+- [103-standalone-ui-capability.md](103-standalone-ui-capability.md) - Internal Lightweight UI for Independent Operation
 
 ## Deprecated Standards (Historical Reference)
 

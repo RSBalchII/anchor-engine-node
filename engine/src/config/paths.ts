@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 // Define base paths
 export const PROJECT_ROOT = path.resolve(process.env['PROJECT_ROOT'] || path.join(__dirname, '..', '..'));
 export const CONTEXT_DIR = path.resolve(process.env['CONTEXT_DIR'] || path.join(PROJECT_ROOT, 'context'));
-export const MODELS_DIR = path.resolve(process.env['MODELS_DIR'] || path.join(PROJECT_ROOT, '..', '..', 'models'));
+export const MODELS_DIR = path.resolve(process.env['MODELS_DIR'] || path.join(PROJECT_ROOT, '..', '..', '..', 'models'));
 export const DIST_DIR = path.resolve(process.env['DIST_DIR'] || path.join(PROJECT_ROOT, 'dist'));
 export const BASE_PATH = PROJECT_ROOT;
 export const LOGS_DIR = path.join(PROJECT_ROOT, 'logs');

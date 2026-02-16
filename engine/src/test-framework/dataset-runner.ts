@@ -1,5 +1,5 @@
 /**
- * Dataset-Specific Test Configuration for ECE_Core
+ * Dataset-Specific Test Configuration for Anchor Engine
  * 
  * Implements configurable test setups for different data sizes and types
  */
@@ -91,20 +91,20 @@ export class DatasetTestRunner {
         testFn: async () => {
           // Performance test based on dataset size
           const startTime = Date.now();
-          
+
           // Simulate ingestion based on dataset size
           const atomCount = this.getAtomEstimateForSize(dataset.size);
           console.log(`📊 Ingesting approximately ${atomCount} atoms from ${dataset.name} dataset...`);
-          
+
           // In a real implementation, this would call the actual ingestion service
           // For now, we'll simulate based on size
           await this.simulateIngestion(atomCount);
-          
+
           const duration = Date.now() - startTime;
           const ingestionRate = atomCount / (duration / 1000); // atoms per second
-          
+
           console.log(`✅ Ingested ${atomCount} atoms in ${duration}ms (${ingestionRate.toFixed(2)} atoms/sec)`);
-          
+
           // Check against performance thresholds
           if (ingestionRate < 10) { // Adjust threshold as needed
             console.warn(`⚠️  Ingestion rate below expected threshold: ${ingestionRate.toFixed(2)} atoms/sec`);
@@ -117,26 +117,26 @@ export class DatasetTestRunner {
         description: `Test search functionality with ${dataset.name} dataset`,
         testFn: async () => {
           console.log(`🔍 Testing search functionality with ${dataset.name} dataset...`);
-          
+
           // In a real implementation, this would perform actual searches against the ingested data
           // For now, we'll simulate based on dataset size
           const searchQueries = this.generateSearchQueries(dataset.size);
-          
+
           for (const query of searchQueries) {
             const startTime = Date.now();
-            
+
             // Simulate search operation
             await this.simulateSearch(query);
-            
+
             const duration = Date.now() - startTime;
             console.log(`   Query "${query}" took ${duration}ms`);
-            
+
             // Check against performance thresholds
             if (duration > 1000) { // Adjust threshold as needed
               console.warn(`⚠️  Search query "${query}" took longer than expected: ${duration}ms`);
             }
           }
-          
+
           console.log(`✅ Search functionality verified with ${dataset.name} dataset`);
         },
         timeout: (dataset.timeout || 20000) * this.getTimeoutMultiplierForSize(dataset.size)
@@ -162,7 +162,7 @@ export class DatasetTestRunner {
   async runDatasetTests(datasetName: string, customTests?: TestConfig[]): Promise<void> {
     const suite = this.createDatasetTestSuite(datasetName, customTests);
     this.framework.addTestSuite(suite);
-    
+
     // Run just this suite
     await this.framework.runTestSuite(suite);
   }
@@ -291,10 +291,10 @@ export const PREDEFINED_DATASETS: DatasetConfig[] = [
 // Initialize with predefined datasets
 export function initializeDatasetTestRunner(framework: TestFramework): DatasetTestRunner {
   const runner = new DatasetTestRunner(framework);
-  
+
   for (const dataset of PREDEFINED_DATASETS) {
     runner.registerDataset(dataset);
   }
-  
+
   return runner;
 }

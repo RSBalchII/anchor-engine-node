@@ -2,10 +2,11 @@
  * Date Extraction Utility
  * Extracts timestamps from text content or filenames using regex patterns.
  */
+import { config } from '../config/index.js';
 
 export function extractDateFromContent(text: string): number | null {
-    // Limit scope to header for performance (first 2000 chars)
-    const scanText = text.length > 2000 ? text.substring(0, 2000) : text;
+    // Limit scope to header for performance (first chars based on config)
+    const scanText = text.length > config.LIMITS.DATE_EXTRACTOR_SCAN_LIMIT ? text.substring(0, config.LIMITS.DATE_EXTRACTOR_SCAN_LIMIT) : text;
 
     // Patterns
     const patterns = [

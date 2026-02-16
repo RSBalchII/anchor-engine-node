@@ -1,9 +1,10 @@
 /**
- * Universal Context Aggregation Tool
+ * Prioritized Context Aggregation Tool
  *
- * This script recursively scans all text files in a project root,
- * aggregates their content into a single YAML file with configurable limits.
- * Designed to work in any codebase from the root directory.
+ * Scans the project and aggregates the MOST IMPORTANT files first,
+ * fitting within a 200k token budget. Files are priority-ranked so
+ * core engine code, types, and config always make it in before tests,
+ * specs, docs, and peripheral scripts.
  */
 
 import fs from 'fs';
@@ -14,9 +15,9 @@ import yaml from 'js-yaml';
 // Configuration options
 const CONFIG = {
     // Token limits
-    tokenLimit: 1000000, // 1M tokens - increased for full codebase analysis
-    maxFileSize: 5 * 1024 * 1024, // 5MB max per file to prevent huge files
-    maxLinesPerFile: 5000, // Max 5000 lines per file to prevent huge content
+    tokenLimit: 1000000, // 500k tokens — fits in a single LLM context window
+    maxFileSize: 2 * 1024 * 1024, // 2MB max per file
+    maxLinesPerFile: 3000, // Max 3000 lines per file
 
     // Output options
     outputDir: 'codebase',
@@ -24,16 +25,18 @@ const CONFIG = {
 
     // File inclusion/exclusion patterns
     includeExtensions: [
-        // Code files
-        '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.cs',
-        '.go', '.rs', '.rb', '.php', '.html', '.css', '.scss', '.sass', '.less',
-        '.json', '.yaml', '.yml', '.xml', '.sql', '.sh', '.bash', '.zsh',
-        '.md', '.txt', '.csv', '.toml', '.ini', '.cfg', '.conf', '.env',
-        '.dockerfile', 'dockerfile', '.gitignore', '.npmignore', '.prettierignore',
-        // Configuration files
-        'makefile', 'cmakelists.txt', 'readme.md', 'readme.txt', 'readme',
-        'license', 'license.md', 'changelog', 'changelog.md', 'contributing',
-        'contributing.md', 'code_of_conduct', 'code_of_conduct.md'
+        // Code files (primary)
+        '.js', '.ts', '.jsx', '.tsx', '.mjs',
+        // Config & data
+        '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+        // Shell/scripts
+        '.sh', '.bash', '.bat', '.ps1',
+        // Docs (lower priority but included)
+        '.md', '.txt',
+        // SQL
+        '.sql',
+        // Other source
+        '.py', '.cpp', '.c', '.h', '.cs',
     ],
 
     excludeExtensions: [
@@ -53,16 +56,58 @@ const CONFIG = {
         '.idea', '.pytest_cache', '__pycache__', 'dist', 'build', 'target',
         'venv', 'env', '.venv', '.env', 'Pods', 'Carthage', 'CocoaPods',
         '.next', '.nuxt', 'public', 'static', 'assets', 'images', 'img', 'codebase',
+        'data', 'context_data', 'test_minimal_db', 'rbalchii', 'python_vision',
+        'desktop-overlay', 'grammar', '.gemini', 'coverage', 'test_results', 'reports',
+        'notebook', 'inbox', 'mirrored_brain' // Exclude user content
     ],
 
     excludeFiles: [
         'combined_context.yaml', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
         'Gemfile.lock', 'Pipfile.lock', 'Cargo.lock', 'composer.lock',
         'go.sum', 'go.mod', 'requirements.txt', 'poetry.lock',
-        // Database files
         '*.db', '*.sqlite', '*.sqlite3', '*.fdb', '*.mdb', '*.accdb',
-        // Temporary files
-        '*~', '*.tmp', '*.temp', '*.cache', '*.swp', '*.swo'
+        '*~', '*.tmp', '*.temp', '*.cache', '*.swp', '*.swo',
+        'validation-report.md', 'OPTIMIZATION_SUMMARY.md', 'INSTALL_OPTIMIZED.md',
+        'read_all.js' // Don't include self
+    ],
+
+    // =========================================================================
+    // PRIORITY TIERS — Files are scored and sorted BEFORE filling the budget.
+    // Tier 1 (highest) always gets in. Tier 5 (lowest) only if budget remains.
+    // =========================================================================
+    priorityRules: [
+        // TIER 1: Core Engine & Shared Infrastructure
+        { pattern: /packages\/anchor-engine\/engine\/src\/(core|services|types|config)/, tier: 1 },
+        { pattern: /packages\/anchor-engine\/engine\/src\/index\.ts$/, tier: 1 },
+        { pattern: /packages\/anchor-engine\/engine\/src\/server/, tier: 1 },
+
+        // TIER 2: UI Components & Nanobot Core
+        { pattern: /packages\/anchor-ui\/src\/(components|services|hooks|context)/, tier: 2 },
+        { pattern: /packages\/anchor-ui\/src\/app/, tier: 2 },
+        { pattern: /packages\/anchor-ui\/src\/App/, tier: 2 },
+        { pattern: /packages\/nanobot-node\/core\//, tier: 2 },
+        { pattern: /packages\/nanobot-node\/index\.js$/, tier: 2 },
+
+        // TIER 3: API Routes, Middleware, & Root Configs
+        { pattern: /packages\/anchor-engine\/engine\/src\/(routes|middleware|agent)/, tier: 3 },
+        { pattern: /package\.json$/, tier: 3 },
+        { pattern: /tsconfig\.json$/, tier: 3 },
+        { pattern: /vite\.config\.ts$/, tier: 3 },
+        { pattern: /user_settings\.json$/, tier: 3 },
+
+        // TIER 4: Docs, Specs, & Other Source
+        { pattern: /README\.md$/i, tier: 4 },
+        { pattern: /specs\//, tier: 4 },
+        { pattern: /docs\//, tier: 4 },
+        { pattern: /\.md$/, tier: 4 },
+        { pattern: /\.sql$/, tier: 4 },
+
+        // TIER 5: Tests, Scripts, Benchmarks
+        { pattern: /test/, tier: 5 },
+        { pattern: /benchmark/, tier: 5 },
+        { pattern: /tools\//, tier: 5 },
+        { pattern: /scripts\//, tier: 5 },
+        { pattern: /dev-scripts\//, tier: 5 },
     ]
 };
 
@@ -152,7 +197,22 @@ function limitFileContent(content) {
     return `${header}\n\n... [CONTENT TRUNCATED - ${lines.length - CONFIG.maxLinesPerFile} LINES REMOVED] ...\n\n${footer}`;
 }
 
-// Function to aggregate all file contents from the project root
+// Function to assign a priority tier to a file (lower = more important)
+function getPriorityTier(relativePath) {
+    const normalized = relativePath.replace(/\\/g, '/');
+    for (const rule of CONFIG.priorityRules) {
+        if (rule.pattern.test(normalized)) {
+            return rule.tier;
+        }
+    }
+    // Default tier for unmatched files
+    const ext = path.extname(relativePath).toLowerCase();
+    if (ext === '.ts' || ext === '.js' || ext === '.mjs') return 3;
+    if (ext === '.json' || ext === '.yaml' || ext === '.yml') return 3;
+    return 5; // Lowest priority for everything else
+}
+
+// Function to aggregate all file contents from the project root (PRIORITY-SORTED)
 export function createFullCorpusRecursive(rootDir = process.cwd()) {
     // Allow rootDir to be passed as command line argument
     if (process.argv[2] && process.argv[2] !== 'json' && process.argv[2] !== 'yaml') {
@@ -161,29 +221,16 @@ export function createFullCorpusRecursive(rootDir = process.cwd()) {
 
     const outputDir = path.join(rootDir, CONFIG.outputDir);
     console.log(`Scanning project root: ${rootDir}`);
+    console.log(`Token budget: ${CONFIG.tokenLimit.toLocaleString()} tokens`);
 
     if (!fs.existsSync(outputDir)) {
         console.log(`Output directory does not exist, creating: ${outputDir}`);
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const aggregatedData = {
-        project_structure: rootDir,
-        scan_config: {
-            tokenLimit: CONFIG.tokenLimit,
-            maxFileSize: CONFIG.maxFileSize,
-            maxLinesPerFile: CONFIG.maxLinesPerFile,
-            includeExtensions: CONFIG.includeExtensions,
-            excludeExtensions: CONFIG.excludeExtensions,
-            excludeDirectories: CONFIG.excludeDirectories,
-            excludeFiles: CONFIG.excludeFiles
-        },
-        files: []
-    };
+    // PHASE 1: Discover all eligible files and their metadata (no content yet)
+    const candidates = [];
 
-    let totalTokens = 0;
-
-    // Walk through all files in the project
     function walkDirectory(currentPath) {
         let items;
         try {
@@ -205,57 +252,118 @@ export function createFullCorpusRecursive(rootDir = process.cwd()) {
             }
 
             if (stat.isDirectory()) {
-                // Skip excluded directories
                 const dirName = item.toLowerCase();
                 if (CONFIG.excludeDirectories.some(exclude => dirName === exclude.toLowerCase())) {
                     continue;
                 }
-
                 walkDirectory(itemPath);
             } else {
-                // Check if file should be ignored
                 if (shouldIgnore(itemPath, rootDir)) {
                     continue;
                 }
-
-                try {
-                    const rawContent = fs.readFileSync(itemPath, 'utf-8');
-                    const content = limitFileContent(rawContent);
-                    const fileTokens = countTokens(content);
-
-                    if (totalTokens + fileTokens > CONFIG.tokenLimit) {
-                        console.log(`Token limit reached. Skipping: ${relativePath}`);
-                        continue;
-                    }
-
-                    const fileData = {
-                        path: relativePath,
-                        content: content,
-                        tokens: fileTokens,
-                        size: Buffer.byteLength(rawContent, 'utf8')
-                    };
-
-                    aggregatedData.files.push(fileData);
-                    totalTokens += fileTokens;
-                    console.log(`Processed: ${relativePath} (${fileTokens} tokens)`);
-                } catch (e) {
-                    console.warn(`Could not read file: ${itemPath} - ${e.message}`);
-                    // Skip non-text files or files with read errors
-                }
+                candidates.push({
+                    absolutePath: itemPath,
+                    relativePath: relativePath,
+                    size: stat.size,
+                    tier: getPriorityTier(relativePath),
+                });
             }
         }
     }
 
     walkDirectory(rootDir);
 
+    // PHASE 2: Sort by priority tier (ascending), then by path depth (shallower first)
+    candidates.sort((a, b) => {
+        if (a.tier !== b.tier) return a.tier - b.tier;
+        // Within same tier, prefer shallower files (closer to root = more important)
+        const depthA = a.relativePath.split(path.sep).length;
+        const depthB = b.relativePath.split(path.sep).length;
+        if (depthA !== depthB) return depthA - depthB;
+        // Within same depth, alphabetical
+        return a.relativePath.localeCompare(b.relativePath);
+    });
+
+    console.log(`\nDiscovered ${candidates.length} eligible files. Filling budget by priority...\n`);
+
+    // PHASE 3: Fill the token budget in priority order
+    const aggregatedData = {
+        project_structure: rootDir,
+        scan_config: {
+            tokenLimit: CONFIG.tokenLimit,
+            maxFileSize: CONFIG.maxFileSize,
+            maxLinesPerFile: CONFIG.maxLinesPerFile,
+            priorityTiers: '1=core engine, 2=services, 3=config/scripts, 4=docs/specs, 5=tests/tools',
+        },
+        files: []
+    };
+
+    let totalTokens = 0;
+    let skippedFiles = 0;
+    const tierCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const tierTokens = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+    for (const candidate of candidates) {
+        try {
+            const rawContent = fs.readFileSync(candidate.absolutePath, 'utf-8');
+            const content = limitFileContent(rawContent);
+            const fileTokens = countTokens(content);
+
+            if (totalTokens + fileTokens > CONFIG.tokenLimit) {
+                skippedFiles++;
+                // Log first few skips so user sees what's being cut
+                if (skippedFiles <= 5) {
+                    console.log(`  [SKIP T${candidate.tier}] ${candidate.relativePath} (${fileTokens} tok) — budget full`);
+                }
+                continue;
+            }
+
+            const fileData = {
+                path: candidate.relativePath,
+                priority: candidate.tier,
+                content: content,
+                tokens: fileTokens,
+                size: candidate.size,
+            };
+
+            aggregatedData.files.push(fileData);
+            totalTokens += fileTokens;
+            tierCounts[candidate.tier] = (tierCounts[candidate.tier] || 0) + 1;
+            tierTokens[candidate.tier] = (tierTokens[candidate.tier] || 0) + fileTokens;
+            console.log(`  [T${candidate.tier}] ${candidate.relativePath} (${fileTokens} tok)`);
+        } catch (e) {
+            console.warn(`Could not read file: ${candidate.absolutePath} - ${e.message}`);
+        }
+    }
+
+    // Summary
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`PRIORITY BUDGET REPORT`);
+    console.log(`${'='.repeat(60)}`);
+    for (const tier of [1, 2, 3, 4, 5]) {
+        if (tierCounts[tier] > 0) {
+            console.log(`  Tier ${tier}: ${tierCounts[tier]} files, ${tierTokens[tier].toLocaleString()} tokens`);
+        }
+    }
+    console.log(`${'─'.repeat(60)}`);
+    console.log(`  Total: ${aggregatedData.files.length} files, ${totalTokens.toLocaleString()} tokens`);
+    console.log(`  Budget: ${((totalTokens / CONFIG.tokenLimit) * 100).toFixed(1)}% of ${CONFIG.tokenLimit.toLocaleString()}`);
+    if (skippedFiles > 0) {
+        console.log(`  Skipped: ${skippedFiles} lower-priority files (budget exhausted)`);
+    }
+    console.log(`${'='.repeat(60)}\n`);
+
     aggregatedData.metadata = {
         total_files: aggregatedData.files.length,
         total_tokens: totalTokens,
         token_limit: CONFIG.tokenLimit,
         token_limit_reached: totalTokens >= CONFIG.tokenLimit,
+        budget_utilization: `${((totalTokens / CONFIG.tokenLimit) * 100).toFixed(1)}%`,
+        skipped_files: skippedFiles,
+        tier_breakdown: tierCounts,
+        tier_tokens: tierTokens,
         timestamp: new Date().toISOString(),
         root_directory: rootDir,
-        config: CONFIG
     };
 
     // Write to YAML file in output directory
