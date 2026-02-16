@@ -26,7 +26,7 @@
     "memory"
   ],
   "author": "Anchor Team",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@electric-sql/pglite": "^0.2.0",
     "@rbalchii/dse": "^1.0.0",
