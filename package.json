@@ -13,7 +13,7 @@
     "test": "jest",
     "lint": "eslint . --ext .ts,.js",
     "clean": "rimraf dist engine/dist",
-    "postinstall": "cd engine && npm install --legacy-peer-deps && npm run build || echo \"Native module build failed, continuing with fallback...\"",
+    "postinstall": "cd engine && npm install --legacy-peer-deps && npm run build",
     "start-with-logging": "node --expose-gc engine/dist/index.js > ../../logs/anchor_engine.log 2>&1",
     "build-standalone": "echo \"Building standalone engine with UI...\" && node scripts/build-standalone.js"
   },

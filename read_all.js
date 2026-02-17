@@ -15,7 +15,7 @@ import yaml from 'js-yaml';
 // Configuration options
 const CONFIG = {
     // Token limits
-    tokenLimit: 1000000, // 500k tokens — fits in a single LLM context window
+    tokenLimit: 1000000, // 1000000 tokens — fits in a single LLM context window
     maxFileSize: 2 * 1024 * 1024, // 2MB max per file
     maxLinesPerFile: 3000, // Max 3000 lines per file
 

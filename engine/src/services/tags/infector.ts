@@ -28,6 +28,7 @@ const TAGS_FILE = path.join(PROJECT_ROOT, 'context', 'internal_tags.json');
  */
 async function* atomStream(batchSize = 50) {
     let lastId = '';
+    let batchCount = 0;
 
     while (true) {
         // Fetch next batch where ID > lastId
@@ -40,8 +41,10 @@ async function* atomStream(batchSize = 50) {
         `;
 
         const result = await db.run(query, [lastId, batchSize]);
-        if (result.rows && result.rows.length > 0) {
-            console.log(`[Infector] Stream fetched batch of ${result.rows.length} atoms...`);
+        batchCount++;
+
+        if (result.rows && result.rows.length > 0 && batchCount % 50 === 0) {
+            console.log(`[Infector] Stream fetched batch of ${result.rows.length} atoms... (Batch ${batchCount})`);
         }
 
         if (!result.rows || result.rows.length === 0) {

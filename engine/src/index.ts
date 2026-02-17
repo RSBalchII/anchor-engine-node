@@ -3,13 +3,14 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { existsSync } from "fs";
+import { existsSync, rmSync } from "fs";
 
 // Fix module load error by using explicit relative path
 import { db } from "./core/db.js";
 import { config } from "./config/index.js";
 import { MODELS_DIR, PROJECT_ROOT } from "./config/paths.js";
 import { apiKeyAuth } from "./middleware/auth.js";
+import { pathManager } from "./utils/path-manager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,7 @@ app.get('/v1/models', (req, res) => {
 
 async function startServer() {
   try {
+    console.time("⏱️ Startup Time");
     console.log("Initializing Anchor Context Engine...");
 
     // Start the server immediately so health checks pass
@@ -216,6 +218,7 @@ async function startServer() {
 
 
     console.log("Full routes set up, server is ready for all requests");
+    console.timeEnd("⏱️ Startup Time");
 
     // Start other services after database is ready
     const { ProcessManager } = await import("./utils/process-manager.js");
@@ -272,6 +275,15 @@ process.on("SIGINT", async () => {
     const { ProcessManager } = await import("./utils/process-manager.js");
     ProcessManager.getInstance().stopAll();
     await db.close();
+
+    // Wipe Database on Shutdown
+    const dbPath = process.env.PGLITE_DB_PATH || pathManager.getDatabasePath();
+    if (existsSync(dbPath)) {
+      console.log(`[Shutdown] Wiping database at ${dbPath}...`);
+      rmSync(dbPath, { recursive: true, force: true });
+      console.log(`[Shutdown] Database wiped successfully.`);
+    }
+
     process.exit(0);
   } catch (e) {
     process.exit(1);

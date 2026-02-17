@@ -467,6 +467,47 @@ export function setupRoutes(app: Application) {
     }
   });
 
+  // POST /v1/research/upload-raw - Save raw content as file
+  app.post('/v1/research/upload-raw', async (req: Request, res: Response) => {
+    try {
+      const { content, filename } = req.body;
+      if (!content || !filename) {
+        res.status(400).json({ error: 'Content and filename required' });
+        return;
+      }
+
+      const path = await import('path');
+      const fs = await import('fs');
+
+      // Target Directory: context/manual_uploads
+      // We need to resolve from project root (engine/.. -> packages/.. -> root)
+      // Actually paths.NOTEBOOK_DIR is best if exported.
+      // Importing paths from config might be cleaner but let's look at relative.
+      // process.cwd() is usually packages/anchor-engine or root.
+      // Let's assume process.cwd() + '/../../context' if running from package, or check existing patterns.
+      // In researcher.ts: const NOTEBOOK_DIR = '../../config/paths.js';
+      // Let's use the same pattern or hardcode relative to CWD if safe.
+
+      // Safest: Use the imported config if available, or just standard relative path for now.
+      // researcher.ts usage: import { NOTEBOOK_DIR } from '../../config/paths.js';
+      const { NOTEBOOK_DIR } = await import('../config/paths.js');
+
+      // Route to: packages/notebook/plugins/articles (Same as Research Station scraper)
+      const targetDir = path.join(NOTEBOOK_DIR, 'plugins', 'articles');
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+      const filePath = path.join(targetDir, filename);
+      await fs.promises.writeFile(filePath, content, 'utf8');
+
+      console.log(`[Research] Manual upload saved: ${filePath}`);
+      res.status(200).json({ success: true, filePath });
+
+    } catch (e: any) {
+      console.error('[Research] Upload failed:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Maintenance: Re-index Tags (Fix for missing buckets/tags in UI)
   app.post('/v1/maintenance/reindex-tags', async (_req: Request, res: Response) => {
     try {

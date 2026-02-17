@@ -108,9 +108,10 @@ export async function findAnchors(
 
     if (terms.length > 0) {
       const inflations = await Promise.all(
-        terms.map(term => ContextInflator.inflateFromAtomPositions(term, 150, 20))
+        terms.map(term => ContextInflator.inflateFromAtomPositions(term, 150, 20, undefined, { buckets, provenance }))
       );
-      atomResults.push(...inflations.flat());
+      let rawAtoms = inflations.flat();
+      atomResults.push(...rawAtoms);
     }
 
     // B. Molecule Search (Full-Text)
@@ -126,6 +127,17 @@ export async function findAnchors(
     `;
 
     const moleculeParams: any[] = [tsQueryString];
+
+    if (buckets.length > 0) {
+      // Use EXISTS subquery to check if any atom for this file has the bucket
+      // Since compounds don't store buckets directly, we look up via source_path
+      moleculeQuery += ` AND EXISTS (
+        SELECT 1 FROM atoms a 
+        WHERE a.source_path = c.path 
+        AND a.buckets && $${moleculeParams.length + 1}
+      )`;
+      moleculeParams.push(buckets);
+    }
 
     if (provenance !== 'all' && provenance !== 'quarantine') {
       moleculeQuery += ` AND c.provenance = $${moleculeParams.length + 1}`;
@@ -160,16 +172,184 @@ export async function findAnchors(
 
       anchors = [...atomResults, ...molecules];
 
-      // Deduplicate anchors
-      const seen = new Set<string>();
-      anchors = anchors.filter(a => {
-        const key = `${a.compound_id}_${a.start_byte}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
+      // Deduplicate anchors using Range Merging
+      // Group by compound_id to find overlaps
+      const anchorsByCompound = new Map<string, SearchResult[]>();
+
+      [...atomResults, ...molecules].forEach(a => {
+        if (!a.compound_id) return;
+        if (!anchorsByCompound.has(a.compound_id)) {
+          anchorsByCompound.set(a.compound_id, []);
+        }
+        anchorsByCompound.get(a.compound_id)!.push(a);
       });
 
-      console.log(`[Search] Anchors found: ${atomResults.length} Atoms, ${molecules.length} Molecules. Total Unique: ${anchors.length}`);
+      anchors = [];
+
+      for (const [cId, compoundAnchors] of anchorsByCompound) {
+        // Sort by start byte
+        compoundAnchors.sort((a, b) => (a.start_byte || 0) - (b.start_byte || 0));
+
+        const merged: SearchResult[] = [];
+        if (compoundAnchors.length === 0) continue;
+
+        let current = compoundAnchors[0];
+
+        for (let i = 1; i < compoundAnchors.length; i++) {
+          const next = compoundAnchors[i];
+          const currentEnd = (current.end_byte || 0);
+          const nextStart = (next.start_byte || 0);
+          const nextEnd = (next.end_byte || 0);
+
+          // LOGGING FOR DEBUGGING
+          // console.log(`[Dedup] Checking ${cId}: [${current.start_byte}-${currentEnd}] vs [${nextStart}-${nextEnd}]`);
+
+          // Check for overlap or adjacency (within 50 bytes)
+          if (nextStart <= currentEnd + 50) {
+            // If identical start/end, it's a true duplicate (just skip next)
+            if (Math.abs(nextStart - (current.start_byte || 0)) < 5 && Math.abs(nextEnd - currentEnd) < 5) {
+              // console.log(`[Dedup] Exact/Near match found. Skipping.`);
+              continue;
+            }
+
+            // If next is contained in current, skip next
+            if (nextEnd <= currentEnd) {
+              // console.log(`[Dedup] Next contained in Current. Skipping.`);
+              continue;
+            }
+
+            // If current is contained in next, switch to next
+            if ((next.start_byte || 0) <= (current.start_byte || 0) && nextEnd >= currentEnd) {
+              // console.log(`[Dedup] Current contained in Next. Swapping.`);
+              current = next;
+              continue;
+            }
+
+            // Strict Dedup: If they overlap by more than 50% (lowered from 80%), suppress the lower scored one.
+            const overlap = Math.min(currentEnd, nextEnd) - Math.max((current.start_byte || 0), nextStart);
+            const len1 = currentEnd - (current.start_byte || 0);
+            const len2 = nextEnd - nextStart;
+
+            if (overlap > 0 && (overlap / len1 > 0.5 || overlap / len2 > 0.5)) {
+              // console.log(`[Dedup] Heavy overlap (>50%). Picking better score.`);
+              // Keep the one with higher score, or if equal, the current (first)
+              if ((next.score || 0) > (current.score || 0)) {
+                current = next;
+              }
+              continue; // Skip the 'loser'
+            }
+
+            merged.push(current);
+            current = next;
+
+          } else {
+            merged.push(current);
+            current = next;
+          }
+        }
+        merged.push(current);
+        anchors.push(...merged);
+      }
+
+      // Final Safety Net: Global Content Similarity Deduplication (O(N^2))
+      // Addresses:
+      // 1. Cross-Compound Duplicates (different IDs/provenance, same text)
+      // 2. Near-Exact Duplicates (whitespace diffs, timestamp diffs)
+      // 3. Containment (one result is a subset of another)
+
+      const distinctAnchors: SearchResult[] = [];
+      // Sort by length desc first (preserve largest context), then score? 
+      // Actually score is more important. Let's keep input order (assumed sorted by score/relevance)
+      // anchored by 'anchors' which is mixed. Let's sort anchors by score desc to prioritize best matches.
+      anchors.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+      // Helper for normalization: lowercase + remove non-alphanumeric chars
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Track kept ranges per compound to detect sliding window duplicates
+      const keptRanges = new Map<string, { start: number, end: number, content: string }[]>();
+
+      for (const candidate of anchors) {
+        if (!candidate.content || candidate.content.length < 20) {
+          distinctAnchors.push(candidate);
+          continue;
+        }
+
+        // A. Geometric Deduplication (if compound_id is available)
+        let isGeometricDuplicate = false;
+        if (candidate.compound_id && candidate.start_byte !== undefined && candidate.end_byte !== undefined) {
+          const ranges = keptRanges.get(candidate.compound_id) || [];
+          for (const range of ranges) {
+            // Check overlap
+            const overlapStart = Math.max(candidate.start_byte, range.start);
+            const overlapEnd = Math.min(candidate.end_byte, range.end);
+            const overlapLen = Math.max(0, overlapEnd - overlapStart);
+
+            const candidateLen = candidate.end_byte - candidate.start_byte;
+
+            // If candidate is fully contained or heavily overlaps (> 75%)
+            // OR if the overlap is absolute (same start/end)
+            if (overlapLen > 0 && (overlapLen >= candidateLen * 0.75 || (overlapStart === candidate.start_byte && overlapEnd === candidate.end_byte))) {
+              // console.log(`[Dedup] Geometric Match: dropping item ${candidate.id} (overlaps with ${candidate.compound_id} range)`);
+              isGeometricDuplicate = true;
+              break;
+            }
+          }
+
+          if (isGeometricDuplicate) continue;
+        }
+
+        // B. Content Deduplication (Fallback)
+        const candidateNorm = normalize(candidate.content);
+        // Take a robust fingerprint (first 100 normalized chars)
+        const candidateFingerprint = candidateNorm.substring(0, 100);
+
+        let isContentDuplicate = false;
+
+        for (const kept of distinctAnchors) {
+          const keptNorm = normalize(kept.content);
+
+          // 1. Exact Containment (Candidate is subset of Kept, or vice-versa)
+          if (keptNorm.includes(candidateNorm)) {
+            isContentDuplicate = true;
+            break;
+          }
+          if (candidateNorm.includes(keptNorm)) {
+            isContentDuplicate = true;
+            break;
+          }
+
+          // 2. Fuzzy Prefix Match
+          const keptFingerprint = keptNorm.substring(0, 100);
+          const checkLen = Math.min(candidateFingerprint.length, keptFingerprint.length);
+          if (checkLen > 30 && candidateFingerprint.substring(0, checkLen) === keptFingerprint.substring(0, checkLen)) {
+            isContentDuplicate = true;
+            break;
+          }
+        }
+
+        if (!isContentDuplicate) {
+          distinctAnchors.push(candidate);
+
+          // Register range
+          if (candidate.compound_id && candidate.start_byte !== undefined && candidate.end_byte !== undefined) {
+            const ranges = keptRanges.get(candidate.compound_id) || [];
+            ranges.push({ start: candidate.start_byte, end: candidate.end_byte, content: candidate.content });
+            keptRanges.set(candidate.compound_id, ranges);
+          }
+        } else {
+          // Debug log on dropped items
+          if (distinctAnchors.length < 5) {
+            // console.log(`[Dedup] Dropped Content Duplicate: ${candidate.content.substring(0, 50)}...`);
+          }
+        }
+      }
+
+      const originalCount = anchors.length;
+      anchors = distinctAnchors;
+      console.log(`[Search] Final Dedup: ${originalCount} -> ${anchors.length} items. Removed ${originalCount - anchors.length} duplicates.`);
+
+      console.log(`[Search] Anchors found: ${atomResults.length} Atoms, ${molecules.length} Molecules. Final Unique: ${anchors.length}`);
 
     } catch (e) {
       console.error('[Search] Molecule search failed:', e);

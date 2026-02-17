@@ -72,6 +72,7 @@ The engine uses `user_settings.json` in the root directory for configuration (po
 - **Standard 059**: Reliable Ingestion Pipeline
 - **Standard 088**: Server Startup Sequence (ECONNREFUSED fix)
 - **Standard 094**: Smart Search Protocol (Fuzzy Fallback & GIN Optimization)
+- **Standard 095**: Geometric Deduplication (Range-Based Content Filtering)
 
 ## Health Checks
 - System status: `GET /health`
