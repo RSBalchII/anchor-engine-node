@@ -148,8 +148,16 @@ export async function findAnchors(
 
     moleculeQuery += ` ORDER BY score DESC LIMIT 50`;
 
+    // console.log('[Search] Molecule Query:', moleculeQuery);
+    // console.log('[Search] Params:', moleculeParams);
+
     try {
       const molResult = await db.run(moleculeQuery, moleculeParams);
+      if (molResult.rows.length === 0 && sanitizedQuery.includes('star')) {
+        console.log('[Search] DEBUG: Zero matches for star query.');
+        console.log('Query:', moleculeQuery);
+        console.log('Params:', moleculeParams);
+      }
       const molecules = (molResult.rows || []).map((row: any) => ({
         id: row.id,
         content: row.content,
@@ -616,7 +624,8 @@ export async function iterativeSearch(
   query: string,
   buckets: string[] = [],
   maxChars: number = 20000,
-  tags: string[] = []
+  tags: string[] = [],
+  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all'
 ): Promise<{ context: string; results: SearchResult[]; attempt: number; metadata?: any; toAgentString: () => string }> {
 
   // 0. Extract Scope Tags (Hashtags) to preserve them across strategies
@@ -630,7 +639,7 @@ export async function iterativeSearch(
 
   // Strategy 1: Standard Expanded Search (All Nouns, Verbs, Dates + Expansion)
   console.log(`[IterativeSearch] Strategy 1: Standard Execution`);
-  let results = await executeSearch(query, undefined, buckets, maxChars, false, 'all', tags);
+  let results = await executeSearch(query, undefined, buckets, maxChars, false, provenance, tags);
   if (results.results.length > 0) return { ...results, attempt: 1 };
 
   // Strategy 2: Strict "Subjects & Time" (Strip Verbs/Adjectives, keep Nouns + Dates)
@@ -647,7 +656,7 @@ export async function iterativeSearch(
     // Re-inject scope tags
     const strictQuery = Array.from(uniqueTokens).join(' ') + ' ' + tagsString;
     console.log(`[IterativeSearch] Fallback Query 1: "${strictQuery.trim()}"`);
-    results = await executeSearch(strictQuery, undefined, buckets, maxChars, false, 'all', tags);
+    results = await executeSearch(strictQuery, undefined, buckets, maxChars, false, provenance, tags);
     if (results.results.length > 0) return { ...results, attempt: 2 };
   }
 
@@ -661,7 +670,7 @@ export async function iterativeSearch(
 
   if (entityQuery.trim().length > 0 && entityQuery.trim() !== (Array.from(uniqueTokens).join(' ') + ' ' + tagsString).trim()) {
     console.log(`[IterativeSearch] Fallback Query 2: "${entityQuery.trim()}"`);
-    results = await executeSearch(entityQuery, undefined, buckets, maxChars, false, 'all', tags);
+    results = await executeSearch(entityQuery, undefined, buckets, maxChars, false, provenance, tags);
     if (results.results.length > 0) return { ...results, attempt: 3 };
   }
 
@@ -681,10 +690,11 @@ export async function smartChatSearch(
   query: string,
   buckets: string[] = [],
   maxChars: number = 20000,
-  tags: string[] = []
+  tags: string[] = [],
+  provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all'
 ): Promise<{ context: string; results: SearchResult[]; strategy: string; splitQueries?: string[]; metadata?: any; toAgentString: () => string }> {
   // 1. Initial Attempt
-  const initial = await iterativeSearch(query, buckets, maxChars, tags);
+  const initial = await iterativeSearch(query, buckets, maxChars, tags, provenance);
 
   // If we have enough results, returns immediately
   if (initial.results.length >= 10) {
@@ -723,7 +733,7 @@ export async function smartChatSearch(
   // 3. Parallel Execution
   // We run executeSearch for each entity independently
   const parallelPromises = entities.map((entity: string) =>
-    executeSearch(entity, undefined, buckets, maxChars / entities.length, false, 'all', tags) // Split budget? Or full budget?
+    executeSearch(entity, undefined, buckets, maxChars / entities.length, false, provenance, tags) // Split budget? Or full budget?
     // Let's iterate search? No, simple executeSearch is simpler.
     // Use full budget per search, we will truncate at merge time.
   );

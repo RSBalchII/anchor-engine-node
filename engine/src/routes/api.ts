@@ -11,7 +11,7 @@ import { config } from '../config/index.js';
 import { validate, schemas } from '../middleware/validate.js';
 
 // Import services and types
-import { executeSearch } from '../services/search/search.js';
+import { executeSearch, smartChatSearch } from '../services/search/search.js';
 import { AtomizerService } from '../services/ingest/atomizer-service.js';
 import { AtomicIngestService } from '../services/ingest/ingest-atomic.js';
 import { dream } from '../services/dreamer/dreamer.js';
@@ -235,18 +235,16 @@ export function setupRoutes(app: Application) {
       // 4. Context Inflation (Radial Search)
       console.log('[API] Using Enhanced Search Strategy for query');
 
-      const result = await executeSearch(
+      const result = await smartChatSearch(
         body.query,
-        undefined, // bucket
         allBuckets,
         budget,
-        false, // deep
-        (req.body as any).provenance || 'all',
-        tags
+        tags,
+        (req.body as any).provenance || 'all'
       );
 
       // Construct standard response
-      console.log(`[API] Enhanced Search "${body.query}" -> Found ${result.results.length} results (Strategy: enhanced_tag_walker)`);
+      console.log(`[API] Enhanced Search "${body.query}" -> Found ${result.results.length} results (Strategy: ${result.strategy || 'enhanced_tag_walker'})`);
 
       // Ensure response is sent even if there are issues with result formatting
       if (!res.headersSent) {
@@ -254,9 +252,9 @@ export function setupRoutes(app: Application) {
           status: 'success',
           context: result.context,
           results: result.results,
-          strategy: 'enhanced_tag_walker',
-          attempt: 1,
-          split_queries: [],
+          strategy: result.strategy || 'enhanced_tag_walker',
+          attempt: (result as any).attempt || 1,
+          split_queries: result.splitQueries || [],
           metadata: {
             engram_hits: 0,
             vector_latency: 0,
