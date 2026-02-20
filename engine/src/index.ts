@@ -78,7 +78,8 @@ app.use("/static", express.static(path.join(__dirname, "../dist"), {
 }));
 
 // Try to serve the external UI first (when running in full system)
-const externalFrontendDist = path.join(__dirname, "../../../packages/anchor-ui/dist");
+// Path to anchor-os/packages/anchor-ui/dist
+const externalFrontendDist = path.join(__dirname, "../../../anchor-os/packages/anchor-ui/dist");
 const internalFrontendDist = path.join(__dirname, "../public");
 
 // Check if external UI exists, otherwise use internal lightweight UI
