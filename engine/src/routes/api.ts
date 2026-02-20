@@ -9,12 +9,12 @@ import * as crypto from 'crypto';
 import { db } from '../core/db.js';
 import { config } from '../config/index.js';
 import { validate, schemas } from '../middleware/validate.js';
+import { StructuredLogger } from '../utils/structured-logger.js';
 
 // Import services and types
-import { executeSearch } from '../services/search/search.js';
+import { executeSearch, smartChatSearch } from '../services/search/search.js';
 import { AtomizerService } from '../services/ingest/atomizer-service.js';
 import { AtomicIngestService } from '../services/ingest/ingest-atomic.js';
-import { dream } from '../services/dreamer/dreamer.js';
 import { getState, clearState } from '../services/scribe/scribe.js';
 import { createBackup, listBackups, restoreBackup } from '../services/backup/backup.js';
 import { fetchAndProcess, searchWeb } from '../services/research/researcher.js';
@@ -24,13 +24,21 @@ import { setupEnhancedRoutes } from './enhanced-api.js';
 export function setupRoutes(app: Application) {
   // Ingestion endpoint (Atomic Architecture)
   app.post('/v1/ingest', validate(schemas.ingest), async (req: Request, res: Response) => {
+    const startTime = Date.now();
     try {
       const { content, source, type, bucket, buckets = [], tags = [] } = req.body;
 
       if (!content) {
+        StructuredLogger.warn('INGEST_INVALID_REQUEST', { error: 'Content is required' });
         res.status(400).json({ error: 'Content is required' });
         return;
       }
+
+      StructuredLogger.info('INGEST_REQUEST', {
+        source: source || 'api_upload',
+        content_length: content.length,
+        buckets: buckets.length > 0 ? buckets : [bucket || 'notebook']
+      });
 
       // Use legacy Atomizer pipeline for performance
       const atomizer = new AtomizerService();
@@ -48,15 +56,30 @@ export function setupRoutes(app: Application) {
       const targetBuckets = buckets.length > 0 ? buckets : [bucket || 'notebook'];
       await atomicIngest.ingestResult(compound, molecules, atoms, targetBuckets);
 
+      const duration = Date.now() - startTime;
+      
+      StructuredLogger.ingestion('success', {
+        source: source || 'api_upload',
+        compound_id: compound.id,
+        atoms_count: atoms.length,
+        molecules_count: molecules.length,
+        buckets: targetBuckets,
+        duration_ms: duration
+      });
+
       const result = {
         status: 'success',
         message: `Ingested ${atoms.length} atoms and ${molecules.length} molecules`,
-        id: compound.id
+        id: compound.id,
+        duration_ms: duration
       };
 
       res.status(200).json(result);
     } catch (e: any) {
-      console.error('[API] Ingest Error:', e);
+      const duration = Date.now() - startTime;
+      StructuredLogger.error('INGEST_ERROR', e, {
+        duration_ms: duration
+      });
       res.status(500).json({ error: e.message });
     }
   });
@@ -206,17 +229,24 @@ export function setupRoutes(app: Application) {
 
   // POST Search endpoint (Standard UniversalRAG + Iterative Logic)
   app.post('/v1/memory/search', validate(schemas.memorySearch), async (req: Request, res: Response) => {
-    console.log('[API] Received search request at /v1/memory/search');
+    const startTime = Date.now();
+    StructuredLogger.info('SEARCH_REQUEST', { 
+      endpoint: '/v1/memory/search',
+      method: 'POST'
+    });
 
     try {
       const body = req.body as SearchRequest;
       if (!body.query) {
-        console.log('[API] Search request missing query parameter');
+        StructuredLogger.warn('SEARCH_INVALID_REQUEST', { error: 'Query is required' });
         res.status(400).json({ error: 'Query is required' });
         return;
       }
 
-      console.log(`[API] Processing search request for query: "${body.query.substring(0, 50)}..."`);
+      StructuredLogger.info('SEARCH_PROCESSING', { 
+        query: body.query.substring(0, 100),
+        query_length: body.query.length
+      });
 
       // Handle legacy params
       const bucketParam = (req.body as any).bucket;
@@ -233,30 +263,42 @@ export function setupRoutes(app: Application) {
       // 2. Tag-Walker Protocol (graph-based associative retrieval)
       // 3. Physics-based spreading activation with temporal decay
       // 4. Context Inflation (Radial Search)
-      console.log('[API] Using Enhanced Search Strategy for query');
+      StructuredLogger.info('SEARCH_STRATEGY', { strategy: 'enhanced_tag_walker' });
 
-      const result = await executeSearch(
+      const result = await smartChatSearch(
         body.query,
-        undefined, // bucket
         allBuckets,
         budget,
-        false, // deep
-        (req.body as any).provenance || 'all',
-        tags
+        tags,
+        (req.body as any).provenance || 'all'
       );
 
-      // Construct standard response
-      console.log(`[API] Enhanced Search "${body.query}" -> Found ${result.results.length} results (Strategy: enhanced_tag_walker)`);
+      const duration = Date.now() - startTime;
+      const resultCount = result.results.length;
+      
+      // Log search completion with metrics
+      StructuredLogger.search(body.query, resultCount, duration, {
+        strategy: result.strategy || 'enhanced_tag_walker',
+        buckets: allBuckets,
+        budget
+      });
 
-      // Ensure response is sent even if there are issues with result formatting
+      StructuredLogger.info('SEARCH_RESPONSE', {
+        query: body.query.substring(0, 50),
+        results_count: resultCount,
+        duration_ms: duration,
+        strategy: result.strategy || 'enhanced_tag_walker'
+      });
+
+      // Construct standard response
       if (!res.headersSent) {
         res.status(200).json({
           status: 'success',
           context: result.context,
           results: result.results,
-          strategy: 'enhanced_tag_walker',
-          attempt: 1,
-          split_queries: [],
+          strategy: result.strategy || 'enhanced_tag_walker',
+          attempt: (result as any).attempt || 1,
+          split_queries: result.splitQueries || [],
           metadata: {
             engram_hits: 0,
             vector_latency: 0,
@@ -267,7 +309,10 @@ export function setupRoutes(app: Application) {
         });
       }
     } catch (error: any) {
-      console.error('[API] Search error:', error);
+      const duration = Date.now() - startTime;
+      StructuredLogger.error('SEARCH_ERROR', error, {
+        duration_ms: duration
+      });
 
       // Check if headers have already been sent to avoid duplicate responses
       if (!res.headersSent) {
@@ -329,6 +374,57 @@ export function setupRoutes(app: Application) {
       });
     } catch (error: any) {
       console.error('Molecule Search error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST Maximum Recall Search - uses MAX_RECALL_CONFIG for comprehensive retrieval
+  app.post('/v1/memory/search-max-recall', async (req: Request, res: Response) => {
+    try {
+      const body = req.body;
+      if (!body.query) {
+        res.status(400).json({ error: 'Query is required' });
+        return;
+      }
+
+      // Handle legacy params
+      const bucketParam = body.bucket;
+      const buckets = body.buckets || [];
+      const allBuckets = bucketParam ? [...buckets, bucketParam] : buckets;
+      // Default to 256K chars for max recall
+      const budget = body.token_budget ? body.token_budget * 4 : (body.max_chars || 262144);
+      const tags = body.tags || [];
+
+      // Use max-recall configuration
+      const { smartChatSearch } = await import('../services/search/search.js');
+      const result = await smartChatSearch(
+        body.query,
+        allBuckets,
+        budget,
+        tags,
+        'all', // provenance
+        true   // useMaxRecall = true
+      );
+
+      console.log(`[API] Max Recall Search "${body.query}" -> Found ${result.results.length} results`);
+
+      res.status(200).json({
+        status: 'success',
+        context: result.context,
+        results: result.results,
+        strategy: 'max_recall',
+        split_queries: result.splitQueries,
+        metadata: {
+          ...result.metadata,
+          max_recall_enabled: true,
+          temporal_decay: 0.0,
+          max_hops: 3,
+          damping: 1.0,
+          min_relevance: 0.0
+        }
+      });
+    } catch (error: any) {
+      console.error('Max Recall Search error:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -437,14 +533,12 @@ export function setupRoutes(app: Application) {
     }
   });
 
-  // Trigger Dream Endpoint
+  // Trigger Dream Endpoint (Disabled - Optimized for STAR algorithm)
   app.post('/v1/dream', async (_req: Request, res: Response) => {
-    try {
-      const result = await dream();
-      res.status(200).json(result);
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
+    res.status(501).json({ 
+      error: 'Dreamer service is disabled',
+      message: 'This endpoint has been disabled to optimize startup for the STAR algorithm'
+    });
   });
 
   // Research Plugin Endpoint
@@ -463,6 +557,47 @@ export function setupRoutes(app: Application) {
         res.status(500).json(result);
       }
     } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // POST /v1/research/upload-raw - Save raw content as file
+  app.post('/v1/research/upload-raw', async (req: Request, res: Response) => {
+    try {
+      const { content, filename } = req.body;
+      if (!content || !filename) {
+        res.status(400).json({ error: 'Content and filename required' });
+        return;
+      }
+
+      const path = await import('path');
+      const fs = await import('fs');
+
+      // Target Directory: context/manual_uploads
+      // We need to resolve from project root (engine/.. -> packages/.. -> root)
+      // Actually paths.NOTEBOOK_DIR is best if exported.
+      // Importing paths from config might be cleaner but let's look at relative.
+      // process.cwd() is usually packages/anchor-engine or root.
+      // Let's assume process.cwd() + '/../../context' if running from package, or check existing patterns.
+      // In researcher.ts: const NOTEBOOK_DIR = '../../config/paths.js';
+      // Let's use the same pattern or hardcode relative to CWD if safe.
+
+      // Safest: Use the imported config if available, or just standard relative path for now.
+      // researcher.ts usage: import { NOTEBOOK_DIR } from '../../config/paths.js';
+      const { NOTEBOOK_DIR } = await import('../config/paths.js');
+
+      // Route to: packages/notebook/plugins/articles (Same as Research Station scraper)
+      const targetDir = path.join(NOTEBOOK_DIR, 'plugins', 'articles');
+      if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+
+      const filePath = path.join(targetDir, filename);
+      await fs.promises.writeFile(filePath, content, 'utf8');
+
+      console.log(`[Research] Manual upload saved: ${filePath}`);
+      res.status(200).json({ success: true, filePath });
+
+    } catch (e: any) {
+      console.error('[Research] Upload failed:', e.message);
       res.status(500).json({ error: e.message });
     }
   });
@@ -580,6 +715,37 @@ export function setupRoutes(app: Application) {
         timestamp: new Date().toISOString()
       }
     });
+  });
+
+  // Memory status endpoint
+  app.get('/v1/system/memory', async (_req: Request, res: Response) => {
+    try {
+      const { resourceManager } = await import('../utils/resource-manager.js');
+      const { idleManager } = await import('../services/idle-manager.js');
+      const { NlpService } = await import('../services/nlp/nlp-service.js');
+      const { isModelLoadedStatus: isNerModelLoaded } = await import('../services/tags/gliner.js');
+      
+      const memoryStats = resourceManager.getMemoryStats();
+      const idleStatus = idleManager.getStatus();
+      
+      res.status(200).json({
+        status: 'success',
+        memory: {
+          rss: Math.round(memoryStats.rss / 1024 / 1024),
+          heapUsed: Math.round(memoryStats.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(memoryStats.heapTotal / 1024 / 1024),
+          percentageUsed: Math.round(memoryStats.percentageUsed * 100) / 100
+        },
+        idle: idleStatus,
+        models: {
+          nlpLoaded: NlpService.isModelLoadedStatus(),
+          nerLoaded: isNerModelLoaded()
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // Watcher Path Endpoints

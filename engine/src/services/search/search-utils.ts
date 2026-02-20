@@ -41,6 +41,13 @@ export interface SearchResult {
     // Semantic Fields
     semanticCategories?: SemanticCategory[];
     relatedEntities?: string[];
+    // Context Provenance (Standard 107)
+    temporal_weight?: number; // Exponential decay factor e^(-λΔt)
+    decay_factor?: number; // Lambda * age in seconds
+    simhash_distance?: number; // Hamming distance from query (0-64)
+    structural_similarity?: number; // 1 - (distance/64)
+    association_path?: string[]; // Tags that connected this result to query
+    retrieved_at?: number; // When this result was retrieved (for caching)
 }
 
 /**
@@ -125,6 +132,9 @@ export function getItems(input: string[] | undefined): string[] {
  */
 export async function formatResults(results: SearchResult[], maxChars: number): Promise<{ context: string; results: SearchResult[]; toAgentString: () => string; metadata?: any }> {
     try {
+        const now = Date.now();
+        const lambda = 0.0001; // Decay constant (half-life ~115 minutes)
+
         // By this point, ContextInflator.inflate() has already resolved compound coordinates
         // into real content from disk files. Results with is_inflated=true have content ready.
         const candidates = results.map(r => {
@@ -133,6 +143,21 @@ export async function formatResults(results: SearchResult[], maxChars: number): 
             // Include frequency information in the content if available
             if (r.frequency && r.frequency > 1) {
                 content = `[Found ${r.frequency} times] ${content}`;
+            }
+
+            // Calculate temporal provenance
+            const ageMs = now - r.timestamp;
+            const ageSeconds = ageMs / 1000;
+            const decayFactor = lambda * ageSeconds;
+            const temporalWeight = Math.exp(-decayFactor);
+
+            // Calculate structural similarity if molecular signature available
+            let simhashDistance = 0;
+            let structuralSimilarity = 1.0;
+            if (r.molecular_signature) {
+                // Query hash would need to be passed in; for now use placeholder
+                simhashDistance = 0; // Would calculate from query hash
+                structuralSimilarity = 1.0 - (simhashDistance / 64);
             }
 
             return {
@@ -145,7 +170,13 @@ export async function formatResults(results: SearchResult[], maxChars: number): 
                 tags: r.tags || [],
                 buckets: r.buckets || [],
                 provenance: r.provenance || 'internal',
-                connections: []
+                connections: [],
+                // Context Provenance
+                temporal_weight: temporalWeight,
+                decay_factor: decayFactor,
+                simhash_distance: simhashDistance,
+                structural_similarity: structuralSimilarity,
+                retrieved_at: now
             };
         });
 
@@ -154,13 +185,29 @@ export async function formatResults(results: SearchResult[], maxChars: number): 
 
         const sortedResults = results.sort((a, b) => b.score - a.score);
 
+        // Enrich results with provenance data
+        const enrichedResults = sortedResults.map((r, idx) => ({
+            ...r,
+            temporal_weight: candidates[idx].temporal_weight,
+            decay_factor: candidates[idx].decay_factor,
+            simhash_distance: candidates[idx].simhash_distance,
+            structural_similarity: candidates[idx].structural_similarity,
+            retrieved_at: candidates[idx].retrieved_at
+        }));
+
         return {
             context: rollingContext.prompt || 'No results found.',
-            results: sortedResults,
+            results: enrichedResults,
             toAgentString: () => {
-                return sortedResults.map(r => `[${r.provenance}] ${r.source}: ${(r.content || "").substring(0, 200)}...`).join('\n');
+                return enrichedResults.map(r => 
+                    `[${r.provenance}] ${r.source} (t=${r.temporal_weight?.toFixed(3) || 'N/A'}): ${(r.content || "").substring(0, 200)}...`
+                ).join('\n');
             },
-            metadata: rollingContext.stats
+            metadata: {
+                ...rollingContext.stats,
+                provenance_enabled: true,
+                temporal_decay_lambda: lambda
+            }
         };
     } catch (error) {
         console.error('[Search] formatResults failed:', error);

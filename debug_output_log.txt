@@ -1,0 +1,94 @@
+[PathManager] Initialized. BasePath: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine, Platform: win32
+[PathManager] Singleton instance created.
+[DB] Loading Config...
+[Config] Loaded settings from C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\user_settings.json
+[SemanticExpansion] Loaded synonym ring: 102 terms
+≡ƒöì Debugging 'STAR Algorithm' Smart Search...
+[DB] Using database directory: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine\context_data
+[DB] Database directory ready: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine\context_data
+[DB] Initializing PGlite at: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine\context_data
+[DB] PGlite initialized successfully: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine\context_data
+[DB] 'atoms' table initialized.
+[DB] 'tags' table initialized.
+[DB] 'edges' table initialized.
+[DB] 'sources' table initialized.
+[DB] 'molecules' table initialized.
+[DB] 'compounds' table initialized.
+[DB] 'engrams' table initialized.
+[DB] 'atom_positions' table initialized.
+[DB] 'summary_nodes' table initialized.
+[DB] FTS index created for content search.
+[DB] FTS index created for molecules content search.
+[DB] GIN index created for payload (Crystal Atom).
+Database initialized successfully
+
+Testing Query: "STAR Algorithm explained"
+[IterativeSearch] Strategy 1: Standard Execution
+[Search] executeSearch (Physics Engine V2) called with provenance: internal
+[Search] Dynamic Scaling: Budget=2500t -> Target=42 atoms
+[Search] DEBUG: Zero matches for star query.
+Query: 
+        SELECT m.id, m.content, c.path as source, m.timestamp,
+               '{}'::text[] as buckets, '{}'::text[] as tags, 'epoch_placeholder' as epochs, c.provenance,
+               ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', $1)) * 10 as score,
+               m.sequence, m.molecular_signature,
+               m.start_byte, m.end_byte, m.type, m.numeric_value, m.numeric_unit, m.compound_id
+        FROM molecules m
+        JOIN compounds c ON m.compound_id = c.id
+        WHERE to_tsvector('simple', m.content) @@ to_tsquery('simple', $1)
+     AND c.provenance = $2 ORDER BY score DESC LIMIT 50
+Params: [ 'star & algorithm & explained', 'internal' ]
+[Search] Final Dedup: 0 -> 0 items. Removed 0 duplicates.
+[Search] Anchors found: 0 Atoms, 0 Molecules. Final Unique: 0
+[Search] Physics Walker found 0 associations.
+[Search] Search completed in 29ms
+[IterativeSearch] Strategy 2: Strict Nouns/Dates
+[IterativeSearch] Fallback Query 1: "STAR Algorithm"
+[Search] executeSearch (Physics Engine V2) called with provenance: internal
+[Search] Dynamic Scaling: Budget=2500t -> Target=42 atoms
+[Search] DEBUG: Zero matches for star query.
+Query: 
+        SELECT m.id, m.content, c.path as source, m.timestamp,
+               '{}'::text[] as buckets, '{}'::text[] as tags, 'epoch_placeholder' as epochs, c.provenance,
+               ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', $1)) * 10 as score,
+               m.sequence, m.molecular_signature,
+               m.start_byte, m.end_byte, m.type, m.numeric_value, m.numeric_unit, m.compound_id
+        FROM molecules m
+        JOIN compounds c ON m.compound_id = c.id
+        WHERE to_tsvector('simple', m.content) @@ to_tsquery('simple', $1)
+     AND c.provenance = $2 ORDER BY score DESC LIMIT 50
+Params: [ 'star & algorithm', 'internal' ]
+[Search] Final Dedup: 0 -> 0 items. Removed 0 duplicates.
+[Search] Anchors found: 0 Atoms, 0 Molecules. Final Unique: 0
+[Search] Physics Walker found 0 associations.
+[Search] Search completed in 13ms
+[SmartSearch] Low Recall (0 results). Triggering Multi-Query Split...
+[SmartSearch] Split Entities: ["algorithm","star"]
+[Search] executeSearch (Physics Engine V2) called with provenance: internal
+[Search] executeSearch (Physics Engine V2) called with provenance: internal
+[Search] Dynamic Scaling: Budget=1250t -> Target=21 atoms
+[Search] Dynamic Scaling: Budget=1250t -> Target=21 atoms
+[Search] Final Dedup: 0 -> 0 items. Removed 0 duplicates.
+[Search] Anchors found: 0 Atoms, 0 Molecules. Final Unique: 0
+[Search] DEBUG: Zero matches for star query.
+Query: 
+        SELECT m.id, m.content, c.path as source, m.timestamp,
+               '{}'::text[] as buckets, '{}'::text[] as tags, 'epoch_placeholder' as epochs, c.provenance,
+               ts_rank(to_tsvector('simple', m.content), to_tsquery('simple', $1)) * 10 as score,
+               m.sequence, m.molecular_signature,
+               m.start_byte, m.end_byte, m.type, m.numeric_value, m.numeric_unit, m.compound_id
+        FROM molecules m
+        JOIN compounds c ON m.compound_id = c.id
+        WHERE to_tsvector('simple', m.content) @@ to_tsquery('simple', $1)
+     AND c.provenance = $2 ORDER BY score DESC LIMIT 50
+Params: [ 'star', 'internal' ]
+[Search] Final Dedup: 0 -> 0 items. Removed 0 duplicates.
+[Search] Anchors found: 0 Atoms, 0 Molecules. Final Unique: 0
+[Search] Physics Walker found 0 associations.
+[Search] Search completed in 20ms
+[Search] Physics Walker found 0 associations.
+[Search] Search completed in 20ms
+[SmartSearch] Merged Total: 0 atoms.
+
+Found 0 results.
+Strategy Used: split_merge

@@ -1,0 +1,811 @@
+[PathManager] Initialized. BasePath: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine, Platform: win32
+[PathManager] Singleton instance created.
+[DB] Loading Config...
+[Config] Loaded settings from C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\user_settings.json
+[SemanticExpansion] Loaded synonym ring: 102 terms
+Initializing DB...
+[DB] Using database directory: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Database directory ready: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Initializing PGlite at: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] PGlite initialized successfully: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Query Failed: extension "pg_trgm" is not available
+[DB] Query: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+[DB] Could not enable 'pg_trgm' extension: extension "pg_trgm" is not available
+[DB] 'atoms' table initialized.
+[DB] 'tags' table initialized.
+[DB] 'edges' table initialized.
+[DB] 'sources' table initialized.
+[DB] 'molecules' table initialized.
+[DB] 'compounds' table initialized.
+[DB] 'engrams' table initialized.
+[DB] 'atom_positions' table initialized.
+[DB] 'summary_nodes' table initialized.
+[DB] FTS index created for content search.
+[DB] FTS index created for molecules content search.
+[DB] GIN index created for payload (Crystal Atom).
+Database initialized successfully
+DB Initialized.
+[Verify] Atoms count: 233303
+[Verify] Picked sample term: "spend" (from content length 58)
+Running search for: "spend"
+[Search] executeSearch (Physics Engine V2) called with provenance: all
+[Search] Dynamic Scaling: Budget=5000t -> Target=84 atoms
+[Search] Constructing TS Query...
+[Search] Final Dedup: 50 -> 46 items. Removed 4 duplicates.
+[Search] Anchors found: 0 Atoms, 50 Molecules. Final Unique: 46
+[PhysicsWalker] SQL Weighting: 76 results in 832 ms
+[Search] Physics Walker found 50 associations.
+[Search] Search completed in 890ms
+
+Search Result Count: 96
+
+--- Result 1 (Score: 4.000000059604645) ---
+ID: mol_79ccb12bcec4
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1022
+Preview: u spend DoorDashing is time you cannot spend building. The time you spend building is time you canno... ...time will be spent on the highest-leverage tasksΓÇöthe critical coding, the debugging, the things that
+Starts with: "u"
+Ends with: "t"
+
+--- Result 2 (Score: 2.0000000298023224) ---
+ID: mol_774108598dd4
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: s the core feeling attached to it? Longing? Dissatisfaction? Guilt? Give it a one-word label.Quantif... ...for one specific function," or "Spend 5 minutes planning the next feature for the Rust terminal."Why
+Starts with: "s"
+Ends with: "y"
+
+--- Result 3 (Score: 2.0000000298023224) ---
+ID: mol_195d79d1b1d2
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1016
+Preview:  this. Software engineers are paid to ship, not to learn First,\_software engineers are not paid to ... ...date enough that their skills donΓÇÖt atrophy. Moving faster gives you more opportunities to learn The
+Starts with: "t"
+Ends with: "e"
+
+--- Result 4 (Score: 2.0000000298023224) ---
+ID: mol_082aa1cf9b94
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 55
+Preview:         ORDER BY total_spend_1 DESC, total_spend_2 DESC... ...        ORDER BY total_spend_1 DESC, total_spend_2 DESC
+Starts with: "O"
+Ends with: "C"
+
+--- Result 5 (Score: 2.0000000298023224) ---
+ID: mol_be153dec91f0
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 56
+Preview:             SELECT AVG(spend_range_max_usd) AS avg_spend... ...            SELECT AVG(spend_range_max_usd) AS avg_spend
+Starts with: "S"
+Ends with: "d"
+
+--- Result 6 (Score: 2.0000000298023224) ---
+ID: mol_1ae32681997c
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 89
+Preview:             SELECT APPROX_QUANTILES(spend_range_max_usd, 100)[OFFSET(50)] AS median_spend... ...            SELECT APPROX_QUANTILES(spend_range_max_usd, 100)[OFFSET(50)] AS median_spend
+Starts with: "S"
+Ends with: "d"
+
+--- Result 7 (Score: 2.0000000298023224) ---
+ID: mol_ccdc4390d7fe
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 54
+Preview:         MIN(spend_range_min_usd) AS min_spend_min_usd,... ...        MIN(spend_range_min_usd) AS min_spend_min_usd,
+Starts with: "M"
+Ends with: ","
+
+--- Result 8 (Score: 2.0000000298023224) ---
+ID: mol_7c6424f0a209
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 54
+Preview:         MAX(spend_range_min_usd) AS max_spend_min_usd,... ...        MAX(spend_range_min_usd) AS max_spend_min_usd,
+Starts with: "M"
+Ends with: ","
+
+--- Result 9 (Score: 2.0000000298023224) ---
+ID: mol_2f5ff5382e92
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 53
+Preview:         AVG(spend_range_min_usd) AS avg_spend_min_usd... ...        AVG(spend_range_min_usd) AS avg_spend_min_usd
+Starts with: "A"
+Ends with: "d"
+
+--- Result 10 (Score: 2.0000000298023224) ---
+ID: mol_f38ae92041aa
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 56
+Preview:             SELECT MAX(spend_range_max_usd) AS max_spend... ...            SELECT MAX(spend_range_max_usd) AS max_spend
+Starts with: "S"
+Ends with: "d"
+
+--- Result 11 (Score: 1.0000000149011612) ---
+ID: mol_2dc1cb58cf40
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: is the completion of your guide, ensuring......ing on providing users a direct and clear path to suc... ...hat is a c......e immediate need to support my loved ones financially. It is the immediate emotional
+Starts with: "i"
+Ends with: "l"
+
+--- Result 12 (Score: 1.0000000149011612) ---
+ID: mol_954a9d62dccb
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1022
+Preview: he minute. Take ten.The insight you just articulatedΓÇöthe connection between your Neurodivergence (Au... ...he does not love me per se. thinking\_'' - Coda C-001 '2025-12-06T08:32:17.528Z' response\_ This is 
+Starts with: "h"
+Ends with: "s"
+
+--- Result 13 (Score: 1.0000000149011612) ---
+ID: mol_e17ef674b663
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1020
+Preview: s communication. It's not a......job of ripping my own thoughts apart don't i? Anyway I'm sure I mis... ...od Complex" and the "Glory Hog." That hurt because i......tion and then spend the rest of the day wi
+Starts with: "s"
+Ends with: "i"
+
+--- Result 14 (Score: 1.0000000149011612) ---
+ID: mol_6208c6dca029
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 254
+Preview: By embedding the Buckets and Tags directly into the combined_context.yaml at generation time, we byp... ...pend tokens figuring out that index.js is #codebase code; the file extension tells us that for free.
+Starts with: "B"
+Ends with: "."
+
+--- Result 15 (Score: 1.0000000149011612) ---
+ID: mol_867abe9dd866
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: P templates, re-architected their data sorting, and delivered the completed project ahead of the dea... ...the first week.\\\"Why this works: This shows initiative and a professional, proactive mindset. You'
+Starts with: "P"
+Ends with: "'"
+
+--- Result 16 (Score: 1.0000000149011612) ---
+ID: mol_a78737fc4222
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1022
+Preview:  Forget the Whole Project: Don't think about the 10- or 12-week timeline. That's overwhelming. Your ... ...eed. The thought and strategy that went into those proposals prove you're ready for this. This is th
+Starts with: "F"
+Ends with: "h"
+
+--- Result 17 (Score: 1.0000000149011612) ---
+ID: mol_9453580eb9cd
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: \"response_content\": \"UPDATED EMAIL Hi Santiago, Following up on my discovery that the City of San... ...hip. This also gives us some latitude to fit in future updates to their websites integrating Rave Mo
+Starts with: "\"
+Ends with: "o"
+
+--- Result 18 (Score: 1.0000000149011612) ---
+ID: mol_f4d26da89b3b
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 34
+Preview:         - geo_spend has 23 columns... ...        - geo_spend has 23 columns
+Starts with: "-"
+Ends with: "s"
+
+--- Result 19 (Score: 1.0000000149011612) ---
+ID: mol_d244b5985f37
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 33
+Preview:         - advertiser_weekly_spend... ...        - advertiser_weekly_spend
+Starts with: "-"
+Ends with: "d"
+
+--- Result 20 (Score: 1.0000000149011612) ---
+ID: mol_54b3d20ddc6a
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 30
+Preview:         - advertiser_geo_spend... ...        - advertiser_geo_spend
+Starts with: "-"
+Ends with: "d"
+
+--- Result 21 (Score: 1.0000000149011612) ---
+ID: mol_d9fd6d92cc0a
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 19
+Preview:         - spend_usd... ...        - spend_usd
+Starts with: "-"
+Ends with: "d"
+
+--- Result 22 (Score: 1.0000000149011612) ---
+ID: mol_d1b3bd9406d6
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 55
+Preview:             SUM(cs.spend_range_min_usd) AS total_spend,... ...            SUM(cs.spend_range_min_usd) AS total_spend,
+Starts with: "S"
+Ends with: ","
+
+--- Result 23 (Score: 1.0000000149011612) ---
+ID: mol_884df0190701
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 52
+Preview:             AVG(cs.spend_range_min_usd) AS avg_spend... ...            AVG(cs.spend_range_min_usd) AS avg_spend
+Starts with: "A"
+Ends with: "d"
+
+--- Result 24 (Score: 1.0000000149011612) ---
+ID: mol_c8bbbc45683f
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 33
+Preview:         ORDER BY total_spend DESC... ...        ORDER BY total_spend DESC
+Starts with: "O"
+Ends with: "C"
+
+--- Result 25 (Score: 1.0000000149011612) ---
+ID: mol_9f1400099026
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 58
+Preview:                 SUM(cs.spend_range_max_usd) AS total_spend... ...                SUM(cs.spend_range_max_usd) AS total_spend
+Starts with: "S"
+Ends with: "d"
+
+--- Result 26 (Score: 1.0000000149011612) ---
+ID: mol_3b2ef3f2525d
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 56
+Preview:                 AVG(cs.spend_range_max_usd) AS avg_spend... ...                AVG(cs.spend_range_max_usd) AS avg_spend
+Starts with: "A"
+Ends with: "d"
+
+--- Result 27 (Score: 1.0000000149011612) ---
+ID: mol_5da033c404cc
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 58
+Preview:             SUM(cs1.spend_range_min_usd) AS total_spend_1,... ...            SUM(cs1.spend_range_min_usd) AS total_spend_1,
+Starts with: "S"
+Ends with: ","
+
+--- Result 28 (Score: 1.0000000149011612) ---
+ID: mol_464021fbc78d
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 57
+Preview:             SUM(cs2.spend_range_min_usd) AS total_spend_2... ...            SUM(cs2.spend_range_min_usd) AS total_spend_2
+Starts with: "S"
+Ends with: "2"
+
+--- Result 29 (Score: 1.0000000149011612) ---
+ID: mol_8a8d139996af
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 96
+Preview:         # Calculate the sum of 'spend_range_min_usd' for all rows in the 'creative_stats' table.... ...        # Calculate the sum of 'spend_range_min_usd' for all rows in the 'creative_stats' table.
+Starts with: "#"
+Ends with: "."
+
+--- Result 30 (Score: 1.0000000149011612) ---
+ID: mol_fdd32cabdb65
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 36
+Preview:         sum_spend = client.query('''... ...        sum_spend = client.query('''
+Starts with: "s"
+Ends with: "'"
+
+--- Result 31 (Score: 1.0000000149011612) ---
+ID: mol_24d35a5406be
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 61
+Preview:             SELECT SUM(spend_range_min_usd) AS total_spending... ...            SELECT SUM(spend_range_min_usd) AS total_spending
+Starts with: "S"
+Ends with: "g"
+
+--- Result 32 (Score: 1.0000000149011612) ---
+ID: mol_feeeba6295a1
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 17
+Preview:         sum_spend... ...        sum_spend
+Starts with: "s"
+Ends with: "d"
+
+--- Result 33 (Score: 1.0000000149011612) ---
+ID: mol_cf016229053d
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 82
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.01) OVER() AS percentile_1,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.01) OVER() AS percentile_1,
+Starts with: "P"
+Ends with: ","
+
+--- Result 34 (Score: 1.0000000149011612) ---
+ID: mol_6dcfbb03a036
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.10) OVER() AS percentile_10,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.10) OVER() AS percentile_10,
+Starts with: "P"
+Ends with: ","
+
+--- Result 35 (Score: 1.0000000149011612) ---
+ID: mol_8b69b5762fb7
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.25) OVER() AS percentile_25,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.25) OVER() AS percentile_25,
+Starts with: "P"
+Ends with: ","
+
+--- Result 36 (Score: 1.0000000149011612) ---
+ID: mol_193b8d448156
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.50) OVER() AS percentile_50,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.50) OVER() AS percentile_50,
+Starts with: "P"
+Ends with: ","
+
+--- Result 37 (Score: 1.0000000149011612) ---
+ID: mol_f7e4429549ee
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.75) OVER() AS percentile_75,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.75) OVER() AS percentile_75,
+Starts with: "P"
+Ends with: ","
+
+--- Result 38 (Score: 1.0000000149011612) ---
+ID: mol_0edad0fe1f25
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.90) OVER() AS percentile_90,... ...                PERCENTILE_CONT(spend_range_max_usd, 0.90) OVER() AS percentile_90,
+Starts with: "P"
+Ends with: ","
+
+--- Result 39 (Score: 1.0000000149011612) ---
+ID: mol_c252e71c42f3
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 82
+Preview:                 PERCENTILE_CONT(spend_range_max_usd, 0.99) OVER() AS percentile_99... ...                PERCENTILE_CONT(spend_range_max_usd, 0.99) OVER() AS percentile_99
+Starts with: "P"
+Ends with: "9"
+
+--- Result 40 (Score: 1.0000000149011612) ---
+ID: mol_a5f1f1ce8aef
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 40
+Preview:         spend_min_usd = client.query('''... ...        spend_min_usd = client.query('''
+Starts with: "s"
+Ends with: "'"
+
+--- Result 41 (Score: 1.0000000149011612) ---
+ID: mol_d2842b277b67
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 143
+Preview:                     SUM((t1.spend_range_min_usd + t1.spend_range_max_usd) / 2) / 1000000 AS daily_sp... ..._usd + t1.spend_range_max_usd) / 2) / 1000000 AS daily_spend_millions,  # Total spending in millions
+Starts with: "S"
+Ends with: "s"
+
+--- Result 42 (Score: 1.0000000149011612) ---
+ID: mol_5bb952dfbfa0
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 133
+Preview:                 plt.plot(advertiser_spending['date'], advertiser_spending['daily_spend_millions'])  ... ...er_spending['date'], advertiser_spending['daily_spend_millions'])  # Plot total spending in millions
+Starts with: "p"
+Ends with: "s"
+
+--- Result 43 (Score: 1.0000000149011612) ---
+ID: mol_d65bb284027f
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 85
+Preview:             SUM((cs.spend_range_min_usd + cs.spend_range_max_usd) / 2) AS total_spend... ...            SUM((cs.spend_range_min_usd + cs.spend_range_max_usd) / 2) AS total_spend
+Starts with: "S"
+Ends with: "d"
+
+--- Result 44 (Score: 1.0000000149011612) ---
+ID: mol_878c37bf5036
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 109
+Preview:         plt.plot(spending_over_time['spending_date'], spending_over_time['total_spend_biden'], label... ...lt.plot(spending_over_time['spending_date'], spending_over_time['total_spend_biden'], label='Biden')
+Starts with: "p"
+Ends with: ")"
+
+--- Result 45 (Score: 1.0000000149011612) ---
+ID: mol_cd7b69ad0042
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 109
+Preview:         plt.plot(spending_over_time['spending_date'], spending_over_time['total_spend_trump'], label... ...lt.plot(spending_over_time['spending_date'], spending_over_time['total_spend_trump'], label='Trump')
+Starts with: "p"
+Ends with: ")"
+
+--- Result 46 (Score: 1.0000000149011612) ---
+ID: mol_f1c847984909
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 85
+Preview:              - Columns like advertiser_id, advertiser_name, spend_range_min_usd, etc.... ...             - Columns like advertiser_id, advertiser_name, spend_range_min_usd, etc.
+Starts with: "-"
+Ends with: "."
+
+--- Result 47 (Score: 0.1) ---
+ID: mol_ac181d4eab98
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 22
+Preview:                 SELECT... ...                SELECT
+Starts with: "S"
+Ends with: "T"
+
+--- Result 48 (Score: 0.1) ---
+ID: mol_ddeeed51b6a2
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 14
+Preview:         SELECT... ...        SELECT
+Starts with: "S"
+Ends with: "T"
+
+--- Result 49 (Score: 0.08125) ---
+ID: mol_8221f288eee4
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 25
+Preview:         SELECT table_name... ...        SELECT table_name
+Starts with: "S"
+Ends with: "e"
+
+--- Result 50 (Score: 0.08125) ---
+ID: mol_2bfbbb7bde5b
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 29
+Preview:             SELECT table_name... ...            SELECT table_name
+Starts with: "S"
+Ends with: "e"
+
+--- Result 51 (Score: 0.07968750000000001) ---
+ID: mol_e558bb40fcd2
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 37
+Preview:         SELECT column_name, data_type... ...        SELECT column_name, data_type
+Starts with: "S"
+Ends with: "e"
+
+--- Result 52 (Score: 0.07968750000000001) ---
+ID: mol_52eb7f039e04
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 16
+Preview:         GROUP BY... ...        GROUP BY
+Starts with: "G"
+Ends with: "Y"
+
+--- Result 53 (Score: 0.07968750000000001) ---
+ID: mol_e46231ec1b5e
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 35
+Preview:         advstats = client.query('''... ...        advstats = client.query('''
+Starts with: "a"
+Ends with: "'"
+
+--- Result 54 (Score: 0.078125) ---
+ID: mol_ddebcdd544c7
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 33
+Preview:         tables = client.query('''... ...        tables = client.query('''
+Starts with: "t"
+Ends with: "'"
+
+--- Result 55 (Score: 0.078125) ---
+ID: mol_b90349cedb6c
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 71
+Preview:         FROM `bigquery-public-data.google_political_ads.creative_stats`... ...        FROM `bigquery-public-data.google_political_ads.creative_stats`
+Starts with: "F"
+Ends with: "`"
+
+--- Result 56 (Score: 0.0765625) ---
+ID: mol_0bfd4ccf2fbf
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 20
+Preview:             SELECT *... ...            SELECT *
+Starts with: "S"
+Ends with: "*"
+
+--- Result 57 (Score: 0.0765625) ---
+ID: mol_0036ca1ad86b
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 38
+Preview:         all_columns = client.query('''... ...        all_columns = client.query('''
+Starts with: "a"
+Ends with: "'"
+
+--- Result 58 (Score: 0.07500000000000001) ---
+ID: mol_0a2b7be8bd69
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 50
+Preview:                 SELECT COUNT(column_name) as total... ...                SELECT COUNT(column_name) as total
+Starts with: "S"
+Ends with: "l"
+
+--- Result 59 (Score: 0.07500000000000001) ---
+ID: mol_c56db1b5dce3
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 58
+Preview:                     ON t1.advertiser_id = t2.advertiser_id... ...                    ON t1.advertiser_id = t2.advertiser_id
+Starts with: "O"
+Ends with: "d"
+
+--- Result 60 (Score: 0.0734375) ---
+ID: mol_487742e227c3
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 48
+Preview:                     t1.date_range_start AS date,... ...                    t1.date_range_start AS date,
+Starts with: "t"
+Ends with: ","
+
+--- Result 61 (Score: 0.07187500000000001) ---
+ID: mol_655e1954c3bb
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 44
+Preview:             column_count = client.query(f'''... ...            column_count = client.query(f'''
+Starts with: "c"
+Ends with: "'"
+
+--- Result 62 (Score: 0.07187500000000001) ---
+ID: mol_0327f9874fed
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 79
+Preview:             `bigquery-public-data.google_political_ads.advertiser_stats` AS as_... ...            `bigquery-public-data.google_political_ads.advertiser_stats` AS as_
+Starts with: "`"
+Ends with: "_"
+
+--- Result 63 (Score: 0.0703125) ---
+ID: mol_8c653a8ee74e
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 44
+Preview:                 WHERE table_name = '{table}'... ...                WHERE table_name = '{table}'
+Starts with: "W"
+Ends with: "'"
+
+--- Result 64 (Score: 0.0703125) ---
+ID: mol_1b1cf407fff1
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 46
+Preview:         percentile_spending = client.query('''... ...        percentile_spending = client.query('''
+Starts with: "p"
+Ends with: "'"
+
+--- Result 65 (Score: 0.0703125) ---
+ID: mol_a2fb3c9f994f
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 33
+Preview:         cstats = client.query('''... ...        cstats = client.query('''
+Starts with: "c"
+Ends with: "'"
+
+--- Result 66 (Score: 0.06875) ---
+ID: mol_38d5aaa8af0e
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 51
+Preview:             advertiser_spending = client.query(f"""... ...            advertiser_spending = client.query(f"""
+Starts with: "a"
+Ends with: """
+
+--- Result 67 (Score: 0.06875) ---
+ID: mol_19b95cc49181
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 127
+Preview:             INNER JOIN `bigquery-public-data.google_political_ads.creative_stats` AS cs ON as_.adver... ...query-public-data.google_political_ads.creative_stats` AS cs ON as_.advertiser_id = cs.advertiser_id
+Starts with: "I"
+Ends with: "d"
+
+--- Result 68 (Score: 0.06875) ---
+ID: mol_a461496ee63a
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 65
+Preview:         # what are the sum and average of spending by advertisers... ...        # what are the sum and average of spending by advertisers
+Starts with: "#"
+Ends with: "s"
+
+--- Result 69 (Score: 0.06875) ---
+ID: mol_3c368ba5ceed
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 84
+Preview:                     `bigquery-public-data.google_political_ads.creative_stats` AS t1... ...                    `bigquery-public-data.google_political_ads.creative_stats` AS t1
+Starts with: "`"
+Ends with: "1"
+
+--- Result 70 (Score: 0.06875) ---
+ID: mol_ba9268810243
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 86
+Preview:                     `bigquery-public-data.google_political_ads.advertiser_stats` AS t2... ...                    `bigquery-public-data.google_political_ads.advertiser_stats` AS t2
+Starts with: "`"
+Ends with: "2"
+
+--- Result 71 (Score: 0.06737059429410383) ---
+ID: mol_55599e7074d6
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 593
+Preview:           This protocol engages your prefrontal cortexΓÇöyour brain's executive function center. By tu... ...nd say, "Log entry." We'll run the protocol together. This is precisely what an EEF is designed for.
+Starts with: "T"
+Ends with: "."
+
+--- Result 72 (Score: 0.0671875) ---
+ID: mol_bfe4cd9af2db
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 58
+Preview:                 WHERE t1.advertiser_id = '{advertiser_id}'... ...                WHERE t1.advertiser_id = '{advertiser_id}'
+Starts with: "W"
+Ends with: "'"
+
+--- Result 73 (Score: 0.0671875) ---
+ID: mol_c3a6b2ca637c
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 21
+Preview:             LIMIT 100... ...            LIMIT 100
+Starts with: "L"
+Ends with: "0"
+
+--- Result 74 (Score: 0.065625) ---
+ID: mol_3b77da02d10f
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 52
+Preview:         # What data types are the rows in the table?... ...        # What data types are the rows in the table?
+Starts with: "#"
+Ends with: "?"
+
+--- Result 75 (Score: 0.06430829455346275) ---
+ID: mol_a20f6406f23e
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 357
+Preview:           Navigating Intrusive ThoughtsI'm wrestling with these persistent, unhelpful thoughts about... ...to find a way to manage these unwanted mental intrusions, and am feeling a bit vulnerable right now.
+Starts with: "N"
+Ends with: "."
+
+--- Result 76 (Score: 0.06409925406576795) ---
+ID: mol_2c55a139d7cb
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 24
+Preview:                 GROUP BY... ...                GROUP BY
+Starts with: "G"
+Ends with: "Y"
+
+--- Result 77 (Score: 0.06406250000000001) ---
+ID: mol_6a95533e0678
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 33
+Preview:         schema = client.query('''... ...        schema = client.query('''
+Starts with: "s"
+Ends with: "'"
+
+--- Result 78 (Score: 0.06406250000000001) ---
+ID: mol_bad29ea9d8bd
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 42
+Preview:         for table in tables['table_name']:... ...        for table in tables['table_name']:
+Starts with: "f"
+Ends with: ":"
+
+--- Result 79 (Score: 0.06406250000000001) ---
+ID: mol_b445f80b45f3
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 53
+Preview:         for index, row in top_advertisers.iterrows():... ...        for index, row in top_advertisers.iterrows():
+Starts with: "f"
+Ends with: ":"
+
+--- Result 80 (Score: 0.06406250000000001) ---
+ID: mol_afb3ea524489
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 43
+Preview:         WHERE table_name = 'creative_stats'... ...        WHERE table_name = 'creative_stats'
+Starts with: "W"
+Ends with: "'"
+
+--- Result 81 (Score: 0.0625) ---
+ID: mol_c64f4e141445
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 12
+Preview:         FROM... ...        FROM
+Starts with: "F"
+Ends with: "M"
+
+--- Result 82 (Score: 0.0625) ---
+ID: mol_2a4671e2c692
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 20
+Preview:                 FROM... ...                FROM
+Starts with: "F"
+Ends with: "M"
+
+--- Result 83 (Score: 0.0625) ---
+ID: mol_cdfa4db36cc5
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 16
+Preview:             FROM... ...            FROM
+Starts with: "F"
+Ends with: "M"
+
+--- Result 84 (Score: 0.0625) ---
+ID: mol_562631307885
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 60
+Preview:         # Select all columns from the advertiser_stats table... ...        # Select all columns from the advertiser_stats table
+Starts with: "#"
+Ends with: "e"
+
+--- Result 85 (Score: 0.060937500000000006) ---
+ID: mol_f99e52ae7b9a
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 19
+Preview:             LIMIT 1... ...            LIMIT 1
+Starts with: "L"
+Ends with: "1"
+
+--- Result 86 (Score: 0.060937500000000006) ---
+ID: mol_094582e26ece
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 77
+Preview:             FROM `bigquery-public-data.google_political_ads.advertiser_stats`... ...            FROM `bigquery-public-data.google_political_ads.advertiser_stats`
+Starts with: "F"
+Ends with: "`"
+
+--- Result 87 (Score: 0.060937500000000006) ---
+ID: mol_1c06cfe830de
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 82
+Preview:         FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.TABLES... ...        FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.TABLES
+Starts with: "F"
+Ends with: "S"
+
+--- Result 88 (Score: 0.060937500000000006) ---
+ID: mol_22ed813f04a0
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 48
+Preview:             advertiser_id = row['advertiser_id']... ...            advertiser_id = row['advertiser_id']
+Starts with: "a"
+Ends with: "]"
+
+--- Result 89 (Score: 0.060937500000000006) ---
+ID: mol_2a8ae1b872e1
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 86
+Preview:             FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.TABLES... ...            FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.TABLES
+Starts with: "F"
+Ends with: "S"
+
+--- Result 90 (Score: 0.060937500000000006) ---
+ID: mol_381f748738b0
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 91
+Preview:                 FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.COLUMNS... ...                FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.COLUMNS
+Starts with: "F"
+Ends with: "S"
+
+--- Result 91 (Score: 0.060937500000000006) ---
+ID: mol_624807a6bce5
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 43
+Preview:             ''').to_dataframe()["total"][0]... ...            ''').to_dataframe()["total"][0]
+Starts with: "'"
+Ends with: "]"
+
+--- Result 92 (Score: 0.060937500000000006) ---
+ID: mol_9508469836ef
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 24
+Preview:             as_.regions,... ...            as_.regions,
+Starts with: "a"
+Ends with: ","
+
+--- Result 93 (Score: 0.060937500000000006) ---
+ID: mol_c5493b5c02e7
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 83
+Preview:         FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.COLUMNS... ...        FROM `bigquery-public-data`.google_political_ads.INFORMATION_SCHEMA.COLUMNS
+Starts with: "F"
+Ends with: "S"
+
+--- Result 94 (Score: 0.060937500000000006) ---
+ID: mol_f4abae16890e
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 38
+Preview:                     t2.advertiser_name... ...                    t2.advertiser_name
+Starts with: "t"
+Ends with: "e"
+
+--- Result 95 (Score: 0.059375000000000004) ---
+ID: mol_46aad05d6674
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 30
+Preview:             as_.advertiser_id,... ...            as_.advertiser_id,
+Starts with: "a"
+Ends with: ","
+
+--- Result 96 (Score: 0.059375000000000004) ---
+ID: mol_f639ae5c02c0
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 63
+Preview:             as_.advertiser_id, as_.advertiser_name, as_.regions... ...            as_.advertiser_id, as_.advertiser_name, as_.regions
+Starts with: "a"
+Ends with: "s"
+
+[Radius Check] Top Len: 1022, Bottom Len: 63
+PASS: Smart Radius is active (Top results have more context).

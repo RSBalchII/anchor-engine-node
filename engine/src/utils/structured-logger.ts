@@ -10,6 +10,12 @@ import path from 'path';
 import fs from 'fs';
 import { createHash } from 'crypto';
 import { format } from 'winston';
+import { fileURLToPath } from 'url';
+
+// Get absolute path to project root (anchor-os directory)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, '../../../../..');
 
 // Define log levels with numerical values
 const logLevels = {
@@ -21,8 +27,8 @@ const logLevels = {
   silly: 5
 };
 
-// Create logs directory if it doesn't exist
-const LOGS_DIR = path.join(process.cwd(), 'logs');
+// Create logs directory at project root
+const LOGS_DIR = path.join(PROJECT_ROOT, 'logs');
 if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
@@ -38,31 +44,34 @@ const structuredFormat = winston.format.combine(
 // Create logger instance
 const logger = winston.createLogger({
   levels: logLevels,
-  level: 'info',
+  level: 'silly', // Capture all log levels including debug
   format: structuredFormat,
   transports: [
-    // Daily rotating file transport for all logs
+    // Main anchor_engine.log file with size-based rotation (10KB)
     new DailyRotateFile({
-      filename: path.join(LOGS_DIR, 'application-%DATE%.log'),
+      filename: path.join(LOGS_DIR, 'anchor_engine.log'),
       datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '14d',
+      zippedArchive: false,
+      maxSize: '10k',
+      maxFiles: '7d',
       format: format.combine(
-        format.timestamp(),
+        format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         format.errors({ stack: true }),
         format.splat(),
-        format.json()
+        format.printf(({ timestamp, level, message, ...metadata }) => {
+          const metaStr = Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : '';
+          return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr}`;
+        })
       )
     }),
     // Separate error file
     new DailyRotateFile({
       level: 'error',
-      filename: path.join(LOGS_DIR, 'error-%DATE%.log'),
+      filename: path.join(LOGS_DIR, 'anchor_engine_error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '30d',
+      maxSize: '10k',
+      maxFiles: '14d',
       format: format.combine(
         format.timestamp(),
         format.errors({ stack: true }),
@@ -145,6 +154,40 @@ class MetricsTracker {
   reset() {
     this.metrics.clear();
   }
+
+  /**
+   * Prune old metrics to free memory (called during idle cleanup)
+   * Removes metrics older than TTL and enforces maximum size limit
+   */
+  pruneOldMetrics(): void {
+    const METRIC_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
+    const MAX_METRICS = 500; // Maximum number of metrics to keep
+    const now = Date.now();
+    
+    // Remove metrics that haven't been updated in TTL period
+    let prunedCount = 0;
+    for (const [key, metric] of this.metrics.entries()) {
+      // If last operation was more than TTL ago, remove it
+      if (metric.last && (now - metric.last) > METRIC_TTL_MS) {
+        this.metrics.delete(key);
+        prunedCount++;
+      }
+    }
+    
+    // Enforce hard limit if still too many metrics
+    if (this.metrics.size > MAX_METRICS) {
+      const keys = Array.from(this.metrics.keys());
+      const toDelete = keys.slice(0, keys.length - MAX_METRICS);
+      for (const key of toDelete) {
+        this.metrics.delete(key);
+        prunedCount++;
+      }
+    }
+    
+    if (prunedCount > 0) {
+      console.log(`[StructuredLogger] Pruned ${prunedCount} old metrics (${this.metrics.size} remaining)`);
+    }
+  }
 }
 
 // Initialize metrics tracker
@@ -197,6 +240,17 @@ export const logWithContext = {
    */
   debug: (message: string, context?: Record<string, any>) => {
     logger.debug(message, {
+      context,
+      pid: process.pid,
+      module: 'structured-logger'
+    });
+  },
+
+  /**
+   * Log a silly/verbose message with context
+   */
+  silly: (message: string, context?: Record<string, any>) => {
+    logger.silly(message, {
       context,
       pid: process.pid,
       module: 'structured-logger'
@@ -294,3 +348,6 @@ export function getFormattedMetrics(): string {
   const metrics = metricsTracker.getAllMetrics();
   return JSON.stringify(metrics, null, 2);
 }
+
+// Export alias for backward compatibility
+export const StructuredLogger = logWithContext;

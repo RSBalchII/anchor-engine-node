@@ -131,6 +131,13 @@ export class Database {
           console.debug(`[DB] Column ${col.name} addition:`, alterErr.message);
         }
       }
+
+      // Add index for compound_id (CRITICAL for Physics Walker)
+      try {
+        await this.run('CREATE INDEX IF NOT EXISTS idx_atoms_compound_id ON atoms(compound_id);');
+      } catch (idxErr: any) {
+        console.warn("[DB] Could not create compound_id index:", idxErr.message);
+      }
     } catch (e: any) {
       console.error("[DB] Error initializing atoms table:", e);
       throw e;

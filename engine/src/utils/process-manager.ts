@@ -35,17 +35,33 @@ export class ProcessManager {
             return;
         }
 
-        // Determine the root directory. 
-        // Since we are in packages/anchor-engine/engine/dist/utils/, 
-        // root is 5 levels up.
-        const rootDir = path.resolve(__dirname, '../../../../../');
+        // Determine the root directory dynamically
+        // Try multiple strategies to find the project root
+        let rootDir: string;
+        
+        // Strategy 1: Use PROJECT_ROOT from config if available
+        try {
+            const { PROJECT_ROOT } = await import('../config/paths.js');
+            if (PROJECT_ROOT) {
+                rootDir = PROJECT_ROOT;
+                console.log(`[ProcessManager] Using PROJECT_ROOT: ${rootDir}`);
+            } else {
+                throw new Error('PROJECT_ROOT not set');
+            }
+        } catch (e) {
+            // Strategy 2: Calculate from __dirname
+            // From packages/anchor-engine/engine/dist/utils/ go up 5 levels
+            rootDir = path.resolve(__dirname, '../../../../../../');
+            console.log(`[ProcessManager] Calculated rootDir: ${rootDir}`);
+        }
+        
         const fullCwd = path.resolve(rootDir, config.cwd);
         const command = config.command || 'node';
         const args = [...(config.args || [])];
 
         // If command is node, add --expose-gc
         const finalArgs = command === 'node' ? ['--expose-gc', config.script, ...args] : [config.script, ...args];
-        
+
         console.log(`[ProcessManager] Starting service: ${config.name}`);
         console.log(`[ProcessManager]   Command: ${command}`);
         console.log(`[ProcessManager]   Script: ${config.script}`);
@@ -53,6 +69,8 @@ export class ProcessManager {
 
         if (!fs.existsSync(fullCwd)) {
             console.error(`[ProcessManager] Error: CWD directory not found at ${fullCwd}`);
+            console.error(`[ProcessManager]   rootDir: ${rootDir}`);
+            console.error(`[ProcessManager]   config.cwd: ${config.cwd}`);
             return;
         }
 

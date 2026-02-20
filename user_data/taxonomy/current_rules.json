@@ -59,6 +59,16 @@
     ],
     "requiredEntities": [
       "person",
+      "event",
+      "place",
+      "organization",
+      "concept",
+      "idea",
+      "thought",
+      "memory",
+      "dream",
+      "vision",
+      "goal",
       "date"
     ],
     "weight": 0.8

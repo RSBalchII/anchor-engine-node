@@ -1,0 +1,643 @@
+[PathManager] Initialized. BasePath: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine, Platform: win32
+[PathManager] Singleton instance created.
+[DB] Loading Config...
+[Config] Loaded settings from C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\user_settings.json
+[SemanticExpansion] Loaded synonym ring: 102 terms
+Initializing DB...
+[DB] Using database directory: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Database directory ready: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Initializing PGlite at: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] PGlite initialized successfully: c:/Users/rsbiiw/Projects/anchor-os/packages/anchor-engine/engine/context_data
+[DB] Query Failed: extension "pg_trgm" is not available
+[DB] Query: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+[DB] Could not enable 'pg_trgm' extension: extension "pg_trgm" is not available
+[DB] 'atoms' table initialized.
+[DB] 'tags' table initialized.
+[DB] 'edges' table initialized.
+[DB] 'sources' table initialized.
+[DB] 'molecules' table initialized.
+[DB] 'compounds' table initialized.
+[DB] 'engrams' table initialized.
+[DB] 'atom_positions' table initialized.
+[DB] 'summary_nodes' table initialized.
+[DB] FTS index created for content search.
+[DB] FTS index created for molecules content search.
+[DB] GIN index created for payload (Crystal Atom).
+Database initialized successfully
+DB Initialized.
+[Verify] Atoms count: 233303
+[Verify] Picked sample term: "content" (from content length 26)
+Running search for: "content"
+[Search] executeSearch (Physics Engine V2) called with provenance: all
+[Search] Dynamic Scaling: Budget=5000t -> Target=84 atoms
+[Search] Constructing TS Query...
+[Search] Final Dedup: 50 -> 48 items. Removed 2 duplicates.
+[Search] Anchors found: 0 Atoms, 50 Molecules. Final Unique: 48
+[PhysicsWalker] SQL Weighting took 7527ms for 48 anchors
+[Search] Physics Walker found 27 associations.
+[Search] Search completed in 8529ms
+
+Search Result Count: 75
+
+--- Result 1 (Score: 16.00000023841858) ---
+ID: mol_3e8772c4fc0c
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: -8 if confidence is low encoding = detection[''encoding''] if detection[''confidence''] > 0.5 else '... ...ext files, write the entire content outfile.write(decoded_content + ''\n\n'') outfile.write(f"--- EN
+Starts with: "-"
+Ends with: "N"
+
+--- Result 2 (Score: 13.999999761581421) ---
+ID: mol_ac91a16fa5ab
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: s. """ def __init__(self): self.blackboard_path = "extractor_blackboard.md" def _manage_blackboard(s... ...fied, direct translation. In a real implementation, # a more robust HTML parser like BeautifulSoup w
+Starts with: "s"
+Ends with: "w"
+
+--- Result 3 (Score: 12.000000476837158) ---
+ID: mol_7afed56e11ea
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: database. """ def __init__(self): self.blackboard_path = "archivist_blackboard.md" def _manage_black... ..."" # 1. Generate 5 prompt variations for analysis task_prompts = [ f"Given the following new context
+Starts with: "d"
+Ends with: "t"
+
+--- Result 4 (Score: 12.000000476837158) ---
+ID: mol_3073d10ec112
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: M. """ def __init__(self): self.blackboard_path = "injector_blackboard.md" def _manage_blackboard(se... ...return "ConThe user is building a hierarchical agentic architecture. Key models are deepseek-r1 for 
+Starts with: "M"
+Ends with: "r"
+
+--- Result 5 (Score: 12.000000476837158) ---
+ID: mol_b402bd4302dd
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ctor database. """ def __init__(self): self.blackboard_path = "archivist_blackboard.md" # Initialize... ...ntext chunk. This includes redundancy filtering and context appending. Args: context_chunk: The new 
+Starts with: "c"
+Ends with: "w"
+
+--- Result 6 (Score: 12.000000476837158) ---
+ID: mol_abceb6da7a60
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ax_replacements: int = 1) -> bool: """Replace specific content in a file.""" try: with open(file_pat... ...) modification.backup_content = backup_path with open(file_path, ''w'', encoding=''utf-8'') as f: f.
+Starts with: "a"
+Ends with: "."
+
+--- Result 7 (Score: 12.000000476837158) ---
+ID: mol_543f225a0f23
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ontent, timestamp] := *memory{content, timestamp}, str_includes(content, 'Blueberry-Omega')\\\", \\\... ... or what they are. Maybe a character from a story or a meme? I think they're a meme or a figure from
+Starts with: "o"
+Ends with: "m"
+
+--- Result 8 (Score: 11.000000238418579) ---
+ID: mol_84b4726008a0
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview:  message.role == \"assistant\" %} {%- set reasoning_content = '' %} {%- if message.reasoning_content... ...t loop.first) %} {{- '\\n' }} {%- endif %} {%- if tool_call.function %} {%- set tool_call = tool_cal
+Starts with: "m"
+Ends with: "l"
+
+--- Result 9 (Score: 11.000000238418579) ---
+ID: mol_3815f1eb9dbf
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: f): self.blackboard_path = "thinking_blackboard.md" def _synthesize_results(self, raw_results: list)... ...ze: truncated_content = combined_content[-max_size:] else: truncated_content = combined_content with
+Starts with: "f"
+Ends with: "h"
+
+--- Result 10 (Score: 11.000000238418579) ---
+ID: mol_98fce14818a6
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 782
+Preview:  Γöé Γöé 58 Γöé Γöé 64 - if os.path.exists(self.blackboard_path): Γöé Γöé 65 - with open(self.blackboard_path, "... ...till: str): Γöé Γöé 61 """ Γöé Γöé 62 Orchestrates a crew of Tier3Worker agents to distill the given Γöé Γöé con
+Starts with: "Γöé"
+Ends with: "n"
+
+--- Result 11 (Score: 11.000000238418579) ---
+ID: mol_69067f1edb7a
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 912
+Preview: ness of content and responses\\\" Γöé Γöé Γöé Γöé async def execute(self, str, content_str = \\\"response\\\... ... ece_tools.py file with the DistillerAgent, ArchivistAgent, and ExtractorAgent implementations based
+Starts with: "n"
+Ends with: "d"
+
+--- Result 12 (Score: 11.000000238418579) ---
+ID: mol_91933854acf9
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: e. I should check the syntax to avoid errors. Maybe include a confidence level, maybe 0.5 since it's... ...content, id, content, timestamp] := *memory{id, content, 'Blueberry-Omega'\\\", \\\"confidence\\\": 
+Starts with: "e"
+Ends with: ":"
+
+--- Result 13 (Score: 10) ---
+ID: mol_85b3d7afb757
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ngth - 1) - loop.index0 %} {%- if ns.multi_step_tool and message.role == \"user\" and message.conten... ...trip('\\n').split('<think>')[-1].lstrip('\\n') %} {%- set content = content.split('</think>')[-1].ls
+Starts with: "n"
+Ends with: "s"
+
+--- Result 14 (Score: 10) ---
+ID: mol_0536726f1e02
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: init__(self): self.blackboard_path = "distiller_blackboard.md" def _synthesize_results(self, raw_res... ... > max_size: truncated_content = combined_content[-max_size:] else: truncated_content = combined_con
+Starts with: "i"
+Ends with: "n"
+
+--- Result 15 (Score: 10) ---
+ID: mol_4d9ee4a641f6
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: open(output_file, ''w'', encoding=''utf-8'') as outfile: for file_path in files_to_process: print(f"... ...tent'', '''') if outfile.write(content + ''\n\n'') content_found = True if not content_found: # If n
+Starts with: "o"
+Ends with: "n"
+
+--- Result 16 (Score: 10) ---
+ID: mol_a7327e574d2f
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: h, that should do it correctly. </think> ```json { \\\"hypothesis\\\": \\\"I need to find memories i... ...WHERE str_includes(content, 'Blueberry')\\\", \\\"confidence\\\": 0.5 } Wait, maybe add the quotes a
+Starts with: "h"
+Ends with: "a"
+
+--- Result 17 (Score: 9.000000357627869) ---
+ID: mol_1d6d6bcf61d6
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: - for message in messages[::-1] %} {%- set index = (messages|length - 1) - loop.index0 %} {%- if ns.... ... %} {%- set reasoning_content = content.split('</think>')[0].rstrip('\\n').split('<think>')[-1].lstr
+Starts with: "-"
+Ends with: "r"
+
+--- Result 18 (Score: 9.000000357627869) ---
+ID: mol_f049e1532704
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1022
+Preview: ponse_content\": \"I played a few more bars of the frustrated melody and sighed, letting my hands fa... ...-08-28T05:06:00.000Z\", \"story_title\": \"Morning-Surrender\", \"chapter\": 8, \"response_content\"
+Starts with: "p"
+Ends with: """
+
+--- Result 19 (Score: 9.000000357627869) ---
+ID: mol_1bb221bf59bb
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 984
+Preview: *: Use this to find information on the internet. Γöé Γöé 21 2. **execute_command(command: str)**: Use th... ... or overwrite a file. Γöé Γöé 24 + 5. **append_to_file(filepath: str, str)**: Use this to append content
+Starts with: "*"
+Ends with: "t"
+
+--- Result 20 (Score: 9.000000357627869) ---
+ID: mol_6cb1f4a5f289
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview:  if FTS isn't fully trained let results = []; // Try FTS first try { const ftsQuery = ` ?[source, co... ...charCount += content.length; } if (!output) output = "No relevant context found in local files."; //
+Starts with: "i"
+Ends with: "/"
+
+--- Result 21 (Score: 9.000000357627869) ---
+ID: mol_945efa5ac636
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 914
+Preview: tand the pattern.  Γöé Γ£ö Shell cat src/external_context_engine/tools/specialist_agents.py Γöé Γöé Γöé Γöé ... ... ...herence and consistency in the Γöé Γöé context and responses generated by the system. Γöé Γöé \\\"\\\"\\\" Γöé
+Starts with: "t"
+Ends with: "Γöé"
+
+--- Result 22 (Score: 9.000000357627869) ---
+ID: mol_5de93e143f60
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: odeElement]: """Analyze a single file and return list of code elements.""" path = Path(file_path) if... ...mpty list for node in ast.walk(tree): element = self._extract_python_element(node, content, file_pat
+Starts with: "o"
+Ends with: "t"
+
+--- Result 23 (Score: 9.000000357627869) ---
+ID: mol_a8e6050fe4f8
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: write(updated_content) self.modifications.append(modification) return True except Exception: return ... ...tf-8'') as f: f.writelines(lines) self.modifications.append(modification) return True except Excepti
+Starts with: "w"
+Ends with: "i"
+
+--- Result 24 (Score: 9.000000357627869) ---
+ID: mol_37bc20171213
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: For now, we''ll do simple name replacement for references # In a more advanced implementation, we''d... ...pt Exception: return False def extract_function(self, file_path: str, start_line: int, end_line: int
+Starts with: "F"
+Ends with: "t"
+
+--- Result 25 (Score: 9.000000357627869) ---
+ID: mol_a5f7d0d19dd2
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: , timestamp] := *memory{id, content, timestamp}, str_includes(content, \\\"Blueberry\\\"), timestamp... ...o I need to figure out what Blueberry-Omega is. I'm not familiar with that term, but I'll try to bre
+Starts with: ","
+Ends with: "e"
+
+--- Result 26 (Score: 8.00000011920929) ---
+ID: mol_a3ddd4d568fd
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: _content\\": \\"Excellent. I've reviewed the updated resume. Renaming \\\\\\"Chimaera\\\\\\"......pd... ...\\", \\"timestamp\\": \\"2025-09-20T15:52:56.027Z\\", \\"response\_content\\": \\"Of course. Let's r
+Starts with: "_"
+Ends with: "r"
+
+--- Result 27 (Score: 8.00000011920929) ---
+ID: mol_06ca8df22bb5
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: efine your professional summary to reflect the latest......ons.\\, { \\"type\\": \\"User\\", \\"time... ...09-20T15:52:56.031Z\\", \\"response\_content\\": \\"Of course. Here is a strategically crafted cover
+Starts with: "e"
+Ends with: "r"
+
+--- Result 28 (Score: 8.00000011920929) ---
+ID: mol_ae671b856d37
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: s. """ def __init__(self): self.blackboard_path = "blackboard.md" def _synthesize_results(self, raw_... ...ne old and new content combined_content = existing_content + new_content # Truncate if necessary if 
+Starts with: "s"
+Ends with: "f"
+
+--- Result 29 (Score: 8.00000011920929) ---
+ID: mol_b45788ee3bab
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: n. """ logging.info(f"ExtractionAgent: Scanning page for content at {datetime.now().isoformat()}") #... ...simplified, simulated HTML page from a chat session simulated_html = """ <div id="chat-container"> <
+Starts with: "n"
+Ends with: "<"
+
+--- Result 30 (Score: 8.00000011920929) ---
+ID: mol_5aa336d88869
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 940
+Preview: t call ----------------------------- Γöé Γöé \\\\n--- Orchestrator Loop Start --- Γöé Γöé Received prompt: '... ...+ Default Γöé Γöé Γöé Γöé tests/integration/test_specialist_agents.py:97: AssertionError Γöé Γöé ---------------
+Starts with: "t"
+Ends with: "-"
+
+--- Result 31 (Score: 8.00000011920929) ---
+ID: mol_8de004eb1390
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: : with open(file_path, ''r'', encoding=''utf-8'') as f: lines = f.readlines() if line_number < 1 or ... ...kup(file_path) modification.backup_content = backup_path with open(file_path, ''w'', encoding=''utf-
+Starts with: ":"
+Ends with: "-"
+
+--- Result 32 (Score: 8.00000011920929) ---
+ID: mol_cbac12438fbd
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ).run_in_executor( None, lambda: self.ollama_client.chat(**params) ) content = response[''message'']... ...el_name ) except Exception as e: raise Exception(f"Error streaming response with Ollama: {str(e)}") 
+Starts with: ")"
+Ends with: ")"
+
+--- Result 33 (Score: 8.00000011920929) ---
+ID: mol_7fc0b6c55ff1
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: memories.\\nQuery: ?[id, content, timestamp] := *memory{id, content, timestamp}, timestamp > 1734500... ...trying to invent its own query language. The \\\"Blueberry-Omega\\\" fact is sitting in the DB waiti
+Starts with: "m"
+Ends with: "i"
+
+--- Result 34 (Score: 8.00000011920929) ---
+ID: mol_31200cd72533
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: 0.5 } <think> Okay, so I need to figure out how to create a CozoDB Datalog query based on the user's... ...he filter. Oh, maybe it's better to have it after the relation. So the query should be ?[id, content
+Starts with: "0"
+Ends with: "t"
+
+--- Result 35 (Score: 8.00000011920929) ---
+ID: mol_ae2c963af915
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ormance Metrics Being Tracked 1. Operation Duration: Average, minimum, maximum, and total execution ... ... Sanitization Result Caching: Cache cleaned content to avoid repeated processing 2. Algorithm Improv
+Starts with: "o"
+Ends with: "v"
+
+--- Result 36 (Score: 8.00000011920929) ---
+ID: mol_c22a82e22238
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 936
+Preview: ifdef USE_RE2 Γöé Γöé 7 #include <re2/re2.h> Γöé Γöé 8 #else Γöé Γöé 9 // Fallback to std::regex if RE2 is not a... ..."(\\{(?:\\s*\"type\"\\s*:\\s*\"[^\"]*\"\\s*,\\s*)?\"response_content\"\\s*:\\s*\"([^\"]*)\"\\s*(?:,\
+Starts with: "i"
+Ends with: "\"
+
+--- Result 37 (Score: 8.00000011920929) ---
+ID: mol_a157e36d7b5d
+Path: inbox\Code\archived-github-repos.yaml
+Content Length: 1024
+Preview: edRead(note);\n    if (file_content.indexOf(\"```dataview\") > -1) {\n      file_content = await thi... ...\n      const dataview_query_result = await dataview_api.queryMarkdown(dataview_code_block_content, 
+Starts with: "e"
+Ends with: ","
+
+--- Result 38 (Score: 6.9999998807907104) ---
+ID: mol_d5723cf7842d
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1008
+Preview: sp %}{% set ns.system_prompt = ns.system_prompt + message['content'] %}{% set ns.is_first_sp = false... ...l = false -%}{%- set ns.is_output_first = true %}{%- for tool in message['tool_calls'] %}{%- if not 
+Starts with: "s"
+Ends with: "t"
+
+--- Result 39 (Score: 6.9999998807907104) ---
+ID: mol_a59a2a807c1a
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ssage.reasoning_content %} {%- else %} {%- if '</think>' in message.content %} {%- set content = mes... ...dif %} {{- '<tool_call>\\n{\"name\": \"' }} {{- tool_call.name }} {{- '\", \"arguments\": ' }} {%- i
+Starts with: "s"
+Ends with: "i"
+
+--- Result 40 (Score: 6.9999998807907104) ---
+ID: mol_184f34ed1897
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: , }; if (type === "Sybil") { // First extract thinking content from original container const thinkin... ...replace(/\s+$/, ""); // Deduplication check const contentKey = `${type}:${structuredContent.response
+Starts with: ","
+Ends with: "e"
+
+--- Result 41 (Score: 6.9999998807907104) ---
+ID: mol_eed3477aba5c
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 950
+Preview: Γöé "objective facts" in result_text.lower(): Γöé Γöé 177 + routed_content[self.life_history_path].append(... ...S'')}): Γöé Γöé 190 + {content} Γöé Γöé 191 + ") Γöé Γöé 192 + print(f"Appended distilled content to {file_path}
+Starts with: "Γöé"
+Ends with: "}"
+
+--- Result 42 (Score: 6.9999998807907104) ---
+ID: mol_12931436cf04
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 658
+Preview: ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ Γöé Γöé 176 if contents: Γöé Γöé 177 with open(file_path, "a") as f: Γöé Γöé 17... ..._path}") Γöé Γöé 181 else: Γöé Γöé 182 print(f"No relevant content to append to {file_path}") Γöé Γò░ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+Starts with: "ΓòÉ"
+Ends with: "ΓöÇ"
+
+--- Result 43 (Score: 6.9999998807907104) ---
+ID: mol_2127688b83b0
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 988
+Preview: \\\\\\" /> Γöé Γöé <meta property=\\\\\\\"og:title\\\\\\\" content=\\\\\\\"Unsupported distribution or m... ...\\\\\\"og:type\\\\\\\" content=\\\\\\\"website\\\\\\\" /> Γöé Γöé <meta name=\\\\\\\"twitter:card\\\\\\\
+Starts with: "\"
+Ends with: "\"
+
+--- Result 44 (Score: 6.9999998807907104) ---
+ID: mol_dad18538649b
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ict) and 'response_content' in entry: content = entry['response_content'] # Write the content to the... ...: to efficiently synthesize a unified text corpus from these raw session logs. Right now, I'm focusi
+Starts with: "i"
+Ends with: "i"
+
+--- Result 45 (Score: 6.9999998807907104) ---
+ID: mol_f764e473eb61
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 861
+Preview: o ''response_content'' is found, write the whole file outfile.write(decoded_content + ''\n\n'') exce... ...="0.0.1", package_dir=": "src, packages=find_packages(where="src"), install_requires=[ "click>=8.0.0
+Starts with: "o"
+Ends with: "0"
+
+--- Result 46 (Score: 6.9999998807907104) ---
+ID: mol_3ae0f8edb29f
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: ter the relation selector. The example shows using str_includes on content for \\\"Blueberry\\\" and... ...ntent, \\\\\\\"Blueberry\\\\\\\"), timestamp > 170000000000000000000000000\\\", \\\"confidence\\\": 
+Starts with: "t"
+Ends with: ":"
+
+--- Result 47 (Score: 6.9999998807907104) ---
+ID: mol_61b4343345f5
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: se to filter for that. Maybe something like SELECT * FROM *memory WHERE content LIKE '%X%'. But I'm ... ... just 1. I think 0.5 is enough. I'm a bit unsure about the query structure but I'll try that. I'm a 
+Starts with: "s"
+Ends with: "a"
+
+--- Result 48 (Score: 6.9999998807907104) ---
+ID: mol_45c7c769f92d
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 1024
+Preview: s of undefined (reading 'length'\\\" error when using CozoDB Datalog. The user is asking about Blueb... ... column, so I'm adding a projection on content.length.\\\", \\\"query\\\": \\\"?[?content{length}, c
+Starts with: "s"
+Ends with: "c"
+
+--- Result 49 (Score: 0.07500000000000001) ---
+ID: mol_13d1ab6fec4e
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 145
+Preview:           With this, all the foundational Tier 2 agents of your hierarchical architecture now have a... ...r 2 agents of your hierarchical architecture now have a boilerplate. What would you like to do next?
+Starts with: "W"
+Ends with: "?"
+
+--- Result 50 (Score: 0.07110742206893682) ---
+ID: mol_463c64881a1a
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 13
+Preview:       - Sybil... ...      - Sybil
+Starts with: "-"
+Ends with: "l"
+
+--- Result 51 (Score: 0.0703125) ---
+ID: mol_da15508062cb
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 26
+Preview:           <html lang="en">... ...          <html lang="en">
+Starts with: "<"
+Ends with: ">"
+
+--- Result 52 (Score: 0.06657851559915931) ---
+ID: mol_001af468b696
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 56
+Preview: ng to be found; we just need to ask for it correctly.\",... ...ng to be found; we just need to ask for it correctly.\",
+Starts with: "n"
+Ends with: ","
+
+--- Result 53 (Score: 0.06561527613381268) ---
+ID: mol_dc1ebce4c41c
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 244
+Preview:         beautiful work Sybil! ok now make an in depth summary of our discussions and work this morni... ...8/2025 specifically create context so that I can re instantiate with the gemini pro 2.5 model again.
+Starts with: "b"
+Ends with: "."
+
+--- Result 54 (Score: 0.06541295547406464) ---
+ID: mol_744372004cc5
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 34
+Preview:         \"thinking_content\": \"\,... ...        \"thinking_content\": \"\,
+Starts with: "\"
+Ends with: ","
+
+--- Result 55 (Score: 0.06406250000000001) ---
+ID: mol_2401a526e33f
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 21
+Preview: prompt-toolkit>=3.0.0... ...prompt-toolkit>=3.0.0
+Starts with: "p"
+Ends with: "0"
+
+--- Result 56 (Score: 0.06406250000000001) ---
+ID: mol_67cbd8a8836d
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 421
+Preview: aiohttp>=3.8.0", ], entry_points=console_scripts": [ "forge-cli=forge.__main__:main", ], }, ) --- EN... ...tion Structure The `config.json` file has the following structure: ```json active_provider": "ollama
+Starts with: "a"
+Ends with: "a"
+
+--- Result 57 (Score: 0.06406250000000001) ---
+ID: mol_847dafbf63ef
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 15
+Preview: textual>=0.40.0... ...textual>=0.40.0
+Starts with: "t"
+Ends with: "0"
+
+--- Result 58 (Score: 0.0640478072851425) ---
+ID: mol_9db4acd37625
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 34
+Preview:         '2025-08-08T20:50:25.830Z'... ...        '2025-08-08T20:50:25.830Z'
+Starts with: "'"
+Ends with: "'"
+
+--- Result 59 (Score: 0.06385550415325358) ---
+ID: mol_ba416ee31c03
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 52
+Preview:         \"timestamp\": \"2025-12-20T14:17:07.488Z\",... ...        \"timestamp\": \"2025-12-20T14:17:07.488Z\",
+Starts with: "\"
+Ends with: ","
+
+--- Result 60 (Score: 0.06355221943556115) ---
+ID: mol_431cc4c04224
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 10
+Preview:         ''... ...        ''
+Starts with: "'"
+Ends with: "'"
+
+--- Result 61 (Score: 0.063542802699901) ---
+ID: mol_89887d1210ce
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 10
+Preview:         ''... ...        ''
+Starts with: "'"
+Ends with: "'"
+
+--- Result 62 (Score: 0.0625) ---
+ID: mol_91797a57e1bb
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 13
+Preview: ollama>=0.1.0... ...ollama>=0.1.0
+Starts with: "o"
+Ends with: "0"
+
+--- Result 63 (Score: 0.062039071353762076) ---
+ID: mol_82e4b8671a96
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 12
+Preview:       - User... ...      - User
+Starts with: "-"
+Ends with: "r"
+
+--- Result 64 (Score: 0.060937500000000006) ---
+ID: mol_89b582352a06
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 61
+Preview: providers": ollama": model": "granite3.1-moe:3b-instruct-q8_0... ...providers": ollama": model": "granite3.1-moe:3b-instruct-q8_0
+Starts with: "p"
+Ends with: "0"
+
+--- Result 65 (Score: 0.059375000000000004) ---
+ID: mol_065cb6ec36f1
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 16
+Preview: requests>=2.28.0... ...requests>=2.28.0
+Starts with: "r"
+Ends with: "0"
+
+--- Result 66 (Score: 0.059375000000000004) ---
+ID: mol_b1bccba7a50c
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 12
+Preview: rich>=13.0.0... ...rich>=13.0.0
+Starts with: "r"
+Ends with: "0"
+
+--- Result 67 (Score: 0.059375000000000004) ---
+ID: mol_2d1c1d8bcb94
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 11
+Preview: pyyaml>=6.0... ...pyyaml>=6.0
+Starts with: "p"
+Ends with: "0"
+
+--- Result 68 (Score: 0.0591831501908204) ---
+ID: mol_7a7e39e7be60
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 17
+Preview:           </html>... ...          </html>
+Starts with: "<"
+Ends with: ">"
+
+--- Result 69 (Score: 0.05779924072073835) ---
+ID: mol_08041b332f58
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 34
+Preview:         '2025-08-08T20:50:25.829Z'... ...        '2025-08-08T20:50:25.829Z'
+Starts with: "'"
+Ends with: "'"
+
+--- Result 70 (Score: 0.05762569887000933) ---
+ID: mol_073ab10948bb
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 17
+Preview:           </head>... ...          </head>
+Starts with: "<"
+Ends with: ">"
+
+--- Result 71 (Score: 0.05625) ---
+ID: mol_5326d3b8dea6
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 13
+Preview: openai>=1.0.0... ...openai>=1.0.0
+Starts with: "o"
+Ends with: "0"
+
+--- Result 72 (Score: 0.05625) ---
+ID: mol_7d448e4895ba
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 71
+Preview: api_base": "http://localhost:11434/v1, "docker_desktop": model": "gpt-4... ...api_base": "http://localhost:11434/v1, "docker_desktop": model": "gpt-4
+Starts with: "a"
+Ends with: "4"
+
+--- Result 73 (Score: 0.05625) ---
+ID: mol_455037fefdb9
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 15
+Preview: tiktoken>=0.7.0... ...tiktoken>=0.7.0
+Starts with: "t"
+Ends with: "0"
+
+--- Result 74 (Score: 0.053125000000000006) ---
+ID: mol_d16c3ccd01d4
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 16
+Preview: termcolor>=2.0.0... ...termcolor>=2.0.0
+Starts with: "t"
+Ends with: "0"
+
+--- Result 75 (Score: 0.04983844226595402) ---
+ID: mol_4d419747edfd
+Path: inbox\Personal\chat-sessions.yaml
+Content Length: 23
+Preview:           <body></body>... ...          <body></body>
+Starts with: "<"
+Ends with: ">"
+
+[Radius Check] Top Len: 1024, Bottom Len: 23
+PASS: Smart Radius is active (Top results have more context).

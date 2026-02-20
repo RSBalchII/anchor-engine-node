@@ -1,0 +1,17 @@
+[PathManager] Initialized. BasePath: C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\engine, Platform: win32
+[PathManager] Singleton instance created.
+[DB] Loading Config...
+[Config] Loaded settings from C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\user_settings.json
+[SemanticExpansion] Loaded synonym ring: 102 terms
+C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\tests\verify_inflation.ts:8
+process.env.NOTEBOOK_DIR = path.resolve(__dirname, '../../notebook');
+                                        ^
+
+
+ReferenceError: __dirname is not defined in ES module scope
+    at <anonymous> (C:\Users\rsbiiw\Projects\anchor-os\packages\anchor-engine\tests\verify_inflation.ts:8:41)
+    at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:669:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.5.0

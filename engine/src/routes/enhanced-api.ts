@@ -1,13 +1,12 @@
 /**
  * Enhanced API Routes for ECE
- * 
+ *
  * Implements additional endpoints for the enhanced functionality
  * following Standard 058: UniversalRAG API
  */
 
 import { Application, Request, Response } from 'express';
 import { executeSearch, getGlobalTags } from '../services/search/search.js';
-import { dream } from '../services/dreamer/dreamer.js';
 import { db } from '../core/db.js';
 
 // Placeholder functions for bright nodes functionality

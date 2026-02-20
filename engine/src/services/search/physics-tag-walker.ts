@@ -76,8 +76,30 @@ export interface PhysicsResult {
 
 export class PhysicsTagWalker {
   // Hyperparameters (The "Laws of Physics" for your mind)
-  private DAMPING_FACTOR = 0.85; // Alpha: How far inflation spreads
-  private TIME_DECAY_LAMBDA = 0.00001; // How fast old memories fade
+  // Now configurable via constructor for max-recall mode
+  private DAMPING_FACTOR: number;
+  private TIME_DECAY_LAMBDA: number;
+  private MAX_PER_HOP: number;
+  private WALK_RADIUS: number;
+  private GRAVITY_THRESHOLD: number;
+  private TEMPERATURE: number;
+
+  constructor(config?: {
+    damping?: number;
+    temporalDecay?: number;
+    maxPerHop?: number;
+    walkRadius?: number;
+    gravityThreshold?: number;
+    temperature?: number;
+  }) {
+    // Default values (balanced production config)
+    this.DAMPING_FACTOR = config?.damping ?? 0.85;
+    this.TIME_DECAY_LAMBDA = config?.temporalDecay ?? 0.00001;
+    this.MAX_PER_HOP = config?.maxPerHop ?? 50;
+    this.WALK_RADIUS = config?.walkRadius ?? 1;
+    this.GRAVITY_THRESHOLD = config?.gravityThreshold ?? 0.01;
+    this.TEMPERATURE = config?.temperature ?? 0.2;
+  }
 
   /**
    * Safely parse a simhash string into a BigInt (hex with or without 0x).
@@ -96,17 +118,25 @@ export class PhysicsTagWalker {
   /**
    * Performs radial inflation using SQL matrix operations.
    * This executes the equivalent of: r = (M * M^T) * q
-   * 
+   *
    * Now includes the Unified Field Equation directly in the SQL query:
    * Weight = (SharedTags) * Exp(-Lambda * DeltaT) * (1 - SimHashDist/64)
+   * 
+   * Uses instance configuration from constructor for max-recall support.
    */
   async performRadialInflation(
     anchorIds: string[],
-    radius: number = 1,
-    maxPerHop: number = 50,
-    temperature: number = 0.2,
-    gravityThreshold: number = 0.1
+    radius?: number,        // Uses instance WALK_RADIUS if not provided
+    maxPerHop?: number,     // Uses instance MAX_PER_HOP if not provided
+    temperature?: number,   // Uses instance TEMPERATURE if not provided
+    gravityThreshold?: number // Uses instance GRAVITY_THRESHOLD if not provided
   ): Promise<PhysicsResult[]> {
+    // Use instance defaults if not overridden
+    const hopRadius = radius ?? this.WALK_RADIUS;
+    const hopMaxPerHop = maxPerHop ?? this.MAX_PER_HOP;
+    const hopTemperature = temperature ?? this.TEMPERATURE;
+    const hopGravityThreshold = gravityThreshold ?? this.GRAVITY_THRESHOLD;
+    
     let currentAnchors = anchorIds;
     let allPhysicsResults: PhysicsResult[] = [];
     const seenIds = new Set<string>(anchorIds); // Prevent revisiting anchors
@@ -118,8 +148,8 @@ export class PhysicsTagWalker {
     // Get connected nodes via shared tags with SQL weighting
     const connectedNodes = await this.getConnectedNodesWeighted(
       currentAnchors,
-      maxPerHop * 3, // Fetch more candidates, we filter by threshold later
-      gravityThreshold
+      hopMaxPerHop * 3, // Fetch more candidates, we filter by threshold later
+      hopGravityThreshold
     );
 
     for (const node of connectedNodes) {
@@ -223,138 +253,98 @@ export class PhysicsTagWalker {
     const startTime = Date.now();
 
     // 1. Prepare Anchor Params
-    // We need to pass the anchor IDs to the CTEs.
-    const placeHolders = cappedIds.map((_, i) => `$${i + 1}`).join(',');
-    const limitParamIdx = cappedIds.length + 1;
-    const thresholdParamIdx = cappedIds.length + 2;
+    // We pass the anchor IDs as a single array as the first parameter.
+    // threshold and limit follow as $2 and $3.
 
     // 2. The Great Physics Query
-    // Note: bit_count requires casting to bit(64) then int? 
-    // Postgres 'bit_count' is available in recent versions or via extension.
-    // If bit_count is missing, we might fail. PGlite usually has standard functions.
-    // Fallback: simple text similarity or just skip simhash in SQL if risky?
-    // Let's assume PGlite standard functions. 
-    // Verified: bit_count is standard in PG 14+. PGlite is PG 15.
-
-    // Cast logic:
-    // SimHash is stored as TEXT (e.g. "0xa1b2...").
-    // We need to convert clean hex to BIT(64) -> BIGINT.
-    // Conversion: x'...'::bigint
-    // But we have a column `simhash`. 
-    // Helper: ('x' || ltrim(simhash, '0x'))::bit(64)::bigint
-
-    const query = `
-      WITH anchor_stats AS (
-        SELECT 
-          id as anchor_id, 
-          timestamp as anchor_ts, 
-          -- Parse Hex String to BigInt safe for bitwise ops
-          ('x' || ltrim(COALESCE(NULLIF(simhash, '0'), '0'), '0x'))::bit(64)::bigint as anchor_hash
-        FROM atoms 
-        WHERE id IN (${placeHolders})
-      ),
-      anchor_tags AS (
-        SELECT DISTINCT tag 
-        FROM tags 
-        WHERE atom_id IN (${placeHolders})
-      )
-      SELECT 
-          t.atom_id,
-          COUNT(DISTINCT t.tag) AS shared_tag_count,
-          MAX(a.timestamp) as timestamp,
-          MAX(a.simhash) as simhash,
-          MAX(a.content) as content,
-          MAX(a.source_path) as source_path,
-          MAX(a.tags) as tags,
-          MAX(a.provenance) as provenance,
-          MAX(a.type) as type,
-          MAX(a.compound_id) as compound_id,
-          MAX(a.start_byte) as start_byte,
-          MAX(a.end_byte) as end_byte,
-          
-          -- Gravity Score Calculation
-          -- We compute the max attraction to ANY of the anchors
-          MAX(
-            (
-               -- Base Bond: Shared Tags (Local to this pair? No, t.atom_id group by)
-               -- This is an approximation. Ideally we sum weighs from all anchors?
-               -- Or logic: "How strongly is this atom pulled by the anchor set?"
-               -- Let's take the BEST single bond for now (MAX).
-               
-               -- Re-calc shared tags for the specific anchor-target pair?
-               -- That requires joining tags again. Expensive.
-               
-               -- Optimization: Use the aggregate shared_tag_count as a proxy for 'mass'
-               -- and modulate by the 'closest' anchor in time/space.
-               
-               -- Better approach for SQL: Cross Join anchors is O(N*M).
-               -- With 20 anchors and 1000 candidates, it's 20k rows. Fine.
-               
-               -- Wait, we grouped by t.atom_id. We can't easily access specific anchor stats without cross join inside.
-               -- Let's stick to the plan: Cross Join anchor_stats.
-               
-               -- Formula:
-               -- Weight = (SharedTagsWithAnchor) * TimeDecay * SimHashSim
-               
-               -- Issue: 'shared_tag_count' above is Total Shared with *Any* anchor.
-               -- We want Shared with *Specific* anchor.
-               -- That requires a join on tags for both.
-               
-               -- Simplified Physics V1 in SQL:
-               -- 1. Count total shared tags (Magnetism)
-               -- 2. Find 'closest' anchor by Time/Simhash to penalize.
-               -- score = (TotalSharedTags) * MAX( TimeDecay * SimHashSim )
-            )
-          ) as raw_score_placeholder,
-          
-          -- REAL CALCULATION
-          -- We just select the generic attributes and do a sub-ranking?
-          -- OR we do the Cross Join.
-          
-          MAX(ast.anchor_id) as best_anchor_id -- Placeholder, see below
-          
-      FROM tags t
-      JOIN anchor_tags at ON t.tag = at.tag
-      JOIN atoms a ON t.atom_id = a.id
-      CROSS JOIN anchor_stats ast -- Tie every candidate to every anchor
-      WHERE t.atom_id NOT IN (${placeHolders})
-      GROUP BY t.atom_id, a.id 
-          -- Grouping by a.id includes all cols technically, but PGlite is strict.
-          -- Actually we should Group by t.atom_id and agg the rest.
-      
-      -- Refined Query Structure for Correctness:
-      -- We need pairwise scores.
-      -- (Candidate) --[Tags]--(Anchor)
-    `;
-
-    // Correct Efficient Query:
-    // 1. Find Candidates (share tags).
-    // 2. Score Candidates against Anchors.
-
-    // Since we can't easily count "Shared Tags per Anchor" without expanding the join table massively,
-    // We will use the "Total Shared Tags" (Set Overlap) as the mass.
-    // And "Min Distance to Centroid" (or Closest Anchor) as the decay.
+    const thresholdParamIdx = 2;
+    const limitParamIdx = 3;
 
     const refinedQuery = `
-      WITH anchor_stats AS (
+      WITH anchor_ids AS (
+        SELECT unnest($1::text[]) as id
+      ),
+      -- Resolve both Atoms and Molecules to a unified set of Atom IDs
+      -- For molecules, we only resolve to atoms that overlap with the molecule's byte range (+/- 500 bytes)
+      -- Resolve both Atoms and Molecules to a unified set of Atom IDs
+      -- For molecules, we only resolve to atoms that overlap with the molecule's byte range (+/- 500 bytes)
+      resolved_atoms AS (
+        (SELECT id as atom_id FROM atoms WHERE id IN (SELECT id FROM anchor_ids))
+        UNION
+        (SELECT a.id as atom_id FROM atoms a
+         JOIN molecules m ON a.compound_id = m.compound_id
+         JOIN anchor_ids ai ON m.id = ai.id
+         WHERE m.id IN (SELECT id FROM anchor_ids)
+         AND a.start_byte >= (m.start_byte - 500)
+         AND a.end_byte <= (m.end_byte + 500)
+         LIMIT 100)
+      ),
+      anchor_stats AS (
         SELECT 
           id as anchor_id, 
-          timestamp as anchor_ts, 
-          ('x' || ltrim(COALESCE(NULLIF(simhash, '0'), '0'), '0x'))::bit(64)::bigint as anchor_hash
+          timestamp as anchor_ts,
+          simhash as anchor_sh
         FROM atoms 
-        WHERE id IN (${placeHolders})
+        WHERE id IN (SELECT atom_id FROM resolved_atoms)
+        LIMIT 20 -- Ultra-stable cap
       ),
-      -- Candidates are atoms sharing tags with anchors
+      -- 1. Candidate Generation
       candidates AS (
-         SELECT t.atom_id, COUNT(DISTINCT t.tag) as shared_tags
-         FROM tags t
-         WHERE t.tag IN (SELECT DISTINCT tag FROM tags WHERE atom_id IN (${placeHolders}))
-         AND t.atom_id NOT IN (${placeHolders})
-         GROUP BY t.atom_id
+         -- Part A: Tag-based
+         (SELECT t.atom_id, a.timestamp, a.simhash, COUNT(DISTINCT t.tag) as shared_tags, 0.0 as physical_bonus
+          FROM tags t
+          JOIN atoms a ON t.atom_id = a.id
+          WHERE t.tag IN (SELECT DISTINCT tag FROM tags WHERE atom_id IN (SELECT anchor_id FROM anchor_stats))
+          AND t.atom_id NOT IN (SELECT anchor_id FROM anchor_stats)
+          GROUP BY t.atom_id, a.timestamp, a.simhash
+          LIMIT 100)
+         UNION ALL
+         -- Part B: Physical proximity
+         (SELECT a.id as atom_id, a.timestamp, a.simhash, 0 as shared_tags, 1.0 as physical_bonus
+          FROM atoms a
+          JOIN anchor_stats ast ON a.compound_id = (SELECT compound_id FROM atoms WHERE id = ast.anchor_id)
+          WHERE a.id NOT IN (SELECT anchor_id FROM anchor_stats)
+          AND a.start_byte >= ((SELECT start_byte FROM atoms WHERE id = ast.anchor_id) - 1000)
+          AND a.end_byte <= ((SELECT end_byte FROM atoms WHERE id = ast.anchor_id) + 1000)
+          LIMIT 100)
+      ),
+      -- 2. Aggregate candidate scores
+      scored_candidates AS (
+        SELECT 
+           c.atom_id,
+           c.timestamp,
+           c.simhash,
+           SUM(c.shared_tags) as total_shared_tags,
+           MAX(c.physical_bonus) as physical_bonus
+        FROM candidates c
+        GROUP BY c.atom_id, c.timestamp, c.simhash
+      ),
+      -- 3. Physics Weighting (Unified Field Equation)
+      weighted_ids AS (
+        SELECT 
+           sc.atom_id,
+           MAX(
+              ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) * 
+              EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
+              (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+           ) as gravity_score,
+           MAX(ast.anchor_id) as best_anchor_id,
+           MAX(sc.total_shared_tags) as shared_tags
+        FROM scored_candidates sc
+        CROSS JOIN anchor_stats ast
+        GROUP BY sc.atom_id
+        HAVING MAX(
+              ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) * 
+              EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
+              (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+           ) > $${thresholdParamIdx}
+        ORDER BY gravity_score DESC
+        LIMIT $${limitParamIdx}
       )
+      -- 4. Final projection
       SELECT 
-         c.atom_id,
-         c.shared_tags,
+         w.atom_id,
+         w.shared_tags,
          a.timestamp,
          a.simhash,
          a.content,
@@ -365,44 +355,13 @@ export class PhysicsTagWalker {
          a.compound_id,
          a.start_byte,
          a.end_byte,
-         
-         -- Calculate Max Gravity for this candidate against all anchors
-         MAX(
-            c.shared_tags * 
-            ${this.DAMPING_FACTOR} *
-            EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(a.timestamp - ast.anchor_ts) / 3600000.0)) *
-            (1.0 - (
-                bit_count(
-                   ((('x' || ltrim(COALESCE(NULLIF(a.simhash, '0'), '0'), '0x'))::bit(64)::bigint) # ast.anchor_hash)::bit(64)
-                )::float / 64.0
-            ))
-         ) as gravity_score,
-         
-         -- Keep track of which anchor pulled it closest (Max ID by score ideally, but MAX(ID) is approx)
-         MAX(ast.anchor_id) as best_anchor_id 
-         
-      FROM candidates c
-      JOIN atoms a ON c.atom_id = a.id
-      CROSS JOIN anchor_stats ast
-      GROUP BY 
-          c.atom_id, c.shared_tags, a.timestamp, a.simhash, 
-          a.content, a.source_path, a.tags, a.provenance, 
-          a.type, a.compound_id, a.start_byte, a.end_byte
-      HAVING MAX(
-            c.shared_tags * 
-            ${this.DAMPING_FACTOR} *
-            EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(a.timestamp - ast.anchor_ts) / 3600000.0)) *
-            (1.0 - (
-                bit_count(
-                   ((('x' || ltrim(COALESCE(NULLIF(a.simhash, '0'), '0'), '0x'))::bit(64)::bigint) # ast.anchor_hash)::bit(64)
-                )::float / 64.0
-            ))
-         ) > $${limitParamIdx} -- Threshold check
-      ORDER BY gravity_score DESC
-      LIMIT $${thresholdParamIdx}
+         w.gravity_score,
+         w.best_anchor_id
+      FROM weighted_ids w
+      JOIN atoms a ON w.atom_id = a.id
     `;
 
-    const params = [...cappedIds, threshold, limit];
+    const params = [cappedIds, threshold, limit];
 
     try {
       const result = await sqlWithTimeout<any>(refinedQuery, params, QUERY_TIMEOUT_MS);
@@ -411,7 +370,7 @@ export class PhysicsTagWalker {
       if (elapsed > 5000) {
         console.warn(`[PhysicsWalker] SQL Weighting took ${elapsed}ms for ${anchorIds.length} anchors`);
       } else {
-        console.log(`[PhysicsWalker] SQL Weighting: ${result.rows?.length || 0} results in ${elapsed}ms`);
+        console.log(`[PhysicsWalker] SQL Weighting: ${result.rows?.length || 0} results in ${elapsed} ms`);
       }
 
       if (!result.rows) return [];
@@ -433,7 +392,7 @@ export class PhysicsTagWalker {
         bestAnchorId: row.best_anchor_id
       }));
     } catch (e) {
-      console.error(`[PhysicsWalker] SQL Weighting failed after ${Date.now() - startTime}ms:`, e);
+      console.error(`[PhysicsWalker] SQL Weighting failed after ${Date.now() - startTime} ms: `, e);
       return [];
     }
   }
@@ -522,33 +481,33 @@ export class PhysicsTagWalker {
 
     const startTime = Date.now();
     const query = `
-      WITH anchor_tags AS (
-        SELECT DISTINCT unnest($1::text[]) AS tag
-      )
-      SELECT 
-          t.atom_id,
-          COUNT(DISTINCT t.tag) AS shared_tag_count,
-          a.timestamp,
-          a.simhash,
-          a.content,
-          a.source_path,
-          a.tags,
-          a.provenance,
-          a.type,
-          a.compound_id,
-          a.start_byte,
-          a.end_byte
+      WITH anchor_tags AS(
+      SELECT DISTINCT unnest($1:: text[]) AS tag
+    )
+    SELECT
+    t.atom_id,
+      COUNT(DISTINCT t.tag) AS shared_tag_count,
+        a.timestamp,
+        a.simhash,
+        a.content,
+        a.source_path,
+        a.tags,
+        a.provenance,
+        a.type,
+        a.compound_id,
+        a.start_byte,
+        a.end_byte
       FROM tags t
       JOIN anchor_tags at ON t.tag = at.tag
       JOIN atoms a ON t.atom_id = a.id
-      GROUP BY 
-          t.atom_id, a.timestamp, a.simhash,
-          a.content, a.source_path, a.tags,
-          a.provenance, a.type,
-          a.compound_id, a.start_byte, a.end_byte
+      GROUP BY
+    t.atom_id, a.timestamp, a.simhash,
+      a.content, a.source_path, a.tags,
+      a.provenance, a.type,
+      a.compound_id, a.start_byte, a.end_byte
       ORDER BY shared_tag_count DESC
       LIMIT $2
-    `;
+      `;
 
     try {
       const result = await sqlWithTimeout<any>(query, [anchorTags, limit], QUERY_TIMEOUT_MS);
@@ -568,7 +527,7 @@ export class PhysicsTagWalker {
         gravityScore: 0 // Placeholder
       }));
     } catch (e) {
-      console.error(`[PhysicsWalker] getConnectedNodesFromTags failed:`, e);
+      console.error(`[PhysicsWalker] getConnectedNodesFromTags failed: `, e);
       return [];
     }
   }

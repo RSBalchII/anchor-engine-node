@@ -16,16 +16,57 @@ export class NlpService {
   private static readonly MODEL_NAME = 'Xenova/all-mpnet-base-v2'; // 768 dimensions
   private static readonly EMBEDDING_CACHE = new Map<string, number[]>();
   private static readonly CACHE_SIZE_LIMIT = 100; // Maximum number of cached embeddings
+  
+  // Idle timeout for model unloading
+  private static idleTimeout: NodeJS.Timeout | null = null;
+  private static readonly IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  private static isModelLoaded: boolean = false;
+
+  /**
+   * Schedule model unload after idle period
+   */
+  private static scheduleModelUnload(): void {
+    if (this.idleTimeout) {
+      clearTimeout(this.idleTimeout);
+    }
+    
+    this.idleTimeout = setTimeout(() => {
+      this.unloadModel();
+    }, this.IDLE_TIMEOUT_MS);
+  }
+
+  /**
+   * Unload the embedding model to free memory
+   */
+  public static async unloadModel(): Promise<void> {
+    if (this.embeddingPipeline) {
+      console.log('[NLP] Unloading embedding model to free memory...');
+      this.embeddingPipeline = null;
+      this.EMBEDDING_CACHE.clear();
+      this.isModelLoaded = false;
+      console.log('[NLP] Model unloaded. Memory freed.');
+    }
+  }
+
+  /**
+   * Check if model is currently loaded
+   */
+  public static isModelLoadedStatus(): boolean {
+    return this.isModelLoaded;
+  }
 
   /**
    * Get vector embedding for text with caching to reduce CPU usage
    */
   public async getEmbedding(text: string): Promise<number[]> {
     const timer = new Timer('NLP-Service');
-    
+
+    // Schedule model unload after use (idle timeout)
+    NlpService.scheduleModelUnload();
+
     // Create a hash/key for the text to use for caching
     const textHash = this.generateTextHash(text);
-    
+
     // Check if embedding is already cached
     if (NlpService.EMBEDDING_CACHE.has(textHash)) {
       console.log('[NLP] Using cached embedding');
@@ -49,6 +90,7 @@ export class NlpService {
       NlpService.embeddingPipeline = await pipeline('feature-extraction', NlpService.MODEL_NAME);
       timer?.logLap('Model loaded');
       console.log('[NLP] Model loaded.');
+      NlpService.isModelLoaded = true;
     }
 
     timer?.log('Starting embedding generation');

@@ -29,17 +29,20 @@ export class ContextInflator {
     static async inflate(results: SearchResult[], totalBudget?: number, radius: number = 0): Promise<SearchResult[]> {
         if (results.length === 0) return [];
 
+        // 0. Pre-sort results by score to ensure top items get priority
+        results.sort((a, b) => (b.score || 0) - (a.score || 0));
+
         // Dynamic radius: if caller didn't specify, scale based on budget and result count
         // Target: fill the budget evenly across results
-        let effectiveRadius = radius;
-        if (effectiveRadius <= 0 && totalBudget && results.length > 0) {
+        let baseRadius = radius;
+        if (baseRadius <= 0 && totalBudget && results.length > 0) {
             const targetWindowSize = Math.floor(totalBudget / Math.min(results.length, 10));
-            effectiveRadius = Math.max(200, Math.floor(targetWindowSize / 2));
+            baseRadius = Math.max(200, Math.floor(targetWindowSize / 2));
             // Cap to prevent massive reads
-            effectiveRadius = Math.min(effectiveRadius, 5000);
+            baseRadius = Math.min(baseRadius, 5000);
         }
         // Absolute minimum radius so we don't get zero-width slices
-        effectiveRadius = Math.max(effectiveRadius, 200);
+        baseRadius = Math.max(baseRadius, 200);
 
         // Cache: compound_id → { filePath, provenance } so we only look up paths once
         const compoundPathCache = new Map<string, { filePath: string, provenance: string } | null>();
@@ -50,7 +53,14 @@ export class ContextInflator {
         let skippedAlready = 0;
         let skippedNoCoords = 0;
 
-        for (const res of results) {
+        for (let i = 0; i < results.length; i++) {
+            const res = results[i];
+
+            // Smart Radius Allocation:
+            // Top 3 results get full radius.
+            // Rest get 50% radius to save budget while maintaining breadth.
+            const effectiveRadius = (i < 3) ? baseRadius : Math.floor(baseRadius * 0.5);
+
             // 1. Skip results already inflated from disk (e.g., by inflateFromAtomPositions)
             if (res.is_inflated) {
                 processedResults.push(res);
@@ -100,9 +110,62 @@ export class ContextInflator {
             }
         }
 
-        console.log(`[ContextInflator] inflate(): ${inflatedFromDisk} from disk, ${inflatedFromDb} from DB fallback, ${skippedAlready} already inflated, ${skippedNoCoords} no coordinates. Radius: ${effectiveRadius}`);
+        console.log(`[ContextInflator] inflate(): ${inflatedFromDisk} from disk, ${inflatedFromDb} from DB fallback, ${skippedAlready} already inflated, ${skippedNoCoords} no coordinates. Base Radius: ${baseRadius}`);
 
-        return processedResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+        return processedResults; // Already sorted
+    }
+
+    /**
+     * Helper: Expand logical window to nearest sentence boundary
+     */
+    private static snapToSentenceBoundary(content: string, targetStart: number, targetEnd: number): { start: number, end: number, text: string } {
+        // We look for sentence terminators: . ! ? followed by space or newline
+        // effectively we are operating on a "Chunk" of text that is likely larger than the target window
+        // targetStart/End are indices relative to the "content" string provided.
+
+        // 1. Snap Start (Move backwards to find previous sentence end)
+        let snappedStart = 0;
+        // Search backwards from targetStart for a sentence terminator
+        // We want the Start of the *current* sentence, so we look for the *end* of the *previous* sentence
+        // validation: ensure we don't go back too far? Content is already a window.
+
+        // Simple heuristic: valid sentence starts after (.!?)\s
+        const preceeding = content.substring(0, targetStart);
+        const matchStart = preceeding.match(/([.!?]\s|\n\s*\n)(?=[^.!?\n]*$)/);
+
+        if (matchStart && matchStart.index !== undefined) {
+            snappedStart = matchStart.index + matchStart[0].length;
+        } else {
+            // If no sentence end found, maybe just snap to first spaces
+            const spaceMatch = preceeding.match(/\s(?=[^\s]*$)/);
+            if (spaceMatch && spaceMatch.index !== undefined) {
+                snappedStart = spaceMatch.index + 1;
+            } else {
+                snappedStart = 0; // consistent with start of string
+            }
+        }
+
+        // 2. Snap End (Move forwards to find next sentence end)
+        let snappedEnd = content.length;
+        const succeeding = content.substring(targetEnd);
+        // Look for the *first* sentence terminator
+        const matchEnd = succeeding.match(/([.!?]\s|\n\s*\n)/);
+
+        if (matchEnd && matchEnd.index !== undefined) {
+            snappedEnd = targetEnd + matchEnd.index + 1; // Include the punctuation
+        } else {
+            // Fallback to next space
+            const spaceMatch = succeeding.match(/\s/);
+            if (spaceMatch && spaceMatch.index !== undefined) {
+                snappedEnd = targetEnd + spaceMatch.index;
+            }
+        }
+
+        return {
+            start: snappedStart,
+            end: snappedEnd,
+            text: content.substring(snappedStart, snappedEnd).trim()
+        };
     }
 
     /**
@@ -151,36 +214,43 @@ export class ContextInflator {
             const stats = fs.statSync(absolutePath);
             const fileSize = stats.size;
 
-            const start = Math.max(0, (res.start_byte ?? 0) - radius);
-            const end = Math.min(fileSize, (res.end_byte ?? fileSize) + radius);
-            const chunkLength = end - start;
+            // Over-read by 1000 bytes on each side to find boundaries
+            const lookahead = 1000;
+            const rawStart = Math.max(0, (res.start_byte ?? 0) - radius - lookahead);
+            const rawEnd = Math.min(fileSize, (res.end_byte ?? fileSize) + radius + lookahead);
+            const chunkLength = rawEnd - rawStart;
+
             if (chunkLength <= 0) return null;
 
             const buffer = Buffer.alloc(chunkLength);
             const fd = fs.openSync(absolutePath, 'r');
             try {
-                fs.readSync(fd, buffer, 0, chunkLength, start);
+                fs.readSync(fd, buffer, 0, chunkLength, rawStart);
             } finally {
                 fs.closeSync(fd);
             }
 
-            let content = buffer.toString('utf-8');
+            const rawContent = buffer.toString('utf-8');
 
-            // Clean partial words at boundaries
-            if (start > 0) {
-                const firstSpace = content.indexOf(' ');
-                if (firstSpace !== -1 && firstSpace < 50) {
-                    content = content.substring(firstSpace + 1);
-                }
-            }
-            if (end < fileSize) {
-                const lastSpace = content.lastIndexOf(' ');
-                if (lastSpace > content.length - 50) {
-                    content = content.substring(0, lastSpace);
-                }
-            }
+            // Calculate where our "Ideal" window sits within this raw buffer
+            // ideal window start (relative to buffer) = (res.start - radius) - rawStart
+            // But actually we just want to snap around the center roughly?
+            // Let's rely on snapToSentenceBoundary relative to the *whole buffer*.
+            // We want the text that *contains* the hit (res.start...res.end).
 
-            return content.trim().length > 0 ? content : null;
+            // Relative offsets of the HIT within the buffer
+            const hitStartRel = Math.max(0, (res.start_byte ?? 0) - rawStart);
+            const hitEndRel = Math.min(chunkLength, (res.end_byte ?? fileSize) - rawStart);
+
+            // Our "Target" window is the hit +/- radius
+            const targetStartRel = Math.max(0, hitStartRel - radius);
+            const targetEndRel = Math.min(chunkLength, hitEndRel + radius);
+
+            // Snap!
+            const snapped = this.snapToSentenceBoundary(rawContent, targetStartRel, targetEndRel);
+
+            return snapped.text.length > 0 ? snapped.text : null;
+
         } catch {
             return null;
         }
@@ -200,14 +270,27 @@ export class ContextInflator {
             const compoundBody = result.rows[0].compound_body as string;
             if (!compoundBody) return null;
 
-            const contentBuffer = Buffer.from(compoundBody, 'utf-8');
-            const start = Math.max(0, (res.start_byte ?? 0) - radius);
-            const end = Math.min(contentBuffer.length, (res.end_byte ?? contentBuffer.length) + radius);
+            // Similar logic to inflateFromDisk but with string
+            const lookahead = 1000;
+            const bodyLen = compoundBody.length; // Approximate byte check? JS strings are UTF16-ish. 
+            // Assuming 1 char = 1 byte index for simplicity roughly, or we blindly trust indices.
 
-            const sliceBuffer = contentBuffer.subarray(start, end);
-            const extracted = sliceBuffer.toString('utf-8');
+            // Over-read logic
+            const rawStart = Math.max(0, (res.start_byte ?? 0) - radius - lookahead);
+            const rawEnd = Math.min(bodyLen, (res.end_byte ?? bodyLen) + radius + lookahead);
 
-            return extracted.trim().length > 0 ? extracted : null;
+            const rawChunk = compoundBody.substring(rawStart, rawEnd);
+
+            // Relative offsets
+            const hitStartRel = Math.max(0, (res.start_byte ?? 0) - rawStart);
+            const hitEndRel = Math.min(rawChunk.length, (res.end_byte ?? bodyLen) - rawStart);
+
+            const targetStartRel = Math.max(0, hitStartRel - radius);
+            const targetEndRel = Math.min(rawChunk.length, hitEndRel + radius);
+
+            const snapped = this.snapToSentenceBoundary(rawChunk, targetStartRel, targetEndRel);
+
+            return snapped.text.length > 0 ? snapped.text : null;
         } catch {
             return null;
         }
@@ -496,13 +579,17 @@ export class ContextInflator {
      * Fetch additional context to fill the token budget with less directly connected but still relevant data
      */
     private static async fetchAdditionalContext(baseResults: SearchResult[], remainingBudget: number): Promise<SearchResult[]> {
-        if (remainingBudget <= 0) return [];
+        // Only run if we have significant budget left (> 50% of typical large window)
+        // or if we have very primitive results.
+        if (remainingBudget < 1000) return [];
 
         // Extract tags and buckets from base results to find related content
         const allTags = new Set<string>();
         const allBuckets = new Set<string>();
 
-        for (const result of baseResults) {
+        // We only consider tags/buckets from TOP results to avoid drift
+        const topResults = baseResults.slice(0, 5);
+        for (const result of topResults) {
             if (result.tags) {
                 result.tags.forEach(tag => allTags.add(tag));
             }
@@ -562,7 +649,7 @@ WHERE `;
         }
 
         // Limit to avoid fetching too much
-        fullQuery += ` ORDER BY timestamp DESC LIMIT 20`;
+        fullQuery += ` ORDER BY timestamp DESC LIMIT 10`;
 
         try {
             const result = await db.run(fullQuery, params);

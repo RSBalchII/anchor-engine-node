@@ -11,11 +11,41 @@ import { config } from '../../config/index.js';
 
 let nerPipeline: any = null;
 let lastUsed: number = 0;
-const UNLOAD_TIMEOUT = config.SERVICES.TAG_INFECTOR_UNLOAD_TIMEOUT; // Configurable timeout for inactivity before unloading
+let idleTimeout: NodeJS.Timeout | null = null;
+const UNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes (consistent with NLP service)
+const isModelLoaded = false;
+
+/**
+ * Schedule model unload after idle period
+ */
+function scheduleModelUnload() {
+  if (idleTimeout) {
+    clearTimeout(idleTimeout);
+  }
+  
+  idleTimeout = setTimeout(() => {
+    cleanupPipeline();
+  }, UNLOAD_TIMEOUT);
+}
+
+/**
+ * Unload the NER model to free memory
+ */
+export async function unloadModel(): Promise<void> {
+  await cleanupPipeline();
+}
+
+/**
+ * Check if model is currently loaded
+ */
+export function isModelLoadedStatus(): boolean {
+  return nerPipeline !== null;
+}
 
 async function initializePipeline() {
     if (nerPipeline) {
         lastUsed = Date.now();
+        scheduleModelUnload(); // Reset idle timer on use
         return nerPipeline;
     }
 
@@ -47,6 +77,7 @@ async function initializePipeline() {
     console.log('[NER] Model loaded successfully.');
 
     lastUsed = Date.now();
+    scheduleModelUnload(); // Start idle timer
     return nerPipeline;
 }
 
@@ -64,13 +95,6 @@ async function cleanupPipeline() {
         }
     }
 }
-
-// Set up periodic check to unload model when inactive
-setInterval(() => {
-    if (nerPipeline && (Date.now() - lastUsed) > UNLOAD_TIMEOUT) {
-        cleanupPipeline();
-    }
-}, config.SERVICES.TAG_GLINER_CHECK_INTERVAL); // Configurable check interval
 
 export async function extractEntitiesWithGLiNER(text: string, _entities: string[] = []): Promise<string[]> {
     try {

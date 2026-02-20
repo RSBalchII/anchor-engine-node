@@ -31,10 +31,8 @@ interface Config {
 
   // Tuning
   DEFAULT_SEARCH_CHAR_LIMIT: number;
-  DREAM_INTERVAL_MS: number;
   SIMILARITY_THRESHOLD: number;
   TOKEN_LIMIT: number;
-  DREAMER_BATCH_SIZE: number;
 
   VECTOR_INGEST_BATCH: number;
 
@@ -51,7 +49,6 @@ interface Config {
   // Context Relevance
   CONTEXT_RELEVANCE_WEIGHT: number;
   CONTEXT_RECENCY_WEIGHT: number;
-  DREAMER_CLUSTERING_GAP_MS: number;
 
   // Infrastructure
   REDIS: {
@@ -146,10 +143,8 @@ const DEFAULT_CONFIG: Config = {
 
   // Tuning
   DEFAULT_SEARCH_CHAR_LIMIT: 524288,
-  DREAM_INTERVAL_MS: 3600000, // 60 minutes
   SIMILARITY_THRESHOLD: 0.8,
   TOKEN_LIMIT: 1000000,
-  DREAMER_BATCH_SIZE: 5,
 
   VECTOR_INGEST_BATCH: 50,
 
@@ -166,7 +161,6 @@ const DEFAULT_CONFIG: Config = {
   // Context Relevance
   CONTEXT_RELEVANCE_WEIGHT: 0.7,
   CONTEXT_RECENCY_WEIGHT: 0.3,
-  DREAMER_CLUSTERING_GAP_MS: 900000, // 15 mins
 
   // Infrastructure
   REDIS: {
@@ -302,11 +296,6 @@ function loadConfig(): Config {
         if (userSettings.llm.vision_max_tokens !== undefined) loadedConfig.MODELS.VISION.MAX_TOKENS = userSettings.llm.vision_max_tokens;
       }
 
-      // Load Dreamer Settings
-      if (userSettings.dreamer) {
-        if (userSettings.dreamer.batch_size) loadedConfig.DREAMER_BATCH_SIZE = userSettings.dreamer.batch_size;
-      }
-
       // Load Search Settings (single consolidated block)
       if (userSettings.search) {
         if (userSettings.search.strategy) loadedConfig.SEARCH.strategy = userSettings.search.strategy;
@@ -343,7 +332,6 @@ function loadConfig(): Config {
       if (userSettings.context) {
         if (userSettings.context.relevance_weight !== undefined) loadedConfig.CONTEXT_RELEVANCE_WEIGHT = userSettings.context.relevance_weight;
         if (userSettings.context.recency_weight !== undefined) loadedConfig.CONTEXT_RECENCY_WEIGHT = userSettings.context.recency_weight;
-        if (userSettings.context.clustering_gap_ms !== undefined) loadedConfig.DREAMER_CLUSTERING_GAP_MS = userSettings.context.clustering_gap_ms;
       }
 
       // Load Service Settings
