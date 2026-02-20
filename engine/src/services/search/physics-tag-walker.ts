@@ -321,12 +321,15 @@ export class PhysicsTagWalker {
       ),
       -- 3. Physics Weighting (Unified Field Equation)
       weighted_ids AS (
-        SELECT 
+        SELECT
            sc.atom_id,
            MAX(
-              ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) * 
-              EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
-              (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+              -- NORMALIZED: Cap gravity score at 1.0 using GREATEST and proper scaling
+              GREATEST(0.0, LEAST(1.0,
+                 ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) *
+                 EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
+                 (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+              ))
            ) as gravity_score,
            MAX(ast.anchor_id) as best_anchor_id,
            MAX(sc.total_shared_tags) as shared_tags
@@ -334,9 +337,12 @@ export class PhysicsTagWalker {
         CROSS JOIN anchor_stats ast
         GROUP BY sc.atom_id
         HAVING MAX(
-              ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) * 
-              EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
-              (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+              -- Same normalization for HAVING clause
+              GREATEST(0.0, LEAST(1.0,
+                 ( (sc.total_shared_tags * ${this.DAMPING_FACTOR}) + (sc.physical_bonus * 0.1) ) *
+                 EXP(-${this.TIME_DECAY_LAMBDA} * (ABS(sc.timestamp - ast.anchor_ts) / 3600000.0)) *
+                 (1.0 - (bit_count(('x' || LPAD(sc.simhash, 16, '0'))::bit(64) # ('x' || LPAD(ast.anchor_sh, 16, '0'))::bit(64)) / 64.0))
+              ))
            ) > $${thresholdParamIdx}
         ORDER BY gravity_score DESC
         LIMIT $${limitParamIdx}

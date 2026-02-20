@@ -13,9 +13,37 @@ import { db } from '../../core/db.js';
 import { NOTEBOOK_DIR } from '../../config/paths.js';
 import { ingestAtoms } from './ingest.js';
 import { config } from '../../config/index.js';
+import { pathManager } from '../../utils/path-manager.js';
 
 let watcher: chokidar.FSWatcher | null = null;
 const IGNORE_PATTERNS = /(^|[\/\\])\../; // Ignore dotfiles
+
+// Post-ingestion synonym generation
+let ingestionTimeout: NodeJS.Timeout | null = null;
+const INGESTION_DEBOUNCE_MS = 30000; // Wait 30 seconds after last ingestion
+
+async function triggerPostIngestionSynonyms() {
+    // Clear any pending timeout
+    if (ingestionTimeout) {
+        clearTimeout(ingestionTimeout);
+    }
+    
+    // Set new timeout to generate synonyms after ingestion stops
+    ingestionTimeout = setTimeout(async () => {
+        console.log('[Watchdog] Post-ingestion synonym generation starting...');
+        try {
+            const { AutoSynonymGenerator } = await import('../synonyms/auto-synonym-generator.js');
+            const generator = new AutoSynonymGenerator();
+            const synonyms = await generator.generateSynonymRings();
+            
+            const synonymPath = path.join(pathManager.getNotebookDir(), 'synonym-ring-auto.json');
+            await generator.saveSynonymRings(synonyms, synonymPath);
+            console.log(`[Watchdog] ✅ Post-ingestion synonym rings saved to ${synonymPath}`);
+        } catch (error: any) {
+            console.warn('[Watchdog] Post-ingestion synonym generation failed:', error.message);
+        }
+    }, INGESTION_DEBOUNCE_MS);
+}
 
 export async function startWatchdog() {
     if (watcher) return;
@@ -275,6 +303,9 @@ async function processFile(filePath: string, event: string) {
             const { createMirror } = await import('../mirror/mirror.js');
             await createMirror();
         } catch (e: any) { console.error(`[Watchdog] Mirror trigger failed:`, e.message); }
+
+        // Trigger post-ingestion synonym generation (debounced)
+        triggerPostIngestionSynonyms();
 
     } catch (e: any) {
         console.error(`[Watchdog] Error processing ${filePath}:`, e.message);

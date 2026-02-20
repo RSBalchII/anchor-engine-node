@@ -186,7 +186,8 @@ export function serializeForLLM(pkg: ContextPackage, charBudget?: number): strin
     for (const node of pkg.anchors) {
       if (currentChars >= budget * 0.95) break;
 
-      const truncatedContent = truncateContent(node.content, Math.min(500, budget - currentChars - 100));
+      const maxAtomChars = budget > 50000 ? 2500 : 500;
+      const truncatedContent = truncateContent(node.content, Math.min(maxAtomChars, budget - currentChars - 100));
       const tagsStr = node.tags.length > 0 ? node.tags.slice(0, 5).join(', ') : 'none';
       
       const line = `[N:${shortId(node.id)}] (freq:${node.physics.frequency}) "${truncatedContent}"\n   -> [Themes: ${tagsStr}]\n`;
@@ -203,7 +204,8 @@ export function serializeForLLM(pkg: ContextPackage, charBudget?: number): strin
     for (const node of pkg.associations) {
       if (currentChars >= budget * 0.95) break;
 
-      const truncatedContent = truncateContent(node.content, Math.min(400, budget - currentChars - 100));
+      const maxAssocChars = budget > 50000 ? 1500 : 400;
+      const truncatedContent = truncateContent(node.content, Math.min(maxAssocChars, budget - currentChars - 100));
       const typeLabel = connectionTypeLabel(node.physics.connection_type);
       const anchorRef = node.physics.source_anchor_id ? shortId(node.physics.source_anchor_id) : '?';
       const reason = node.physics.link_reason || node.physics.connection_type;
@@ -238,7 +240,11 @@ function truncateContent(content: string, maxChars: number): string {
   if (bestCut > maxChars * 0.5) {
     return truncated.substring(0, bestCut + 1).replace(/\n/g, ' ').trim();
   }
-  return truncated.replace(/\n/g, ' ').trim() + '...';
+  
+  // Try to cut at the last space to avoid cutting mid-word
+  const lastSpace = truncated.lastIndexOf(' ');
+  const cutIndex = lastSpace > maxChars * 0.5 ? lastSpace : maxChars;
+  return truncated.substring(0, cutIndex).replace(/\n/g, ' ').trim() + '...';
 }
 
 /**

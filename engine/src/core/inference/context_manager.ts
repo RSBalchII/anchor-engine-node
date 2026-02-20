@@ -126,7 +126,10 @@ export function composeRollingContext(
                     currentChars += slicedContent.length;
                 } else {
                     // Fallback to hard cut if no punctuation found nearby
-                    const slicedContent = atom.content.substring(0, remaining) + "...";
+                    // Try to cut at the last space to avoid cutting mid-word
+                    const lastSpace = safeContent.lastIndexOf(' ');
+                    const cutIndex = lastSpace > (remaining * 0.5) ? lastSpace : remaining;
+                    const slicedContent = atom.content.substring(0, cutIndex) + "...";
                     selectedAtoms.push({ ...atom, content: slicedContent });
                     currentChars += slicedContent.length;
                 }

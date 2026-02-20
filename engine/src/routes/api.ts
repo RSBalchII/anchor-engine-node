@@ -246,10 +246,27 @@ export function setupRoutes(app: Application) {
 
       const strategy = (req.body as any).strategy || 'standard';
 
+      // Standard 113: Dual-Strategy Search (Automatic Max-Recall for large budgets)
+      // Automatically switch to max-recall for queries over 16k tokens (65k chars)
+      const tokenBudget = (req.body as any).token_budget || 0;
+      const maxChars = body.max_chars || 100000;
+      const estimatedTokens = maxChars / 4;
+      
+      let useMaxRecall = strategy === 'max-recall';
+      if (!useMaxRecall && estimatedTokens > 16000) {
+        useMaxRecall = true;
+        StructuredLogger.info('SEARCH_AUTO_MAX_RECALL', {
+          reason: 'token_budget > 16k',
+          estimated_tokens: estimatedTokens,
+          max_chars: maxChars
+        });
+      }
+
       StructuredLogger.info('SEARCH_PROCESSING', {
         query: body.query.substring(0, 100),
         query_length: body.query.length,
-        strategy
+        strategy: useMaxRecall ? 'max-recall' : 'standard',
+        estimated_tokens: estimatedTokens
       });
 
       // Handle legacy params
@@ -263,10 +280,10 @@ export function setupRoutes(app: Application) {
 
       // Enhanced Search Strategy (Standard 086)
       // Support both standard and max-recall strategies
-      StructuredLogger.info('SEARCH_STRATEGY', { strategy });
+      StructuredLogger.info('SEARCH_STRATEGY', { strategy: useMaxRecall ? 'max-recall' : 'standard' });
 
       let result;
-      if (strategy === 'max-recall') {
+      if (useMaxRecall) {
         // Max Recall Strategy: Zero temporal decay, 3 hops, no relevance filtering
         result = await smartChatSearch(
           body.query,

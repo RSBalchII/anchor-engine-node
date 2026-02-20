@@ -161,10 +161,21 @@ export async function findAnchors(
       // Strategy 1.1: If AND fails and query has multiple terms, retry with OR (Fuzzy Fallback)
       if (molResult.rows.length === 0 && tsQueryString.includes('&')) {
         console.log('[Search] Initial AND query yielded 0 results. Retrying with OR-fuzzy logic...');
-        const orQueryString = tsQueryString.split(' & ').join(' | ');
-        const orQuery = moleculeQuery.replace(/\$1/g, '$1'); // Keep same param index
-        const orParams = [orQueryString, ...moleculeParams.slice(1)];
-        molResult = await db.run(orQuery, orParams);
+        
+        // To prevent massive Cartesian product explosions in SQL, we limit the OR fallback
+        // to the top 8 longest words (which are statistically more likely to be unique/important).
+        const allTerms = sanitizedQuery.split(/\s+/).filter(t => t.length > 3);
+        const uniqueTerms = Array.from(new Set(allTerms));
+        uniqueTerms.sort((a, b) => b.length - a.length);
+        const topTerms = uniqueTerms.slice(0, 8);
+        
+        if (topTerms.length > 0) {
+          const orQueryString = topTerms.join(' | ');
+          console.log(`[Search] OR-fuzzy fallback using terms: ${orQueryString}`);
+          const orQuery = moleculeQuery.replace(/\$1/g, '$1'); // Keep same param index
+          const orParams = [orQueryString, ...moleculeParams.slice(1)];
+          molResult = await db.run(orQuery, orParams);
+        }
       }
       const molecules = (molResult.rows || []).map((row: any) => ({
         id: row.id,
@@ -735,49 +746,67 @@ export async function smartChatSearch(
   provenance: 'internal' | 'external' | 'quarantine' | 'all' = 'all',
   useMaxRecall: boolean = false
 ): Promise<{ context: string; results: SearchResult[]; strategy: string; splitQueries?: string[]; metadata?: any; toAgentString: () => string }> {
-  // 1. Initial Attempt
-  const initial = await iterativeSearch(query, buckets, maxChars, tags, provenance, useMaxRecall);
+  
+  const isLongQuery = query.length > 100;
+  let initial = { results: [] as SearchResult[], context: '', toAgentString: () => '' };
 
-  // If we have enough results, returns immediately
-  if (initial.results.length >= 10) {
-    return { ...initial, strategy: 'standard' };
+  // 1. Initial Attempt (Skip if it's a massive max-recall query to force chunking)
+  if (!isLongQuery || !useMaxRecall) {
+    initial = await iterativeSearch(query, buckets, maxChars, tags, provenance, useMaxRecall);
+
+    // If we have enough results, returns immediately
+    if (initial.results.length >= 10 && !useMaxRecall) {
+      return { ...initial, strategy: 'standard' };
+    }
   }
 
-  console.log(`[SmartSearch] Low Recall (${initial.results.length} results). Triggering Multi-Query Split...`);
+  console.log(`[SmartSearch] Triggering Multi-Query Split...`);
 
   // 2. Extract Entities for Split Search
-  const doc = nlp.readDoc(query);
-  // Get Proper Nouns (Entities) and regular Nouns
-  // We prioritize PROPN (High Value)
-  const entities = doc.tokens()
-    .filter((t: any) => t.out(nlp.its.pos) === 'PROPN')
-    .out(nlp.its.normal, nlp.as.freqTable)
-    .map((e: any) => e[0])
-    .slice(0, 3); // Top 3 Entities
+  let splitQueries: string[] = [];
 
-  // If no entities, try Nouns
-  if (entities.length === 0) {
-    const nouns = doc.tokens()
-      .filter((t: any) => t.out(nlp.its.pos) === 'NOUN')
+  if (isLongQuery && useMaxRecall) {
+    // Chunk the query into groups of 3-4 words for massive keyword lists
+    const words = query.split(/\s+/).filter(w => w.length > 2);
+    for (let i = 0; i < words.length; i += 4) {
+      splitQueries.push(words.slice(i, i + 4).join(' '));
+    }
+    // Limit to top 5 chunks to avoid blowing up the DB
+    splitQueries = splitQueries.slice(0, 5);
+  } else {
+    const doc = nlp.readDoc(query);
+    // Get Proper Nouns (Entities) and regular Nouns
+    // We prioritize PROPN (High Value)
+    let entities: string[] = [];
+    entities = doc.tokens()
+      .filter((t: any) => t.out(nlp.its.pos) === 'PROPN')
       .out(nlp.its.normal, nlp.as.freqTable)
       .map((e: any) => e[0])
-      .slice(0, 3);
-    entities.push(...nouns);
+      .slice(0, 3); // Top 3 Entities
+
+    // If no entities, try Nouns
+    if (entities.length === 0) {
+      const nouns = doc.tokens()
+        .filter((t: any) => t.out(nlp.its.pos) === 'NOUN')
+        .out(nlp.its.normal, nlp.as.freqTable)
+        .map((e: any) => e[0])
+        .slice(0, 3);
+      entities.push(...nouns);
+    }
+    splitQueries = entities;
   }
 
-  if (entities.length === 0) {
+  if (splitQueries.length === 0) {
     // No entities to split on, return what we have
     return { ...initial, strategy: 'shallow', splitQueries: [] };
   }
 
-  console.log(`[SmartSearch] Split Entities: ${JSON.stringify(entities)}`);
+  console.log(`[SmartSearch] Split Entities/Chunks: ${JSON.stringify(splitQueries)}`);
 
   // 3. Parallel Execution
   // We run executeSearch for each entity independently
-  const parallelPromises = entities.map((entity: string) =>
-    executeSearch(entity, undefined, buckets, maxChars / entities.length, false, provenance, tags) // Split budget? Or full budget?
-    // Let's iterate search? No, simple executeSearch is simpler.
-    // Use full budget per search, we will truncate at merge time.
+  const parallelPromises = splitQueries.map((entity: string) =>
+    executeSearch(entity, undefined, buckets, maxChars / splitQueries.length, false, provenance, tags, undefined, useMaxRecall)
   );
 
   const parallelResults = await Promise.all(parallelPromises);
@@ -811,7 +840,7 @@ export async function smartChatSearch(
   const serializedContext = assembleAndSerialize({
     user: userContext,
     query: query,
-    keyTerms: entities,
+    keyTerms: splitQueries,
     scopeTags: tags,
     anchors: mergedResults, // Treat all merged results as anchors for now in this aggregate view
     walkerResults: [],
@@ -823,8 +852,8 @@ export async function smartChatSearch(
     results: mergedResults,
     toAgentString: () => serializedContext,
     strategy: 'split_merge',
-    splitQueries: entities,
-    metadata: { ...initial.metadata, strategy: 'split_merge' }
+    splitQueries: splitQueries,
+    metadata: { strategy: 'split_merge' }
   };
 }
 
