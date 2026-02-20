@@ -1064,56 +1064,39 @@ export function setupRoutes(app: Application) {
   // Include enhanced routes
   setupEnhancedRoutes(app);
 
-  // Chat Completions Proxy (Standard 088 Gateway Pattern)
-  // Proxies requests to the Inference Server (3001) if available, or returns error.
+  // Chat Completions - Disabled (requires separate inference server)
+  // To enable: Uncomment and configure inference server URL
+  /*
   app.post('/v1/chat/completions', async (req: Request, res: Response) => {
     try {
-      // Determine destination (Inference Server default)
-      // In a full implementation, this could load balance or check config
-      const NANOBOT_URL = 'http://localhost:8080';
-      const INFERENCE_URL = `${NANOBOT_URL}/v1/chat/completions`;
-
+      const INFERENCE_URL = 'http://localhost:3001/v1/chat/completions';
       console.log(`[API] Proxying chat request to ${INFERENCE_URL}`);
-
-      // We need to fetch from the inference server
-      // Note: We use dynamic import for fetch if not available globally (Node 18+ has it)
-
-      // Use Axios for better timeout control and streaming support
-      // Node's native fetch (Undici) has a hard 300s headers timeout which causes failures for long-running models
-      const { default: axios } = await import('axios'); // Dynamic import to ensure ESM compatibility if needed
-
+      
+      const { default: axios } = await import('axios');
       const response = await axios({
         method: 'post',
         url: INFERENCE_URL,
         data: req.body,
         responseType: 'stream',
-        // Set an explicit large timeout (infinite/0 or specific high value)
-        // Axios timeout covers the whole request, but for streaming we depend on the stream flow
-        timeout: 0, // No timeout
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        timeout: 0,
+        headers: { 'Content-Type': 'application/json' }
       });
-
-      // Stream the response back
+      
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
-
+      
       if (response.data) {
         let bytesSent = 0;
-        // Pipe the stream directly
         response.data.on('data', (chunk: Buffer) => {
           bytesSent += chunk.length;
           res.write(chunk);
         });
-
         response.data.on('end', () => {
           console.log(`[API] Proxy Stream Completed. Sent ${bytesSent} bytes.`);
           res.end();
         });
-
         response.data.on('error', (err: any) => {
           console.error('[API] Stream Error:', err);
           res.end();
@@ -1121,47 +1104,62 @@ export function setupRoutes(app: Application) {
       } else {
         res.end();
       }
-
     } catch (e: any) {
       console.error('[API] Chat Proxy Error:', e);
-      // If we haven't started streaming, send JSON error
       if (!res.headersSent) {
         res.status(503).json({
-          error: 'Nanobot Server Unavailable',
-          details: 'Ensure packages/nanobot-node is running on port 8080',
-          internal_message: e.message
+          error: 'Inference Server Unavailable',
+          details: e.message
         });
       } else {
         res.end();
       }
     }
   });
+  */
 
-  // Proxy Model Management Endpoints to Nanobot
-  const proxyToNanobot = async (req: Request, res: Response, path: string, method: string = 'GET') => {
+  // Model Management Endpoints - Disabled (requires separate inference server)
+  /*
+  const proxyToInference = async (req: Request, res: Response, path: string, method: string = 'GET') => {
     try {
-      const NANOBOT_URL = 'http://localhost:8080';
-      const url = `${NANOBOT_URL}${path}`;
+      const INFERENCE_URL = 'http://localhost:3001';
+      const url = `${INFERENCE_URL}${path}`;
       const options: any = {
         method,
         headers: { 'Content-Type': 'application/json' }
       };
-
       if (method !== 'GET' && method !== 'HEAD') {
         options.body = JSON.stringify(req.body);
       }
-
       const response = await fetch(url, options);
       const data = await response.json();
       res.status(response.status).json(data);
     } catch (e: any) {
       console.error(`[API] Proxy Error (${path}):`, e);
-      res.status(503).json({ error: 'Nanobot Unavailable', details: e.message });
+      res.status(503).json({ error: 'Inference Server Unavailable', details: e.message });
     }
   };
 
-  app.post('/v1/model/load', (req, res) => proxyToNanobot(req, res, '/v1/model/load', 'POST'));
-  app.post('/v1/model/unload', (req, res) => proxyToNanobot(req, res, '/v1/model/unload', 'POST'));
-  app.get('/v1/model/status', (req, res) => proxyToNanobot(req, res, '/v1/model/status', 'GET'));
-  app.get('/v1/models', (req, res) => proxyToNanobot(req, res, '/v1/models', 'GET'));
+  app.post('/v1/model/load', (req, res) => proxyToInference(req, res, '/v1/model/load', 'POST'));
+  app.post('/v1/model/unload', (req, res) => proxyToInference(req, res, '/v1/model/unload', 'POST'));
+  app.get('/v1/model/status', (req, res) => proxyToInference(req, res, '/v1/model/status', 'GET'));
+  app.get('/v1/models', (req, res) => proxyToInference(req, res, '/v1/models', 'GET'));
+  */
+
+  // Return 503 for disabled endpoints
+  app.post('/v1/chat/completions', (_req, res) => {
+    res.status(503).json({ error: 'Chat completions disabled', message: 'Inference server not configured' });
+  });
+  app.get('/v1/models', (_req, res) => {
+    res.status(503).json({ error: 'Models endpoint disabled', message: 'Inference server not configured' });
+  });
+  app.get('/v1/model/status', (_req, res) => {
+    res.status(503).json({ error: 'Model status disabled', message: 'Inference server not configured' });
+  });
+  app.post('/v1/model/load', (_req, res) => {
+    res.status(503).json({ error: 'Model load disabled', message: 'Inference server not configured' });
+  });
+  app.post('/v1/model/unload', (_req, res) => {
+    res.status(503).json({ error: 'Model unload disabled', message: 'Inference server not configured' });
+  });
 }
