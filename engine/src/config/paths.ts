@@ -20,7 +20,7 @@ export const MODELS_DIR = path.resolve(process.env['MODELS_DIR'] || path.join(PR
 export const DIST_DIR = path.resolve(process.env['DIST_DIR'] || path.join(PROJECT_ROOT, 'dist'));
 export const BASE_PATH = PROJECT_ROOT;
 export const LOGS_DIR = path.join(PROJECT_ROOT, 'logs');
-export const NOTEBOOK_DIR = path.resolve(process.env['NOTEBOOK_DIR'] || path.join(PROJECT_ROOT, '..', '..', 'notebook'));
+export const NOTEBOOK_DIR = path.resolve(process.env['NOTEBOOK_DIR'] || PROJECT_ROOT);
 
 // Define specific paths
 const PATHS = {
