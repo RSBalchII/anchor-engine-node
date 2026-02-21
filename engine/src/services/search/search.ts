@@ -805,8 +805,10 @@ export async function smartChatSearch(
 
   // 3. Parallel Execution
   // We run executeSearch for each entity independently
+  // For max-recall mode, give each sub-query the full budget to maximize retrieval
+  const budgetPerQuery = useMaxRecall ? maxChars : Math.floor(maxChars / splitQueries.length);
   const parallelPromises = splitQueries.map((entity: string) =>
-    executeSearch(entity, undefined, buckets, maxChars / splitQueries.length, false, provenance, tags, undefined, useMaxRecall)
+    executeSearch(entity, undefined, buckets, budgetPerQuery, false, provenance, tags, undefined, useMaxRecall)
   );
 
   const parallelResults = await Promise.all(parallelPromises);
@@ -830,6 +832,27 @@ export async function smartChatSearch(
 
   const mergedResults = Array.from(mergedMap.values());
   console.log(`[SmartSearch] Merged Total: ${mergedResults.length} atoms.`);
+
+  // 4.5. Context Inflation — Expand each atom with surrounding context (n-1, n+1)
+  // For max-recall searches, read full context from disk to fill the budget
+  if (useMaxRecall && mergedResults.length > 0) {
+    // Calculate per-atom budget to fill ~90% of total budget
+    const budgetPerAtom = Math.floor(maxChars * 0.9 / mergedResults.length);
+    console.log(`[SmartSearch] Inflating ${mergedResults.length} atoms with ${budgetPerAtom} chars each (total budget: ${maxChars})...`);
+    
+    const inflatedResults = await ContextInflator.inflate(
+      mergedResults,
+      maxChars,
+      budgetPerAtom  // Dynamic radius based on available budget
+    );
+    
+    // Replace merged results with inflated versions
+    mergedResults.length = 0;
+    mergedResults.push(...inflatedResults);
+    
+    const avgChars = Math.round(inflatedResults.reduce((sum, a) => sum + a.content.length, 0) / inflatedResults.length);
+    console.log(`[SmartSearch] Inflation complete: ${inflatedResults.length} atoms with avg ${avgChars} chars each`);
+  }
 
   // 5. Re-Format using GCP (Standard 086)
   const userContext: UserContext = {

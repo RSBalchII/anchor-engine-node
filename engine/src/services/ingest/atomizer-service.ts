@@ -441,10 +441,12 @@ export class AtomizerService {
         try {
             // Check likely locations for internal_tags.json
             const possiblePaths = [
-                path.join(process.cwd(), 'context', 'internal_tags.json'),
-                path.join(process.cwd(), '..', 'context', 'internal_tags.json'),
-                // engine/src/services/ingest -> ../../../../context
-                path.join(__dirname, '../../../../context/internal_tags.json')
+                path.join(process.cwd(), 'engine', 'context', 'internal_tags.json'),
+                path.join(process.cwd(), '..', 'engine', 'context', 'internal_tags.json'),
+                // engine/src/services/ingest -> ../../../../engine/context
+                path.join(__dirname, '../../../../engine/context/internal_tags.json'),
+                // Fallback to old location
+                path.join(process.cwd(), 'context', 'internal_tags.json')
             ];
 
             for (const p of possiblePaths) {

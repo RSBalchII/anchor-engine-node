@@ -29,6 +29,10 @@ native/bin/
 .pnpm-store/
 *.tsbuildinfo
 
+# Backups (keep at root but gitignore contents)
+backups/*.json
+backups/*.db
+
 # IDE & System
 .vscode/
 .idea/

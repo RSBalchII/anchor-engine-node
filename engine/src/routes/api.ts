@@ -646,12 +646,11 @@ export function setupRoutes(app: Application) {
       // In researcher.ts: const NOTEBOOK_DIR = '../../config/paths.js';
       // Let's use the same pattern or hardcode relative to CWD if safe.
 
-      // Safest: Use the imported config if available, or just standard relative path for now.
-      // researcher.ts usage: import { NOTEBOOK_DIR } from '../../config/paths.js';
-      const { NOTEBOOK_DIR } = await import('../config/paths.js');
+      // Safest: Use the imported config if available
+      const { ENGINE_PLUGINS } = await import('../config/paths.js');
 
-      // Route to: packages/notebook/plugins/articles (Same as Research Station scraper)
-      const targetDir = path.join(NOTEBOOK_DIR, 'plugins', 'articles');
+      // Route to: engine/plugins/articles
+      const targetDir = path.join(ENGINE_PLUGINS, 'articles');
       if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
 
       const filePath = path.join(targetDir, filename);
@@ -1063,6 +1062,111 @@ export function setupRoutes(app: Application) {
 
   // Include enhanced routes
   setupEnhancedRoutes(app);
+
+  // GitHub Repository Ingestion Endpoints (Standard 115)
+  // POST /v1/github/repos - Register new repo and trigger initial ingestion
+  app.post('/v1/github/repos', async (req: Request, res: Response) => {
+    try {
+      const body = req.body as any;
+      const url = body.url as string;
+      const bucket = body.bucket as string;
+      
+      if (!url || !bucket) {
+        res.status(400).json({ error: 'url and bucket are required' });
+        return;
+      }
+
+      const { GitHubIngestService } = await import('../services/ingest/github-ingest-service.js');
+      const service = new GitHubIngestService();
+
+      // Register repo
+      const repo = await service.registerRepo(url, bucket);
+      
+      // Start async ingestion (don't wait for completion)
+      service.syncRepo(repo.id).catch((error: any) => {
+        console.error(`[API] Background sync failed for ${repo.id}:`, error);
+      });
+
+      res.status(202).json({
+        id: repo.id,
+        status: 'ingesting',
+        message: `Started ingestion for ${repo.owner}/${repo.repo}`,
+      });
+    } catch (error: any) {
+      console.error('[API] GitHub repo registration error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /v1/github/repos - List all registered repos
+  app.get('/v1/github/repos', async (_req: Request, res: Response) => {
+    try {
+      const { GitHubIngestService } = await import('../services/ingest/github-ingest-service.js');
+      const service = new GitHubIngestService();
+      const repos = await service.listRepos();
+      res.status(200).json(repos);
+    } catch (error: any) {
+      console.error('[API] GitHub repo list error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /v1/github/repos/:id/sync - Manual sync trigger
+  app.post('/v1/github/repos/:id/sync', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id as string;
+      
+      const { GitHubIngestService } = await import('../services/ingest/github-ingest-service.js');
+      const service = new GitHubIngestService();
+
+      // Start async sync
+      service.syncRepo(id).catch((error: any) => {
+        console.error(`[API] Background sync failed for ${id}:`, error);
+      });
+
+      res.status(202).json({
+        id,
+        status: 'syncing',
+        message: 'Sync started',
+      });
+    } catch (error: any) {
+      console.error('[API] GitHub sync trigger error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /v1/github/repos/:id - Remove repo
+  app.delete('/v1/github/repos/:id', async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id as string;
+      
+      const { GitHubIngestService } = await import('../services/ingest/github-ingest-service.js');
+      const service = new GitHubIngestService();
+      
+      const quarantinedCount = await service.removeRepo(id);
+      
+      res.status(200).json({
+        status: 'removed',
+        quarantined_atoms: quarantinedCount,
+      });
+    } catch (error: any) {
+      console.error('[API] GitHub repo removal error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /v1/github/rate-limit - Check GitHub API rate limit status
+  app.get('/v1/github/rate-limit', async (_req: Request, res: Response) => {
+    try {
+      const { GitHubIngestService } = await import('../services/ingest/github-ingest-service.js');
+      const service = new GitHubIngestService();
+      const rateLimit = await service.getRateLimitStatus();
+      res.status(200).json(rateLimit);
+    } catch (error: any) {
+      console.error('[API] GitHub rate limit check error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   // Chat Completions - Disabled (requires separate inference server)
   // To enable: Uncomment and configure inference server URL

@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 // Define base paths
 // __dirname is engine/src/config, so we need to go up 3 levels to reach project root
 export const PROJECT_ROOT = path.resolve(process.env['PROJECT_ROOT'] || path.join(__dirname, '..', '..', '..'));
-export const CONTEXT_DIR = path.resolve(process.env['CONTEXT_DIR'] || path.join(PROJECT_ROOT, 'context'));
+export const CONTEXT_DIR = path.resolve(process.env['CONTEXT_DIR'] || path.join(PROJECT_ROOT, 'engine', 'context'));
 export const MODELS_DIR = path.resolve(process.env['MODELS_DIR'] || path.join(PROJECT_ROOT, 'models'));
 export const DIST_DIR = path.resolve(process.env['DIST_DIR'] || path.join(PROJECT_ROOT, 'dist'));
 export const BASE_PATH = PROJECT_ROOT;
@@ -24,7 +24,7 @@ export const LOGS_DIR = path.join(PROJECT_ROOT, 'logs');
 export const NOTEBOOK_DIR = path.resolve(process.env['NOTEBOOK_DIR'] || PROJECT_ROOT);
 
 // Define specific paths
-const PATHS = {
+export const PATHS = {
   PROJECT_ROOT,
   CONTEXT_DIR,
   MODELS_DIR,
@@ -42,8 +42,19 @@ const PATHS = {
   ENGINE_BIN: path.join(PROJECT_ROOT, 'engine', 'bin'),
   ENGINE_SRC: path.join(PROJECT_ROOT, 'engine', 'src'),
   ENGINE_DIST: path.join(PROJECT_ROOT, 'engine', 'dist'),
-  DESKTOP_OVERLAY_SRC: path.join(PROJECT_ROOT, 'desktop-overlay', 'src'),
-  DESKTOP_OVERLAY_DIST: path.join(PROJECT_ROOT, 'desktop-overlay', 'dist'),
+  ENGINE_CONTEXT: path.join(PROJECT_ROOT, 'engine', 'context'),
+  ENGINE_PLUGINS: path.join(PROJECT_ROOT, 'engine', 'plugins'),
+  DESKTOP_OVERLAY_SRC: path.join(PROJECT_ROOT, 'packages', 'desktop-overlay', 'src'),
+  DESKTOP_OVERLAY_DIST: path.join(PROJECT_ROOT, 'packages', 'desktop-overlay', 'dist'),
 };
+
+// Export individual paths for convenience
+export const {
+  BACKUPS_DIR,
+  ENGINE_CONTEXT,
+  ENGINE_PLUGINS,
+  DESKTOP_OVERLAY_SRC,
+  DESKTOP_OVERLAY_DIST,
+} = PATHS;
 
 export default PATHS;

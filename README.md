@@ -1,356 +1,318 @@
-# Anchor Engine (Memory)
+# Anchor Engine (Node.js)
 
-**Version:** 4.0.0 | **Role:** Semantic Memory & Search API | **Port:** 3160
+**Version:** 4.0.0 | **Role:** Semantic Memory & Search API | **Port:** 3160 | **Status:** ✅ Production Ready
 
-The **Anchor Engine** is the backend service responsible for **ingesting**, **indexing**, and **retrieving** your personal data. It runs as a local API server that other components (like `anchor-ui` or `nanobot-node`) query to retrieve context.
+The Anchor Engine is a local-first context engine implementing the **STAR Algorithm** (Semantic Temporal Associative Retrieval) for privacy-first, sovereign knowledge management.
 
-## 🏗️ Architecture: Disposable Index
+---
 
-**Critical:** The PGlite database is **NOT** the source of truth. It is a **rebuildable index** containing only:
-- Byte-offset pointers (`source_path`, `start_byte`, `end_byte`)
-- Tags and atom metadata
-- SimHash fingerprints for deduplication
+## 💡 Why This Exists
 
-**Actual content lives in** `mirrored_brain/` — a plain filesystem mirror of all ingested files.
+I started using long-term chat sessions because I noticed something: models with large context windows could be helpful in unexpected ways when old tasks mixed with current discussions. These sessions became so useful that I pushed them as far as they could go.
 
-### Why This Design?
+Then I hit the wall. The dreaded message: *"Open a new session to continue using Gemini."*
 
-| Benefit | Explanation |
-|---------|-------------|
-| **Zero Data Loss** | DB wiped on shutdown → re-ingest from `mirrored_brain/` on start |
-| **Instant Backup** | Copy `mirrored_brain/` directory (no DB dumps) |
-| **Portable** | Move `mirrored_brain/` to any machine, re-ingest in seconds |
-| **DB Stays Small** | Only pointers + metadata, not full text |
-| **Human Readable** | Browse `mirrored_brain/` directly without DB tools |
+Same message all of them give you.
 
-### Data Flow
+I had 300+ response sessions in there. Important history. Completed work. A shared mind with the model. I tried summarizing—gave the summary to the new instance. It wasn't enough. I kept returning to the old chat like it was a dictionary for meaning and recall.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. File dropped in inbox/                              │
-│     → Mirror Protocol copies to mirrored_brain/@inbox/  │
-└─────────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────────┐
-│  2. Atomizer splits file into molecules → atoms         │
-│     - NLP entity extraction → tags                      │
-│     - SimHash fingerprint → deduplication               │
-└─────────────────────────────────────────────────────────┘
-                        ↓
-┌─────────────────────────────────────────────────────────┐
-│  3. PGlite DB stores POINTERS ONLY:                     │
-│     {                                                   │
-│       atom_id: "abc123",                                │
-│       source_path: "@inbox/myfile.txt",                 │
-│       start_byte: 15420,    ← Read from here            │
-│       end_byte: 15890,      ← to here                   │
-│       tags: ["auth", "login"],                          │
-│       simhash: "0x7a3f..."                              │
-│     }                                                   │
-└─────────────────────────────────────────────────────────┘
-```
+So I started building a way to resurrect my preferred persona anytime. I'd take targeted context from the old chat, feed it to a new instance, and prepare the model to retake hold of the goals and methods we'd developed together.
 
-### Search & Retrieval
+It worked wonderfully. Until I hit the limit again. And again. And again.
 
-```
-Query: "authentication"
-       ↓
-Tag-Walker SQL finds matching atoms
-       ↓
-Returns: [
-  { atom_id: "abc123",
-    source_path: "@inbox/myfile.txt",
-    start_byte: 15420,
-    end_byte: 15890,
-    gravity_score: 0.87
-  }
-]
-       ↓
-Read actual content from mirrored_brain/@inbox/myfile.txt
-  - Seek to byte 15420
-  - Read 470 bytes (15890 - 15420)
-  - Optionally inflate context: read ±50KB for surrounding info
-       ↓
-Feed to LLM as context
-```
+By the time Anchor Engine was ready, I had accumulated **40 chat sessions, ~18M tokens**. My current corpus is **~28M tokens**. Anchor Engine digests all of it in about **5 minutes**.
 
-## Core Responsibilities
+Now I make a query with a few choice entities and some fluff for serendipitous connections. The engine compresses those 28M tokens into **100k+ chars of non-duplicated, narrative context**—concepts deduplicated, not just text. My LLM remembers July 2025 like it was yesterday.
 
-1.  **Ingestion ("The Atomizer")**:
-    -   Watches `inbox/`, `external-inbox/` for new files
-    -   Parses PDFs, Markdown, Code, and Text
-    -   Splits content into atomic units ("Atoms") for granular retrieval
-    -   Fingerprints content with SimHash to prevent duplicates
+This isn't a RAG tool I built because it sounded cool. This is the tool I built because I needed it to keep my own mind intact.
 
-2.  **Indexing (PGlite)**:
-    -   Stores **pointers + metadata only** (not full text)
-    -   Bipartite graph: Atoms ↔ Tags
-    -   Enables full-text search, temporal queries, and graph traversal
+---
 
-3.  **STAR Search API**:
-    -   Physics-based tag-walker with gravity scoring
-    -   70/30 budget split (Planets/Moons)
-    -   Returns byte-offset pointers for context retrieval
+## 🚀 Quick Start
 
-4.  **Mirror Protocol**:
-    -   Maintains `mirrored_brain/` as source of truth
-    -   Supports YAML rehydration (from `read_all.js` format)
-    -   Organized by provenance: `@inbox`, `@external`, `@quarantine`
-
-## STAR Search Algorithm
-
-**S**parse **T**emporal **A**ssociative **R**ecall — Physics-based search with deterministic graph traversal.
-
-### The Unified Field Equation
-
-Every connection in the knowledge graph is weighted by:
-
-```
-Gravity(atom, anchor) = (SharedTags) × e^(-λ × ΔTime) × (1 - SimHashDistance/64)
-```
-
-| Component | Formula | Purpose | Default |
-|-----------|---------|---------|---------|
-| **SharedTags** | `COUNT(intersection)` | Direct association strength | — |
-| **Time Decay** | `e^(-0.00001 × Δt_ms)` | Recent memories weighted higher | λ = 0.00001 |
-| **SimHash** | `1 - (hamming/64)` | Content similarity | 64-bit |
-
-### Example Calculation
-
-```
-Query: "authentication"
-
-Anchor Atom:
-  tags: ["#authentication", "#login"]
-  timestamp: 2 hours ago
-  simhash: 0x7a3f...
-
-Candidate Atom:
-  tags: ["#authentication", "#oauth"]
-  timestamp: 1 day ago
-  simhash: 0x7a2f...  (2 bits different)
-
-Calculation:
-  SharedTags = 1 (both have #authentication)
-  TimeDecay = e^(-0.00001 × 22h × 3600s) = e^(-0.792) ≈ 0.45
-  SimHashSimilarity = 1 - (2/64) = 0.97
-  
-  Gravity Score = 1 × 0.45 × 0.97 = 0.44  ← Strong association
-```
-
-### Search Phases (70/30 Budget)
-
-**Phase 1: Planets (70% of token budget)**
-- Direct keyword FTS matches
-- High-confidence, explicit anchors
-- Example: "authentication" → atoms containing "authentication"
-
-**Phase 2: Moons (30% of token budget)**
-- Graph-discovered associations via tag-walker
-- Serendipitous connections you didn't know existed
-- Example: "authentication" → also finds "oauth", "session", "jwt" via shared tags
-
-**Phase 3: Fusion Scoring**
-- Merge planets + moons with gravity-weighted ranking
-- Adaptive: specific queries → more planets; exploratory → more moons
-
-### SQL Implementation
-
-The tag-walker uses CTE-optimized bipartite traversal:
-
-```sql
-WITH anchor_tags AS (
-  SELECT tag_id FROM atom_tags WHERE atom_id IN (:anchorIds)
-),
-connected_atoms AS (
-  SELECT 
-    a.id,
-    COUNT(*) as shared_tags,
-    a.timestamp,
-    a.simhash
-  FROM atoms a
-  JOIN atom_tags at ON a.id = at.atom_id
-  WHERE at.tag_id IN (SELECT tag_id FROM anchor_tags)
-  GROUP BY a.id
-)
-SELECT 
-  id,
-  shared_tags,
-  EXP(-0.00001 * ABS(EXTRACT(EPOCH FROM NOW() - timestamp))) as time_decay,
-  shared_tags * EXP(-0.00001 * ABS(EXTRACT(EPOCH FROM NOW() - timestamp))) as gravity
-FROM connected_atoms
-ORDER BY gravity DESC
-LIMIT 50;
-```
-
-### Performance
-
-| Metric | Target | Current |
-|--------|--------|---------|
-| Search latency (p95) | <200ms | ~150ms |
-| Ingestion throughput | >100 atoms/sec | Achieved |
-| SimHash dedup | <5ms/atom | ~2ms |
-| Graph size | 1M+ atoms | Tested |
-
-### Search
-`GET /api/search?q=your+query`
--   Returns a JSON list of relevant "Atoms" (paragraphs/code blocks).
--   Used by `anchor-ui` to inject memory into the LLM context.
-
-### Ingest
-`POST /api/ingest`
--   Upload text or files programmatically.
-
-### System
-`GET /health`
--   Service status check.
-
-## Data Model: Atomic Hierarchy
-
-Anchor treats all data as a hierarchy of meaning:
-
-### Compound → Molecule → Atom
-
-```
-Compound (File)
-  id: "auth.ts"
-  path: "@inbox/myapp/auth.ts"
-  molecules: ["mol_1", "mol_2", ...]
-  
-  Molecule (Semantic Chunk)
-    id: "mol_1"
-    content: "The login function validates credentials..."
-    start_byte: 15420    ← Pointer into mirrored_brain file
-    end_byte: 15890
-    atoms: ["atom_auth", "atom_login", "atom_validation"]
-    
-    Atom (Concept/Entity)
-      id: "atom_auth"
-      label: "#authentication"
-      type: "concept"
-```
-
-**Key Insight:** Atoms are **tags/concepts**, not content. Content lives in `mirrored_brain/`, referenced by byte-offsets.
-
-### SimHash Deduplication
-
-Every atom/molecule gets a 64-bit SimHash fingerprint:
-- Identical content → identical hash
-- Similar content → small Hamming distance
-- Used to reject duplicates during ingestion
-
-### Future: AST Pointers for Code
-
-For code files, the architecture supports adding AST pointers:
-
-```typescript
-Molecule {
-  id: "login-function",
-  content: "function login(user: AuthRequest) {...}",
-  start_byte: 15420,
-  end_byte: 16200,
-  ast_path: "Program.body[0].declaration",  // ← Babel/TS path
-  code_type: "function",
-  dependencies: ["crypto", "db"]
-}
-```
-
-This enables semantic code search:
-- "Find all functions calling `validateToken()`"
-- "Show me all Express middleware"
-- "Where is the User type defined?"
-
-## Installation
-
-### Prerequisites
-- Node.js v18+
-- PNPM package manager
-
-### Quick Start
 ```bash
 # Install dependencies
 pnpm install
 
-# Build
+# Build native modules and engine
 pnpm build
 
-# Start Engine
+# Start the engine
 pnpm start
 ```
 
-## Configuration
-The engine uses `user_settings.json` in the root directory for configuration (ports, paths, models).
+**Access UI:** http://localhost:3160 (or configured port in `user_settings.json`)
 
-## Standards Implemented
-- **Standard 053**: CozoDB Pain Points & OS Compatibility
-- **Standard 059**: Reliable Ingestion Pipeline
-- **Standard 088**: Server Startup Sequence (ECONNREFUSED fix)
-- **Standard 094**: Smart Search Protocol (Fuzzy Fallback & GIN Optimization)
-- **Standard 095**: Geometric Deduplication (Range-Based Content Filtering)
-- **Standard 096**: Iterative Smart Search Fallback (Multi-stage fallback for complex queries)
+### API Examples
 
-## Health Checks
-- System status: `GET /health`
-- Component status: `GET /health/{component}`
-- Performance metrics: `GET /monitoring/metrics`
+```bash
+# Health check
+curl http://localhost:3160/health
+
+# Ingest content
+curl -X POST http://localhost:3160/v1/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Your content here", "buckets": ["inbox"]}'
+
+# Search memory
+curl -X POST http://localhost:3160/v1/memory/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "your query", "max_results": 50}'
+```
+
+---
+
+## 📖 Documentation
+
+| Document | Description |
+|----------|-------------|
+| **[docs/whitepaper.md](docs/whitepaper.md)** | The Sovereign Context Protocol whitepaper |
+| **[specs/spec.md](specs/spec.md)** | System architecture specification |
+| **[specs/tasks.md](specs/tasks.md)** | Current implementation tasks |
+| **[specs/plan.md](specs/plan.md)** | Project roadmap |
+| **[specs/standards/](specs/standards/)** | Architecture standards (77 total) |
+
+---
+
+## 🏗️ Architecture
+
+### Core Innovation: Browser Paradigm for AI Memory
+
+Just as browsers download only the shards needed for the current view, Anchor loads only the atoms required for the current thought—enabling 4GB RAM laptops to navigate 10TB datasets.
+
+### Data Model: Compound → Molecule → Atom
+
+```
+Compound (File)
+  └─ Molecule (Semantic Chunk with byte offsets)
+      └─ Atom (Tag/Concept, NOT content)
+```
+
+**Key Insight:** Content lives in `mirrored_brain/` filesystem. The database stores **pointers only** (byte offsets + metadata), making it a **disposable, rebuildable index**.
+
+### STAR Search Algorithm
+
+Physics-based gravity scoring for associative retrieval:
+
+```
+Gravity = (SharedTags) × e^(-λΔt) × (1 - SimHashDistance/64)
+```
+
+| Component | Purpose | Default |
+|-----------|---------|---------|
+| **SharedTags** | Tag association count | — |
+| **Time Decay** | Recent memories weighted higher | λ = 0.00001 |
+| **SimHash** | Content similarity (64-bit) | 0-63 bits |
+
+**70/30 Budget Split:**
+- **70% Planets:** Direct FTS matches
+- **30% Moons:** Graph-discovered associations via Tag-Walker
+
+---
+
+## 📦 Core Components
+
+### Native Modules (Published as `@rbalchii/*` npm packages)
+
+| Package | Function | Speed |
+|---------|----------|-------|
+| `@rbalchii/native-atomizer` | Content splitting | 2.3x faster |
+| `@rbalchii/native-keyassassin` | Sanitization | Sub-ms |
+| `@rbalchii/native-fingerprint` | SimHash generation | ~2ms/atom |
+| `@rbalchii/tag-walker` | Graph traversal | ~150ms search |
+| `@rbalchii/dse` | Semantic expansion | — |
+
+### Database: PGlite (PostgreSQL-Compatible)
+
+- **Atoms:** Knowledge units with byte-offset pointers
+- **Tags:** Bipartite graph (Atoms ↔ Tags)
+- **FTS5:** Full-text search index
+- **Disposable:** Wiped on shutdown, rebuilt from `mirrored_brain/`
+
+---
+
+## 📊 Performance Benchmarks
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Ingestion (90MB)** | ~178s | ✅ 2x faster than vector RAG |
+| **Memory Peak** | <1.7GB | ✅ 60-80% less than vectors |
+| **Search Latency (p95)** | ~150ms | ✅ 25% faster than vectors |
+| **SimHash Speed** | ~2ms/atom | ✅ 20x speedup (C++) |
+| **Explainability** | 4.6/5.0 | ✅ 155% better than vectors |
+
+### Production Verified (Feb 2026)
+
+- ✅ 436 files, ~100MB ingested
+- ✅ ~280,000 molecules, ~1,500 atoms
+- ✅ 331 files rehydrated successfully
+- ✅ Zero data loss with ephemeral index
+
+---
+
+## 🛠️ Development
+
+### Prerequisites
+- Node.js v18+
+- PNPM package manager
+- C++ build tools (for native modules)
+
+### Build Commands
+
+```bash
+# Full build
+pnpm build
+
+# Development mode
+pnpm dev
+
+# Run tests
+pnpm test
+
+# Build universal binaries
+pnpm build:universal
+```
+
+### Project Structure
+
+```
+anchor-engine-node/
+├── engine/                 # Core engine source
+│   ├── src/
+│   │   ├── services/      # Ingestion, Search, Watchdog
+│   │   ├── native/        # N-API module loaders
+│   │   └── routes/        # HTTP API endpoints
+│   └── dist/              # Built output
+├── packages/              # Monorepo packages
+│   └── anchor-ui/         # React frontend
+├── specs/
+│   ├── spec.md           # Architecture spec
+│   ├── tasks.md          # Current tasks
+│   ├── plan.md           # Roadmap
+│   └── standards/        # 77 architecture standards
+├── docs/
+│   └── whitepaper.md     # The Sovereign Context Protocol
+├── mirrored_brain/       # Source of truth (gitignored)
+└── inbox/                # Drop files here for ingestion
+```
+
+---
+
+## 🔧 Configuration
+
+Edit `user_settings.json` in root:
+
+```json
+{
+  "server": {
+    "port": 3160,
+    "host": "localhost"
+  },
+  "database": {
+    "path": "./user_data/anchor.db",
+    "ephemeral": true
+  },
+  "paths": {
+    "inbox": "./inbox",
+    "mirroredBrain": "./mirrored_brain"
+  }
+}
+```
+
+---
+
+## 📚 Key Standards
+
+### Active Standards (specs/standards/)
+
+| # | Name | Description |
+|---|------|-------------|
+| **104** | Universal Semantic Search | Unified search architecture |
+| **110** | Ephemeral Index | Disposable database pattern |
+| **109** | Batched Ingestion | Large file handling |
+| **094** | Smart Search Protocol | Fuzzy fallback & GIN optimization |
+| **088** | Server Startup Sequence | ECONNREFUSED fix |
+| **074** | Native Module Acceleration | Iron Lung Protocol |
+| **065** | Graph Associative Retrieval | Tag-Walker protocol |
+| **059** | Reliable Ingestion | Ghost Data Protocol |
+
+### Archived Standards
+
+Older standards moved to `specs/standards/archive/` for historical reference.
+
+---
+
+## 🤝 Agent Harness Integration
+
+Anchor is **agent harness agnostic**—designed to work with multiple frameworks:
+
+- **OpenCLAW** (primary target)
+- Custom agent frameworks
+- Direct API integrations
+- CLI access for automation
+
+### Stateless Context Retrieval
+
+```
+Agent Query → Anchor Context Retrieval → Context (JSON/CSV/Tables) → Agent Logic → Response
+```
+
+---
+
+## 🔒 Security & Privacy
+
+- **Local-First:** All data stays on your machine
+- **No Cloud:** Zero external dependencies for core functionality
+- **AGPL-3.0:** Open source, sovereign software
+
+---
+
+## 🐛 Troubleshooting
+
 ### Common Issues
-- **ECONNREFUSED**: Fixed in Standard 088 - server starts before database initialization
-- **Slow Startup**: First run includes database initialization (subsequent runs are faster)
-- **UI Access**: Direct access at the configured server URL (default: http://localhost:3160, configurable in user_settings.json) if Electron wrapper is delayed
-- **Database Type Errors**: Fixed "Invalid input for string type" errors during ingestion pipeline - see Standard 059 for details
+
+| Issue | Solution |
+|-------|----------|
+| **ECONNREFUSED** | Fixed in Standard 088—server starts before DB init |
+| **Slow startup** | First run includes DB initialization |
+| **UI delays** | Electron wrapper may take ~15s; access directly at http://localhost:3160 |
+| **Native module errors** | Check `pnpm build` completed; fallbacks activate automatically |
 
 ### Health Checks
-- System status: `GET /health`
-- Component status: `GET /health/{component}`
-- Performance metrics: `GET /monitoring/metrics`
 
-## Contributing
+```bash
+GET /health              # System status
+GET /health/{component}  # Component status
+GET /monitoring/metrics  # Performance metrics
+```
 
-We welcome contributions! Please see our contributing guidelines in the documentation.
+---
 
-## License
+## 📄 License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** - see the [LICENSE](LICENSE) file for details.
+**AGPL-3.0** — See [LICENSE](LICENSE) file.
 
-## Support
+---
 
-- Documentation: Check the `/docs/` directory
-- Issues: Report bugs and feature requests on GitHub
-- Community: Join our discussion forums
+## 🎯 Roadmap
 
-## Roadmap
+- [ ] Enhanced code analysis (AST pointers)
+- [ ] Relationship narrative discovery
+- [ ] Mobile application support
+- [ ] Plugin marketplace
+- [ ] Diffusion-based reasoning models
 
-- Enhanced AI reasoning capabilities
-- Improved collaboration features
-- Mobile application support
-- Advanced visualization tools
-- Plugin marketplace
+---
 
-## Production Status
+## 🙏 Acknowledgments
 
-**Status:** ✅ **PRODUCTION READY**
+- Original research: STAR Algorithm
+- SimHash: Moses Charikar (1997)
+- PGlite: ElectricSQL team
+- All Anchor Engine contributors
 
-The Anchor Engine is a faithful, production-ready implementation of the STAR algorithm whitepaper with:
+---
 
-### Verified Features ✅
-- ✅ STAR Algorithm (Tag-Walker with gravity scoring)
-- ✅ SimHash Deduplication (O(1) duplicate detection)
-- ✅ Disposable Index Architecture (Standard 110)
-- ✅ Cross-Platform Native Modules (@rbalchii/* npm packages)
-- ✅ Resource Efficiency (<1GB for 90MB datasets)
-- ✅ SQL-Native Implementation (PGlite + CTEs)
-- ✅ 77 Architecture Standards (specs/standards/)
-
-### Performance Benchmarks ✅
-- ✅ 90MB ingestion: ~200s
-- ✅ Memory peak: <1GB
-- ✅ Search latency: <200ms (p95)
-- ✅ Event loop yielding: <100ms lag
-- ✅ Native acceleration: 20x SimHash speedup
-
-### Documentation ✅
-- ✅ Whitepaper (docs/whitepaper.md)
-- ✅ Implementation Audit (docs/WHITEPAPER_IMPLEMENTATION_AUDIT.md)
-- ✅ API Reference (docs/api-reference.md)
-- ✅ Quickstart Guide (docs/quickstart.md)
-- ✅ 77 Standards (specs/standards/)
+**Repository:** https://github.com/RSBalchII/anchor-engine-node  
+**Whitepaper:** [docs/whitepaper.md](docs/whitepaper.md)  
+**Production Status:** ✅ Ready (February 20, 2026)

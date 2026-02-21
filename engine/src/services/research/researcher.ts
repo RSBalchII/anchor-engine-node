@@ -5,9 +5,9 @@ import TurndownService from 'turndown';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { NOTEBOOK_DIR } from '../../config/paths.js';
+import { ENGINE_PLUGINS } from '../../config/paths.js';
 
-const PLUGINS_DIR = path.join(NOTEBOOK_DIR, 'plugins');
+const PLUGINS_DIR = ENGINE_PLUGINS;
 
 // Ensure staging directories exist
 const ARTICLES_DIR = path.join(PLUGINS_DIR, 'articles');

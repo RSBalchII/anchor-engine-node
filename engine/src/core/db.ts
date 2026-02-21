@@ -309,6 +309,38 @@ export class Database {
       throw e;
     }
 
+    // Create GitHub Repos Table (Standard 115: GitHub Repository Ingestion)
+    try {
+      await this.run(`
+        CREATE TABLE IF NOT EXISTS github_repos (
+          id TEXT PRIMARY KEY,
+          owner TEXT NOT NULL,
+          repo TEXT NOT NULL,
+          branch TEXT DEFAULT 'main',
+          bucket TEXT NOT NULL,
+          github_url TEXT NOT NULL,
+          last_synced_at TIMESTAMP,
+          last_sync_status TEXT,
+          last_error TEXT,
+          total_files INTEGER DEFAULT 0,
+          total_atoms INTEGER DEFAULT 0,
+          total_size_bytes INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("[DB] 'github_repos' table initialized.");
+      
+      // Create index for owner/repo lookup
+      await this.run(`
+        CREATE INDEX IF NOT EXISTS idx_github_repos_owner_repo 
+        ON github_repos(owner, repo);
+      `);
+    } catch (e: any) {
+      console.error("[DB] Error creating github_repos table:", e);
+      throw e;
+    }
+
     // Create FTS index for content search
     try {
       await this.run(`

@@ -29,13 +29,17 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - start;
     const status = res.statusCode;
-    StructuredLogger.info('HTTP_REQUEST', {
-      method: req.method,
-      path: req.path,
-      status,
-      duration_ms: duration
-    });
     
+    // Skip logging 304 (Not Modified) responses - these are just cache hits from frontend polling
+    if (status !== 304) {
+      StructuredLogger.info('HTTP_REQUEST', {
+        method: req.method,
+        path: req.path,
+        status,
+        duration_ms: duration
+      });
+    }
+
     // Mark activity for idle manager (skip static files)
     if (!req.path.startsWith('/static') && !req.path.startsWith('/chat')) {
       idleManager.markActive(`${req.method} ${req.path}`);

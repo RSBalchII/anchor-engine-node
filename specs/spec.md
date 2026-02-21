@@ -1,349 +1,140 @@
-# System Architecture Specification (Root Spec) - LLM Developer Blueprint
+# Anchor Engine - System Specification
 
-**Status:** Active | **Authority:** Human-Locked | **Domain:** LLM-First Development
+**Version:** 4.0.0 | **Status:** Production Ready | **Updated:** February 2026
 
-## Core Architecture Overview
+## Quick Reference
 
-### Component Hierarchy
+| Aspect | Value |
+|--------|-------|
+| **Port** | 3160 (configurable) |
+| **Database** | PGlite (PostgreSQL-compatible) |
+| **Source of Truth** | `mirrored_brain/` filesystem |
+| **Index** | Disposable, rebuildable on startup |
+| **Search** | STAR Algorithm (70/30 Planets/Moons) |
+| **Native Modules** | @rbalchii/* npm packages (C++ N-API) |
+
+---
+
+## Architecture Overview
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  UI LAYER                                                      │
-├─────────────────────────────────────────────────────────────────┤
-│  • External UI (packages/anchor-ui/dist)                       │
-│  • Internal Lightweight UI (engine/public)                     │
-│  • UI Selection Logic (Automatic based on availability)        │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  ENGINE SERVER LAYER                                           │
-├─────────────────────────────────────────────────────────────────┤
-│  • HTTP API Gateway                                            │
-│  • Route Management                                            │
-│  • Request Processing                                          │
-│  • UI Serving Logic                                            │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  NATIVE MODULE LAYER (Published as npm packages)               │
-├─────────────────────────────────────────────────────────────────┤
-│  • @rbalchii/native-atomizer (Sentence Splitting)              │
-│  • @rbalchii/native-keyassassin (Content Sanitization)         │
-│  • @rbalchii/native-fingerprint (SimHash Generation)           │
-│  • @rbalchii/tag-walker (Tag Discovery)                        │
-│  • @rbalchii/dse (Deterministic Semantic Expansion)            │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  DATABASE LAYER                                                │
-├─────────────────────────────────────────────────────────────────┤
-│  • PGlite (PostgreSQL-Compatible)                              │
-│  • Schema Management                                           │
-│  • Query Processing                                            │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  UI Layer (React/Vite or Electron)                     │
+├─────────────────────────────────────────────────────────┤
+│  HTTP API (Express) - Port 3160                        │
+├─────────────────────────────────────────────────────────┤
+│  Services: Ingestion | Search | Watchdog | Dreamer     │
+├─────────────────────────────────────────────────────────┤
+│  Native Modules: Atomizer | Fingerprint | KeyAssassin  │
+├─────────────────────────────────────────────────────────┤
+│  Database: PGlite (Atoms + Tags + FTS)                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Startup Sequence (Standard 088 Compliant)
+### Data Model: Compound → Molecule → Atom
+
+- **Compound:** File/document reference
+- **Molecule:** Semantic chunk with byte offsets
+- **Atom:** Tag/concept (content lives in `mirrored_brain/`)
+
+### STAR Search Algorithm
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  OLD SEQUENCE (FAILED)                                         │
-├─────────────────────────────────────────────────────────────────┤
-│  1. await db.init() ← BLOCKING                                │
-│  2. app.listen() ← DELAYED                                    │
-│  3. Electron wrapper timeout ← ECONNREFUSED                   │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  NEW SEQUENCE (SUCCESSFUL)                                     │
-├─────────────────────────────────────────────────────────────────┤
-│  1. app.listen() ← IMMEDIATE                                  │
-│  2. await db.init() ← BACKGROUND                              │
-│  3. Electron wrapper connects ← SUCCESS                       │
-└─────────────────────────────────────────────────────────────────┘
+Gravity = (SharedTags) × e^(-λΔt) × (1 - SimHashDistance/64)
+
+70% Planets: Direct FTS matches
+30% Moons: Graph-discovered associations
 ```
 
-### UI Serving Sequence (Standalone Capability)
+---
+
+## Project History (July 2025 - February 2026)
+
+| Phase | Date | Milestone |
+|-------|------|-----------|
+| **Inception** | July 2025 | Project started, initial architecture |
+| **Foundation** | Aug-Sep 2025 | CozoDB integration, core ingestion |
+| **Stabilization** | Oct-Nov 2025 | PGlite migration, reliability fixes |
+| **Acceleration** | Dec 2025 | Native C++ modules (2.3x speedup) |
+| **Browser Paradigm** | Jan 2026 | Tag-Walker replaces vector search |
+| **Production** | Feb 2026 | 100MB ingested, 280K molecules, ready |
+
+---
+
+## File Structure
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  UI DETECTION & SERVING LOGIC                                  │
-├─────────────────────────────────────────────────────────────────┤
-│  1. Check for external UI (packages/anchor-ui/dist)           │
-│  2. If exists → Serve external UI                             │
-│  3. If not exists → Serve internal lightweight UI             │
-│  4. Set up catch-all route for SPA routing                    │
-└─────────────────────────────────────────────────────────────────┘
+anchor-engine-node/
+├── README.md              # Quick start & overview
+├── CHANGELOG.md           # Version history
+├── docs/
+│   └── whitepaper.md      # The Sovereign Context Protocol
+├── specs/
+│   ├── spec.md            # This file
+│   ├── tasks.md           # Current sprint tasks
+│   ├── plan.md            # Roadmap
+│   └── standards/
+│       ├── README.md      # Standards index
+│       ├── 104-*.md       # ⭐ Active standards
+│       └── archive/       # Historical standards
+├── engine/                # Core engine source
+├── packages/              # Monorepo packages
+└── mirrored_brain/        # Source of truth (gitignored)
 ```
 
-## Architecture Principles
+---
 
-### 1. The Browser Analogy
-| Component | Browser Equivalent | Anchor Implementation |
-|-----------|-------------------|-------------------|
-| Rendering Engine | Chromium/V8 | C++ N-API Modules |
-| Shell/Interface | Browser UI | Node.js Application |
-| Content Delivery | HTTP/CDN | Tag-Walker Protocol |
-| Storage | IndexedDB/LocalStorage | PGlite (PostgreSQL-compatible) |
+## Active Standards
 
-### 2. The "Write Once, Run Everywhere" Foundation
-Anchor achieves cross-platform compatibility through:
-- **Node.js Orchestration**: Handles OS-specific operations and networking
-- **C++ N-API Modules**: Performance-critical operations compiled to native code
-- **Standard ABI**: N-API provides a stable interface between JavaScript and C++
-- **Universal Binaries**: Automated build system creates platform-specific native modules
+| # | Name | Description |
+|---|------|-------------|
+| **104** | Universal Semantic Search | Unified search architecture |
+| **110** | Ephemeral Index | Disposable database pattern |
+| **109** | Batched Ingestion | Large file handling |
+| **094** | Smart Search Protocol | Fuzzy fallback (deprecated but referenced) |
+| **088** | Server Startup Sequence | ECONNREFUSED fix |
+| **074** | Native Module Acceleration | Iron Lung Protocol |
+| **065** | Graph Associative Retrieval | Tag-Walker protocol |
+| **059** | Reliable Ingestion | Ghost Data Protocol |
 
-### 3. The "Iron Lung" Protocol
-The hybrid Node.js/C++ architecture implements the "Iron Lung" protocol:
+See `specs/standards/README.md` for full index.
+
+---
+
+## API Endpoints
+
+```bash
+GET  /health                     # System status
+POST /v1/ingest                  # Ingest content
+POST /v1/memory/search           # Search memory
+GET  /v1/buckets                 # List buckets
+GET  /v1/tags                    # List tags
 ```
-[User Input] -> [Node.js Layer] -> [N-API Boundary] -> [C++ Performance Layer] -> [Results]
-```
 
-This allows rapid development in JavaScript while maintaining performance-critical operations in C++.
+---
 
-## System Components
+## Performance Benchmarks
 
-### Core Services
-- **Ingestion Service**: Content processing pipeline with native acceleration
-- **Search Service**: Tag-Walker protocol for graph-based associative retrieval
-- **Watchdog Service**: File system monitoring with debounced processing
-- **Dreamer Service**: Background processing for self-organization (Bulk UPSERTs, Sub-batched)
-- **Backup Service**: Snapshot management for data persistence
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| **90MB Ingestion** | ~178s | <200s | ✅ |
+| **Memory Peak** | <1GB | <1GB | ✅ |
+| **Search Latency (p95)** | ~150ms | <200ms | ✅ |
+| **SimHash Speed** | ~2ms/atom | <5ms | ✅ |
 
-### Database Schema (PostgreSQL-compatible)
-- **Atoms Table**: Individual knowledge units with content, metadata, and relationships
-- **Tags Table**: Semantic tags and relationships between atoms
-- **Edges Table**: Connections between related atoms
-- **Atom Positions Table**: Byte offsets for radial context inflation (keyword → file position)
-- **Sources Table**: Document origins and ingestion metadata
-- **Molecules/Compounds Tables**: Hierarchical content organization
+---
 
-### API Endpoints
-- `GET /health` - System readiness check (handles uninitialized state)
-- `POST /v1/ingest` - Content ingestion with semantic processing
-- `POST /v1/memory/search` - Semantic search with token budgeting
-- `POST /v1/memory/molecule-search` - Splits query into sentence-like chunks
-- `GET /v1/buckets` - Get available data buckets
-- `GET /v1/tags` - Get available tags
-- `POST /v1/backup` - Create database backup
-- `GET /v1/backups` - List available backups
-- `POST /v1/backup/restore` - Restore from backup
-- `GET /*` - Catch-all route for UI serving (serves appropriate index.html)
+## Documentation
 
-## Performance Characteristics
+- **[README.md](../README.md)** - Quick start, API examples, troubleshooting
+- **[CHANGELOG.md](../CHANGELOG.md)** - Version history with 6-month timeline
+- **[docs/whitepaper.md](../docs/whitepaper.md)** | The Sovereign Context Protocol
+- **[specs/tasks.md](tasks.md)** - Current sprint tasks
+- **[specs/plan.md](plan.md)** - Project roadmap
+- **[specs/standards/](standards/)** - Architecture standards
 
-### Native Module Benefits
-- **2.3x Performance Improvement**: Over pure JavaScript implementations
-- **Sub-millisecond Processing**: For typical operations
-- **Zero-Copy String Processing**: Using `std::string_view` to reduce memory pressure
-- **Batch Processing**: SIMD-optimized operations and **Chunked DB Writes** for stable ingestion
-- **O(1) Transactional Ingestion**: Atomic batch commits per chunk (vs O(N) per atom)
-- **Parallelized Context Inflation**: Concurrent search term expansion using `Promise.all`
+---
 
-### Critical Path Operations
-1. **Atomization**: Splitting content into semantic molecules
-2. **Sanitization**: Removing JSON artifacts and log spam ("Key Assassin")
-3. **Fingerprinting**: Generating SimHash for deduplication
-4. **Distance Calculation**: Computing similarity between fingerprints
-
-## Search Architecture
-
-### Tag-Walker Protocol
-The core search mechanism replaces legacy vector search with graph-based associative retrieval:
-1. **Initial FTS**: Full-text search with GIN index
-2. **Pivot**: Identify key terms and semantic categories
-3. **Walk**: Traverse graph relationships to find related content
-4. **Radial Inflation**: Expand context from disk using `Atom Positions` (partial file reads)
-
-### Smart Search Protocol (Standard 094)
-- **Intelligent Parsing**: Remove stopwords and detect intent
-- **Fuzzy Fallback**: Automatically retry with broader logic if strict search fails
-- **Dynamic Sorting**: Use keywords like "earliest" or "oldest" to toggle chronological sorting
-- **Tag-Based Filtering**: Use hashtags for precise filtering
-
-## Data Model
-
-### Atomic Architecture: Compound → Molecule → Atom
-- **Compound**: The source document (e.g., `journal_entry.yaml`)
-- **Molecule**: The text chunk with semantic meaning (e.g., paragraph/sentence)
-- **Atom**: The atomic entity within molecules (e.g., "Alice", "Bob", "Albuquerque")
-
-### Semantic Categories
-Instead of unlimited granular tags, the system uses constrained semantic categories:
-- `#Relationship`: People interacting, personal connections
-- `#Narrative`: Stories, timelines, memories, sequences
-- `#Technical`: Code, architecture, system documentation
-- `#Industry`: External market data (Oil, CO2, etc.)
-- `#Location`: Geographic or spatial references
-- `#Emotional`: High sentiment variance content
-- `#Temporal`: Time-based sequences and chronology
-- `#Causal`: Cause-effect relationships
-
-## Agent Harness Integration
-
-### Harness Agnosticism Goal
-Anchor is designed to be **agent harness agnostic**, meaning it can work with multiple agent frameworks and systems. While **OpenCLAW** is the primary harness we intend to use, the system is architected to support:
-
-- OpenCLAW (primary target)
-- Other custom agent frameworks
-- Third-party agent systems
-- Direct API integrations
-
-### Standalone UI Capability
-The Anchor Engine includes a **built-in lightweight UI** that:
-- Serves from the engine's own `public` directory when running standalone
-- Uses the external UI from `packages/anchor-ui/dist` when integrated with the full system
-- Provides essential functionality: search, health checks, backup operations
-- Automatically detects which UI to serve based on availability
-- Enables the engine to function as a standalone search tool
-
-### Data Atomization Service
-Anchor's core function is as a **data atomization service** that:
-- Packages diverse data types into semantically meaningful units
-- Enables semantic utilization of multiple data types
-- Provides CLI access for querying and parsing data
-- Outputs data in standardized formats (tables, CSV, JSON)
-- Serves as a foundational layer for various agent systems
-
-The system can be queried through the Anchor CLI to parse data into structured formats that can be consumed by any agent harness.
-
-## Error Handling & Resilience
-
-### Graceful Degradation
-- **Native Module Fallback**: JavaScript implementations when native modules unavailable
-- **Database Connectivity**: Health checks handle uninitialized state gracefully
-- **Connection Stability**: Fixed ECONNREFUSED errors with proper startup sequence
-- **Resource Management**: Memory optimization and automatic garbage collection
-
-### Startup Error Prevention (Standard 088)
-- Server binds to port before database initialization
-- Health endpoints handle uninitialized state gracefully
-- Extended timeouts for initialization sequences
-- Fallback mechanisms for database connectivity
-
-## Security & Privacy
-
-### Local-First Architecture
-- All data remains under user control, no cloud dependencies
-- Encryption for sensitive data storage
-- Secure configuration management
-- Process isolation between components
-
-### Access Control
-- Localhost-only binding for sensitive endpoints
-- Input validation for all API routes
-- Secure transmission protocols
-- Access logging for audit trails
-
-## Monitoring & Observables
-
-### Health Checks
-- System status: `GET /health`
-- Component status: `GET /health/{component}`
-- Performance metrics: `GET /monitoring/metrics`
-- Resource utilization: Continuous monitoring with configurable intervals
-
-### Diagnostic Capabilities
-- Structured logging with context
-- Request tracing across components
-- Performance counters for operations
-- Error correlation and analysis
-
-## Configuration Management
-
-### Runtime Configuration
-- Environment variable overrides
-- JSON configuration files
-- Dynamic reload capabilities
-- Validation for configuration changes
-
-### Feature Flags
-- Toggle services without restart
-- Enable/disable experimental features
-- A/B testing support
-- Rollback capabilities
-
-## Deployment Architecture
-
-### Technology Stack
-- **Backend**: Node.js with Express.js
-- **Database**: PGlite (PostgreSQL-compatible)
-- **Frontend**: TypeScript, React (Vite build system) with lightweight fallback UI
-- **Desktop**: Electron wrapper
-- **AI Integration**: Local LLM support with remote fallback
-
-### Cross-Platform Support
-- Windows 10+ / macOS 10.15+ / Linux Ubuntu 20.04+
-- Consistent performance across platforms
-- Platform-specific binary compilation
-- Universal installation scripts
-
-### Service-Oriented Architecture
-The system follows a service-oriented architecture with distinct responsibilities:
-- **anchor-engine**: Pure knowledge database service (Node/C++ DB API on Port 3160)
-- **inference-server**: Standalone inference server (Port 3001)
-- **anchor-ui**: React frontend interface (Port 5173 for development)
-- **nanobot-node**: Stateless agent connecting the services
-- **openclaw**: Primary agent harness for interacting with the Anchor system
-
-## Standards Implemented (See `specs/standards/*.md`)
-
-**Total:** 77 Architecture Standards
-
-### Core Standards
-*   **Search**: `Search_Protocol.md` (Universal Semantic Search, 70/30 Budgeting)
-*   **Architecture**: `System_Architecture.md` (Startup, Workers, UI)
-*   **Data**: `Data_Pipeline.md` (Ingestion, Tagging, Code Analysis)
-*   **Database**: `Database_Schema.md` (PGlite, Tabula Rasa)
-
-### Implementation Standards (001-114)
-- **001-099**: Core, architecture, data, and operations standards
-- **100-109**: Implementation standards including batching (109)
-- **110-114**: Ephemeral index, synonyms, tag quality, search strategies
-
-### Key Standards
-- **Standard 059**: Reliable Ingestion (Ghost Data Protocol)
-- **Standard 086**: Tag-Walker Calibration
-- **Standard 094**: Smart Search Protocol
-- **Standard 109**: Batched Ingestion (large file handling)
-- **Standard 110**: Ephemeral Index (disposable architecture)
-- **Standard 113**: Dual-Strategy Search
-- **Standard 114**: SQL Query Patterns & Memory Optimization
-
-## Implementation Status
-
-**Status:** ✅ **PRODUCTION READY**
-
-All whitepaper specifications have been implemented and verified:
-
-### Whitepaper Claims vs. Implementation
-| Feature | Status | Evidence |
-|---------|--------|----------|
-| Browser Paradigm | ✅ | specs/spec.md, README.md |
-| Node.js + C++ Hybrid | ✅ | @rbalchii/* npm packages |
-| Tag-Walker Protocol | ✅ | physics-tag-walker.ts |
-| Unified Field Equation | ✅ | Search with gravity scoring |
-| SimHash Deduplication | ✅ | native-fingerprint package |
-| Data Atomization | ✅ | atomizer-service.ts |
-| SQL-Native Implementation | ✅ | PGlite + CTEs |
-| Disposable Index | ✅ | Standard 110, mirror.ts |
-| Cross-Platform | ✅ | npm native modules |
-| Resource Efficiency | ✅ | <1GB for 90MB datasets |
-
-### Performance Verified ✅
-- 90MB ingestion: ~200s (target: <200s) ✅
-- Memory peak: <1GB (target: <1GB) ✅
-- Search latency: <200ms p95 (target: <200ms) ✅
-- Event loop yielding: <100ms (target: <100ms) ✅
-- Native acceleration: 20x (target: 20x) ✅
-
-## Change Management
-
-### Versioning Strategy
-- Semantic versioning for releases
-- Backward compatibility preservation
-- Migration path documentation
-- Deprecation notices
-
-### Testing Integration
-- Automated testing for all changes
-- Integration testing for workflows
-- Performance regression testing
-- Security vulnerability scanning
+**Repository:** https://github.com/RSBalchII/anchor-engine-node  
+**License:** AGPL-3.0  
+**Production Status:** ✅ Ready (February 20, 2026)

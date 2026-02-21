@@ -183,13 +183,17 @@ export function serializeForLLM(pkg: ContextPackage, charBudget?: number): strin
     output += '// DIRECT HITS\n';
     currentChars += 16;
 
+    // Dynamic per-atom budget scaling based on total budget and number of atoms
+    const maxAtomChars = budget > 200000 
+      ? Math.min(8000, Math.floor(budget * 0.8 / pkg.anchors.length)) 
+      : (budget > 50000 ? 2500 : 500);
+
     for (const node of pkg.anchors) {
       if (currentChars >= budget * 0.95) break;
 
-      const maxAtomChars = budget > 50000 ? 2500 : 500;
       const truncatedContent = truncateContent(node.content, Math.min(maxAtomChars, budget - currentChars - 100));
       const tagsStr = node.tags.length > 0 ? node.tags.slice(0, 5).join(', ') : 'none';
-      
+
       const line = `[N:${shortId(node.id)}] (freq:${node.physics.frequency}) "${truncatedContent}"\n   -> [Themes: ${tagsStr}]\n`;
       output += line;
       currentChars += line.length;
@@ -201,15 +205,19 @@ export function serializeForLLM(pkg: ContextPackage, charBudget?: number): strin
     output += '\n// ASSOCIATED MEMORIES\n';
     currentChars += 24;
 
+    // Dynamic per-association budget scaling based on total budget and number of associations
+    const maxAssocChars = budget > 200000 
+      ? Math.min(5000, Math.floor(budget * 0.15 / pkg.associations.length)) 
+      : (budget > 50000 ? 1500 : 400);
+
     for (const node of pkg.associations) {
       if (currentChars >= budget * 0.95) break;
 
-      const maxAssocChars = budget > 50000 ? 1500 : 400;
       const truncatedContent = truncateContent(node.content, Math.min(maxAssocChars, budget - currentChars - 100));
       const typeLabel = connectionTypeLabel(node.physics.connection_type);
       const anchorRef = node.physics.source_anchor_id ? shortId(node.physics.source_anchor_id) : '?';
       const reason = node.physics.link_reason || node.physics.connection_type;
-      
+
       const line = `[N:${shortId(node.id)}] [W:${node.physics.gravity_score.toFixed(2)}|${typeLabel}] "${truncatedContent}"\n   -> LINKED_TO: [N:${anchorRef}] (${reason})\n`;
       output += line;
       currentChars += line.length;
@@ -372,5 +380,16 @@ export function assembleContextPackage(opts: AssembleOptions): ContextPackage {
  */
 export function assembleAndSerialize(opts: AssembleOptions): string {
   const pkg = assembleContextPackage(opts);
+  
+  // Debug logging for large budgets
+  if (opts.charBudget && opts.charBudget > 100000) {
+    const totalContentChars = pkg.anchors.reduce((sum, n) => sum + n.content.length, 0) + 
+                              pkg.associations.reduce((sum, n) => sum + n.content.length, 0);
+    console.log(`[Serializer] Budget: ${opts.charBudget}, Anchors: ${pkg.anchors.length}, Associations: ${pkg.associations.length}, Total content: ${totalContentChars} chars`);
+    if (pkg.anchors.length > 0) {
+      console.log(`[Serializer] Avg anchor content: ${Math.round(totalContentChars / pkg.anchors.length)} chars`);
+    }
+  }
+  
   return serializeForLLM(pkg, opts.charBudget);
 }
